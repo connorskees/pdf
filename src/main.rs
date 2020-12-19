@@ -766,7 +766,7 @@ impl Lexer {
 
     /// We read backwards in 1024 byte chunks, looking for `"startxref"`
     fn read_xref(&mut self) -> PdfResult<Xref> {
-        let mut pos = self.file.len() - 1;
+        let mut pos = self.file.len().saturating_sub(1);
 
         let idx = loop {
             if pos == 0 {
