@@ -1,27 +1,45 @@
 #![feature(or_patterns)]
 // TODO: consider verifying the file header
 
+mod xref;
+
 use std::{
     collections::HashMap,
     fs::File,
     io::{self, Read},
+    todo,
 };
+
+use crate::xref::{EntryKind, Xref, XrefEntry};
 
 const FORM_FEED: u8 = b'\x0C';
 const BACKSPACE: u8 = b'\x08';
 
+const START_XREF_SIGNATURE: &[u8; 9] = b"startxref";
+const KILOBYTE: usize = 1024;
+
 #[derive(Debug)]
-struct ParseError;
+enum ParseError {
+    MismatchedByte {
+        expected: u8,
+        found: Option<u8>,
+    },
+    MismatchedByteMany {
+        expected: &'static [u8],
+        found: Option<u8>,
+    },
+    UnexpectedEof,
+    IoError(io::Error),
+    Todo,
+}
+
+impl From<io::Error> for ParseError {
+    fn from(err: io::Error) -> Self {
+        Self::IoError(err)
+    }
+}
 
 type PdfResult<T> = Result<T, ParseError>;
-
-// enum PdfResult<Object> {
-//     Pages,
-//     Page,
-//     Catalog,
-//     Root,
-//     Font,
-// }
 
 #[derive(Debug, Clone)]
 enum Object {
@@ -41,14 +59,14 @@ impl Object {
     pub fn assert_integer(self) -> PdfResult<i32> {
         match self {
             Self::Integer(i) => Ok(i),
-            _ => Err(ParseError),
+            _ => Err(ParseError::Todo),
         }
     }
 
     pub fn assert_dict(self) -> PdfResult<HashMap<String, Self>> {
         match self {
             Self::Dictionary(d) => Ok(d),
-            _ => Err(ParseError),
+            _ => Err(ParseError::Todo),
         }
     }
 }
@@ -68,7 +86,7 @@ impl StreamDict {
         let len = dict
             .remove("Length")
             .map(Object::assert_integer)
-            .ok_or(ParseError)?? as usize;
+            .ok_or(ParseError::Todo)?? as usize;
 
         let filter = dict.remove("Filter");
         let decode_params = dict.remove("DecodeParms");
@@ -269,7 +287,6 @@ impl Lexer {
         whole_number
     }
 
-    // TODO: figure out how parens work
     fn lex_string(&mut self) -> PdfResult<Object> {
         self.expect_byte(b'(')?;
 
@@ -409,6 +426,17 @@ impl Lexer {
         }
     }
 
+    fn next_byte_err(&mut self) -> PdfResult<u8> {
+        self.file
+            .get(self.pos)
+            .cloned()
+            .map(|b| {
+                self.pos += 1;
+                b
+            })
+            .ok_or(ParseError::UnexpectedEof)
+    }
+
     fn next_byte(&mut self) -> Option<u8> {
         self.file.get(self.pos).cloned().map(|b| {
             self.pos += 1;
@@ -437,7 +465,10 @@ impl Lexer {
     fn expect_byte(&mut self, b: u8) -> PdfResult<()> {
         match self.next_byte() {
             Some(b2) if b == b2 => Ok(()),
-            Some(..) | None => Err(ParseError),
+            b2 => Err(ParseError::MismatchedByte {
+                expected: b,
+                found: b2,
+            }),
         }
     }
 
@@ -450,7 +481,10 @@ impl Lexer {
                 }
                 Ok(())
             }
-            Some(..) | None => todo!(),
+            b => Err(ParseError::MismatchedByteMany {
+                expected: &[b'\n', b'\r'],
+                found: b,
+            }),
         }
     }
 
@@ -502,53 +536,124 @@ impl Lexer {
         }
     }
 
-    pub fn run(mut self) -> PdfResult<Vec<Object>> {
-        while self.peek_byte().is_some() {
-            dbg!("hiiii");
-            self.lex_object()?;
+    /// We read backwards in 1024 byte chunks, looking for `"startxref"`
+    fn read_xref(&mut self) -> PdfResult<Xref> {
+        let mut pos = self.file.len() - 1;
+
+        let idx = loop {
+            if pos == 0 {
+                todo!();
+            }
+
+            let next_pos = pos.saturating_sub(KILOBYTE - START_XREF_SIGNATURE.len());
+            if let Some(start) = self.file[next_pos..=pos]
+                .windows(START_XREF_SIGNATURE.len())
+                .position(|window| window == START_XREF_SIGNATURE)
+            {
+                break start + next_pos;
+            }
+
+            pos = next_pos;
+        };
+
+        self.pos = idx;
+
+        self.expect_byte(b's')?;
+        self.expect_byte(b't')?;
+        self.expect_byte(b'a')?;
+        self.expect_byte(b'r')?;
+        self.expect_byte(b't')?;
+        self.expect_byte(b'x')?;
+        self.expect_byte(b'r')?;
+        self.expect_byte(b'e')?;
+        self.expect_byte(b'f')?;
+
+        self.skip_whitespace();
+
+        let xref_pos = self.lex_whole_number().parse::<usize>().unwrap();
+
+        self.pos = xref_pos;
+
+        self.lex_xref()
+    }
+
+    fn lex_xref(&mut self) -> PdfResult<Xref> {
+        self.expect_byte(b'x')?;
+        self.expect_byte(b'r')?;
+        self.expect_byte(b'e')?;
+        self.expect_byte(b'f')?;
+
+        self.skip_whitespace();
+
+        let mut objects = HashMap::new();
+
+        loop {
+            let idx_offset = self.lex_whole_number().parse::<usize>().unwrap();
+            self.skip_whitespace();
+
+            let num_of_entries = self.lex_whole_number().parse::<usize>().unwrap();
+            self.expect_eol()?;
+
+            objects.reserve(num_of_entries);
+
+            for i in 0..num_of_entries {
+                let byte_offset = self.lex_whole_number().parse::<usize>().unwrap();
+                self.skip_whitespace();
+                let generation = self.lex_whole_number().parse::<u16>().unwrap();
+                self.skip_whitespace();
+                let entry_kind = EntryKind::from_byte(self.next_byte_err()?)?;
+                self.skip_whitespace();
+
+                objects.insert(
+                    i + idx_offset,
+                    XrefEntry {
+                        byte_offset,
+                        generation,
+                        kind: entry_kind,
+                    },
+                );
+            }
+
+            match self.peek_byte() {
+                Some(b't') => break,
+                Some(b'0'..=b'9') => continue,
+                found => {
+                    return Err(ParseError::MismatchedByteMany {
+                        found,
+                        expected: &[
+                            b't', b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9',
+                        ],
+                    })
+                }
+            }
         }
 
-        Ok(self.objects)
+        Ok(Xref { objects })
     }
 }
 
 struct Parser {
     lexer: Lexer,
+    xref: Xref,
 }
 
 impl Parser {
-    pub fn new(p: &'static str) -> io::Result<Self> {
-        let lexer = Lexer::new(p)?;
+    pub fn new(p: &'static str) -> PdfResult<Self> {
+        let mut lexer = Lexer::new(p)?;
+        let xref = lexer.read_xref()?;
 
-        Ok(Self { lexer })
+        Ok(Self { lexer, xref })
+    }
+
+    pub fn run(mut self) -> PdfResult<Vec<Object>> {
+        todo!()
     }
 }
 
-fn main() -> io::Result<()> {
+fn main() -> PdfResult<()> {
     let mut parser = Parser::new("hello-world.pdf")?;
 
-    dbg!(parser.lexer.run().unwrap());
-
-    // let mut line = Vec::new();
-
-    // loop {
-    //     line.clear();
-    //     if file.read_vectored(b'\n', &mut line)? == 0 {
-    //         break;
-    //     }
-
-    //     if line.starts_with(b"%%EOF") {
-    //         break;
-    //     }
-
-    //     if line.starts_with(b"%") {
-    //         continue;
-    //     }
-    // }
-
-    // for line in file.lines() {
-
-    // }
+    dbg!(parser.run().unwrap());
 
     Ok(())
 }
