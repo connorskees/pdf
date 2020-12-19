@@ -330,7 +330,7 @@ impl Lexer {
 
     fn lex_object(&mut self) -> PdfResult<Object> {
         self.skip_whitespace();
-        match self.peek_byte() {
+        let obj = match self.peek_byte() {
             Some(b't') => self.lex_true(),
             Some(b'f') => self.lex_false(),
             Some(b'n') => self.lex_null(),
@@ -345,7 +345,9 @@ impl Lexer {
             }
             Some(b) => todo!("{:?}", b as char),
             None => todo!(),
-        }
+        }?;
+        self.skip_whitespace();
+        Ok(obj)
     }
 
     /// Assumes leading 't' has not been consumed
@@ -550,6 +552,7 @@ impl Lexer {
                     }
                 }
                 _ => {
+                    self.next_byte();
                     string.push(b as char);
                 }
             }

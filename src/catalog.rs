@@ -12,7 +12,7 @@ document is opened.
 */
 use std::todo;
 
-use crate::{Dictionary, ParseError, PdfResult, Reference};
+use crate::{Dictionary, Object, ParseError, PdfResult, Reference};
 
 /// See module level documentation
 #[derive(Debug)]
@@ -186,7 +186,7 @@ impl DocumentCatalog {
         let needs_rendering = dict.get_bool("NeedsRendering")?.unwrap_or(false);
 
         if !dict.is_empty() {
-            todo!()
+            todo!("dict not empty: {:#?}", dict);
         }
 
         Ok(DocumentCatalog {
@@ -229,7 +229,10 @@ pub struct InformationDictionary;
 #[derive(Debug)]
 pub struct Extensions;
 #[derive(Debug)]
-pub struct Pages;
+pub struct Pages {}
+#[derive(Debug)]
+struct PageNode {}
+
 #[derive(Debug)]
 pub struct NumberTree;
 #[derive(Debug)]
@@ -390,7 +393,8 @@ pub struct Trailer {
     pub root: Reference,
 
     pub encryption: Option<Encryption>,
-    pub id: Option<[String; 2]>,
+    id: Option<Vec<Object>>,
+    // pub id: Option<[String; 2]>,
     pub info: Option<Reference>,
 }
 
@@ -401,11 +405,11 @@ impl Trailer {
         let root = dict.expect_reference("Root")?;
         // TODO: encryption dicts
         let encryption = None;
-        let id = None;
+        let id = dict.get_arr("ID")?;
         let info = dict.get_reference("Info")?;
 
         if !dict.is_empty() {
-            todo!()
+            todo!("dict not empty: {:#?}", dict);
         }
 
         Ok(Trailer {
