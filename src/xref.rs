@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{ParseError, PdfResult};
+use crate::{ParseError, PdfResult, Reference};
 
 /// The cross-reference table contains information
 /// that permits random access to indirect objects
@@ -9,6 +9,14 @@ use crate::{ParseError, PdfResult};
 #[derive(Debug)]
 pub struct Xref {
     pub objects: HashMap<usize, XrefEntry>,
+}
+
+impl Xref {
+    pub fn get_offset(&self, reference: Reference) -> Option<usize> {
+        self.objects
+            .get(&reference.object_number)
+            .map(|entry| entry.byte_offset)
+    }
 }
 
 #[derive(Debug)]

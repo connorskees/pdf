@@ -10,14 +10,13 @@ be displayed automatically and whether some location
 other than the first page shall be shown when the
 document is opened.
 */
-use crate::{Dictionary, Name, ParseError, PdfResult, Reference};
+use std::todo;
+
+use crate::{Dictionary, ParseError, PdfResult, Reference};
 
 /// See module level documentation
+#[derive(Debug)]
 pub struct DocumentCatalog {
-    // must be "Catalog"
-    // TODO: definitely don't need this field
-    ty: Name,
-
     /// The version of the PDF specification
     /// to which the document conforms(for example,
     /// 1.4) if later than the version specified in
@@ -33,11 +32,11 @@ pub struct DocumentCatalog {
     /// not a number, and therefore shall be preceded
     /// by a SOLIDUS (2Fh) character (/) when written
     /// in the PDF file (for example, /1.4).
-    version: Option<Name>,
+    version: Option<String>,
 
     extensions: Option<Extensions>,
 
-    pages: Pages,
+    pages: Reference,
 
     /// A number tree defining the page labelling for
     /// the document. The keys in this tree shall be
@@ -51,7 +50,8 @@ pub struct DocumentCatalog {
 
     names: Option<NameDictionary>,
 
-    dests: Option<NamedDestinations>,
+    /// A dictionary of names and corresponding destinations
+    dests: Option<Reference>,
 
     // A viewer preferences dictionary specifying the way
     /// the document shall be displayed on the screen. If
@@ -63,9 +63,9 @@ pub struct DocumentCatalog {
 
     page_mode: PageMode,
 
-    outlines: Option<DocumentOutline>,
+    outlines: Option<Reference>,
 
-    threads: Option<Vec<ThreadDictionary>>,
+    threads: Option<Reference>,
 
     /// A value specifying a destination that shall be displayed
     /// or an action that shall be performed when the document
@@ -86,7 +86,7 @@ pub struct DocumentCatalog {
 
     acro_form: Option<AcroForm>,
 
-    metadata: Option<MetadataStream>,
+    metadata: Option<Reference>,
 
     struct_tree_root: Option<StructTreeRoot>,
 
@@ -138,6 +138,88 @@ pub struct DocumentCatalog {
     ///
     /// Default value: false.
     needs_rendering: bool,
+}
+
+impl DocumentCatalog {
+    pub(crate) fn from_dict(mut dict: Dictionary) -> PdfResult<Self> {
+        if dict.expect_name("Type")? != "Catalog" {
+            todo!()
+        }
+
+        let version = dict.get_name("Version")?;
+        let extensions = None;
+        let pages = dict.expect_reference("Pages")?;
+        let page_labels = None;
+        let names = None;
+        let dests = None;
+        let viewer_preferences = None;
+
+        let page_layout = dict
+            .get_name("PageLayout")?
+            .as_deref()
+            .map(PageLayout::from_str)
+            .unwrap_or(Ok(PageLayout::default()))?;
+        let page_mode = dict
+            .get_name("PageMode")?
+            .as_deref()
+            .map(PageMode::from_str)
+            .unwrap_or(Ok(PageMode::default()))?;
+
+        let outlines = dict.get_reference("Outlines")?;
+        let threads = dict.get_reference("Threads")?;
+        let open_action = None;
+        let aa = None;
+        let uri = None;
+        let acro_form = None;
+        let metadata = dict.get_reference("Metadata")?;
+        let struct_tree_root = None;
+        let mark_info = None;
+        let lang = dict.get_string("Lang")?;
+        let spider_info = None;
+        let output_intents = None;
+        let piece_info = None;
+        let oc_properties = None;
+        let perms = None;
+        let legal = None;
+        let requirements = None;
+        let collection = None;
+        let needs_rendering = dict.get_bool("NeedsRendering")?.unwrap_or(false);
+
+        if !dict.is_empty() {
+            todo!()
+        }
+
+        Ok(DocumentCatalog {
+            version,
+            extensions,
+            pages,
+            page_labels,
+            names,
+            dests,
+            viewer_preferences,
+            page_layout,
+            page_mode,
+            outlines,
+            threads,
+            open_action,
+            aa,
+            uri,
+            acro_form,
+            metadata,
+            struct_tree_root,
+            mark_info,
+            lang,
+            spider_info,
+            output_intents,
+            piece_info,
+            oc_properties,
+            perms,
+            legal,
+            requirements,
+            collection,
+            needs_rendering,
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -192,6 +274,7 @@ pub struct Requirement;
 pub struct Collection;
 
 /// Specifies the page layout when the document is opened
+#[derive(Debug)]
 enum PageLayout {
     /// Display one page at a time
     SinglePage,
@@ -238,6 +321,7 @@ impl Default for PageLayout {
 
 /// A name object specifying how the document shall be
 /// displayed when opened
+#[derive(Debug)]
 enum PageMode {
     /// Neither document outline nor thumbnail
     /// images visible
@@ -293,7 +377,7 @@ pub struct Trailer {
     /// whose number is greater than this value shall
     /// be ignored and defined to be missing by a
     /// conforming reader.
-    size: usize,
+    pub size: usize,
 
     /// The byte offset in the decoded stream from the
     /// beginning of the file to the beginning of the
@@ -301,13 +385,13 @@ pub struct Trailer {
     ///
     /// Present only if the file has more than one
     /// cross-reference section.
-    prev: Option<usize>,
+    pub prev: Option<usize>,
 
-    root: Reference,
+    pub root: Reference,
 
-    encryption: Option<Encryption>,
-    id: Option<[String; 2]>,
-    info: Option<InformationDictionary>,
+    pub encryption: Option<Encryption>,
+    pub id: Option<[String; 2]>,
+    pub info: Option<Reference>,
 }
 
 impl Trailer {
@@ -315,10 +399,14 @@ impl Trailer {
         let size = dict.expect_integer("Size")? as usize;
         let prev = dict.get_integer("Prev")?.map(|i| i as usize);
         let root = dict.expect_reference("Root")?;
-        // TODO: trailer dicts
+        // TODO: encryption dicts
         let encryption = None;
-        let info = None;
         let id = None;
+        let info = dict.get_reference("Info")?;
+
+        if !dict.is_empty() {
+            todo!()
+        }
 
         Ok(Trailer {
             size,

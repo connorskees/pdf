@@ -10,6 +10,8 @@ use std::{
     io::{self, Read},
 };
 
+use catalog::DocumentCatalog;
+
 use crate::{
     catalog::Trailer,
     xref::{EntryKind, Xref, XrefEntry},
@@ -51,11 +53,9 @@ impl From<io::Error> for ParseError {
 
 type PdfResult<T> = Result<T, ParseError>;
 
-struct Name(String);
-
 /// A reference to a non-existing object is considered a `null`
-#[derive(Debug, Clone)]
-struct Reference {
+#[derive(Debug, Copy, Clone)]
+pub struct Reference {
     object_number: usize,
     generation: usize,
 }
@@ -66,6 +66,7 @@ enum ObjectType {
     Boolean,
     Integer,
     Real,
+    String,
     Name,
     Array,
     Stream,
@@ -121,6 +122,10 @@ impl Dictionary {
         Self::swap(self.dict.remove(key).map(Object::assert_reference))
     }
 
+    pub fn get_string(&mut self, key: &str) -> PdfResult<Option<String>> {
+        Self::swap(self.dict.remove(key).map(Object::assert_string))
+    }
+
     pub fn expect_reference(&mut self, key: &'static str) -> PdfResult<Reference> {
         self.dict
             .remove(key)
@@ -134,6 +139,32 @@ impl Dictionary {
 
     pub fn is_empty(&self) -> bool {
         self.dict.is_empty()
+    }
+
+    pub fn get_name(&mut self, key: &str) -> PdfResult<Option<String>> {
+        Self::swap(self.dict.remove(key).map(Object::assert_name))
+    }
+
+    pub fn expect_name(&mut self, key: &'static str) -> PdfResult<String> {
+        self.dict
+            .remove(key)
+            .map(Object::assert_name)
+            .ok_or(ParseError::MissingRequiredKey { key })?
+    }
+
+    pub fn expect_dict(&mut self, key: &'static str) -> PdfResult<Dictionary> {
+        self.dict
+            .remove(key)
+            .map(Object::assert_dict)
+            .ok_or(ParseError::MissingRequiredKey { key })?
+    }
+
+    pub fn get_arr(&mut self, key: &str) -> PdfResult<Option<Vec<Object>>> {
+        Self::swap(self.dict.remove(key).map(Object::assert_arr))
+    }
+
+    pub fn get_bool(&mut self, key: &str) -> PdfResult<Option<bool>> {
+        Self::swap(self.dict.remove(key).map(Object::assert_bool))
     }
 }
 
@@ -163,6 +194,47 @@ impl Object {
             Self::Reference(r) => Ok(r),
             found => Err(ParseError::MismatchedObjectType {
                 expected: ObjectType::Reference,
+                found,
+            }),
+        }
+    }
+
+    pub fn assert_name(self) -> PdfResult<String> {
+        match self {
+            Self::Name(n) => Ok(n),
+            found => Err(ParseError::MismatchedObjectType {
+                expected: ObjectType::Name,
+                found,
+            }),
+        }
+    }
+
+    pub fn assert_string(self) -> PdfResult<String> {
+        match self {
+            Self::String(s) => Ok(s),
+            found => Err(ParseError::MismatchedObjectType {
+                expected: ObjectType::String,
+                found,
+            }),
+        }
+    }
+
+    pub fn assert_arr(self) -> PdfResult<Vec<Object>> {
+        match self {
+            Self::Array(a) => Ok(a),
+            found => Err(ParseError::MismatchedObjectType {
+                expected: ObjectType::Array,
+                found,
+            }),
+        }
+    }
+
+    pub fn assert_bool(self) -> PdfResult<bool> {
+        match self {
+            Self::True => Ok(true),
+            Self::False => Ok(false),
+            found => Err(ParseError::MismatchedObjectType {
+                expected: ObjectType::Boolean,
                 found,
             }),
         }
@@ -222,6 +294,38 @@ impl Lexer {
             pos: 0,
             objects: Vec::new(),
         })
+    }
+
+    fn lex_object_from_reference(
+        &mut self,
+        reference: Reference,
+        xref: &Xref,
+    ) -> PdfResult<Object> {
+        self.pos = match xref.get_offset(reference) {
+            Some(p) => p,
+            None => return Ok(Object::Null),
+        };
+
+        self.lex_whole_number();
+        self.skip_whitespace();
+        self.lex_whole_number();
+        self.skip_whitespace();
+        self.expect_byte(b'o')?;
+        self.expect_byte(b'b')?;
+        self.expect_byte(b'j')?;
+        self.skip_whitespace();
+
+        let obj = self.lex_object()?;
+
+        self.skip_whitespace();
+        self.expect_byte(b'e')?;
+        self.expect_byte(b'n')?;
+        self.expect_byte(b'd')?;
+        self.expect_byte(b'o')?;
+        self.expect_byte(b'b')?;
+        self.expect_byte(b'j')?;
+
+        Ok(obj)
     }
 
     fn lex_object(&mut self) -> PdfResult<Object> {
@@ -375,7 +479,6 @@ impl Lexer {
             self.skip_whitespace();
             match self.next_byte() {
                 Some(b'R') => {
-                    dbg!(self.peek_byte());
                     return Ok(Object::Reference(Reference {
                         object_number: whole_number.parse::<usize>().unwrap(),
                         generation: generation.parse::<usize>().unwrap(),
@@ -773,6 +876,8 @@ impl Lexer {
 struct Parser {
     lexer: Lexer,
     xref: Xref,
+    trailer: Trailer,
+    catalog: DocumentCatalog,
 }
 
 impl Parser {
@@ -780,10 +885,19 @@ impl Parser {
         let mut lexer = Lexer::new(p)?;
         let xref = lexer.read_xref()?;
         let trailer = lexer.lex_trailer()?;
+        let catalog = DocumentCatalog::from_dict(
+            lexer
+                .lex_object_from_reference(trailer.root, &xref)?
+                .assert_dict()?,
+        )?;
+        dbg!(&catalog);
 
-        dbg!(trailer);
-
-        Ok(Self { lexer, xref })
+        Ok(Self {
+            lexer,
+            xref,
+            trailer,
+            catalog,
+        })
     }
 
     pub fn run(mut self) -> PdfResult<Vec<Object>> {
