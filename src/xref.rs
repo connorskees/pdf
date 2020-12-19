@@ -2,6 +2,10 @@ use std::collections::HashMap;
 
 use crate::{ParseError, PdfResult};
 
+/// The cross-reference table contains information
+/// that permits random access to indirect objects
+/// within the file so that the entire file need
+/// not be read to locate any particular object
 #[derive(Debug)]
 pub struct Xref {
     pub objects: HashMap<usize, XrefEntry>,

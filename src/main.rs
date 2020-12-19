@@ -1,16 +1,19 @@
 #![feature(or_patterns)]
 // TODO: consider verifying the file header
 
+mod catalog;
 mod xref;
 
 use std::{
     collections::HashMap,
     fs::File,
     io::{self, Read},
-    todo,
 };
 
-use crate::xref::{EntryKind, Xref, XrefEntry};
+use crate::{
+    catalog::Trailer,
+    xref::{EntryKind, Xref, XrefEntry},
+};
 
 const FORM_FEED: u8 = b'\x0C';
 const BACKSPACE: u8 = b'\x08';
@@ -40,6 +43,8 @@ impl From<io::Error> for ParseError {
 }
 
 type PdfResult<T> = Result<T, ParseError>;
+
+struct Name(String);
 
 #[derive(Debug, Clone)]
 enum Object {
@@ -575,6 +580,10 @@ impl Lexer {
         self.pos = xref_pos;
 
         self.lex_xref()
+    }
+
+    fn lex_trailer(&mut self) -> PdfResult<Trailer> {
+        todo!()
     }
 
     fn lex_xref(&mut self) -> PdfResult<Xref> {
