@@ -1,4 +1,4 @@
-/*
+/*!
 The catalog contains references to other objects defining
 the document’s contents, outline, article threads, named
 destinations, and other attributes.
@@ -10,7 +10,7 @@ be displayed automatically and whether some location
 other than the first page shall be shown when the
 document is opened.
 */
-use crate::{Name, ParseError, PdfResult};
+use crate::{Dictionary, Name, ParseError, PdfResult, Reference};
 
 /// See module level documentation
 pub struct DocumentCatalog {
@@ -140,30 +140,55 @@ pub struct DocumentCatalog {
     needs_rendering: bool,
 }
 
+#[derive(Debug)]
 pub struct Encryption;
+#[derive(Debug)]
 pub struct InformationDictionary;
+#[derive(Debug)]
 pub struct Extensions;
+#[derive(Debug)]
 pub struct Pages;
+#[derive(Debug)]
 pub struct NumberTree;
+#[derive(Debug)]
 pub struct NameDictionary;
+#[derive(Debug)]
 pub struct NamedDestinations;
+#[derive(Debug)]
 pub struct ViewerPreferences;
+#[derive(Debug)]
 pub struct DocumentOutline;
+#[derive(Debug)]
 pub struct ThreadDictionary;
+#[derive(Debug)]
 pub struct OpenAction;
+#[derive(Debug)]
 pub struct AdditionalActions;
+#[derive(Debug)]
 pub struct UriDict;
+#[derive(Debug)]
 pub struct AcroForm;
+#[derive(Debug)]
 pub struct MetadataStream;
+#[derive(Debug)]
 pub struct StructTreeRoot;
+#[derive(Debug)]
 pub struct MarkInfo;
+#[derive(Debug)]
 pub struct WebCapture;
+#[derive(Debug)]
 pub struct OutputIntent;
+#[derive(Debug)]
 pub struct PagePiece;
+#[derive(Debug)]
 pub struct OptionalContentProperties;
+#[derive(Debug)]
 pub struct Permissions;
+#[derive(Debug)]
 pub struct Legal;
+#[derive(Debug)]
 pub struct Requirement;
+#[derive(Debug)]
 pub struct Collection;
 
 /// Specifies the page layout when the document is opened
@@ -255,6 +280,7 @@ impl Default for PageMode {
     }
 }
 
+#[derive(Debug)]
 pub struct Trailer {
     /// The total number of entries in the
     /// file's cross-reference table, as
@@ -277,9 +303,30 @@ pub struct Trailer {
     /// cross-reference section.
     prev: Option<usize>,
 
-    root: DocumentCatalog,
+    root: Reference,
 
     encryption: Option<Encryption>,
     id: Option<[String; 2]>,
     info: Option<InformationDictionary>,
+}
+
+impl Trailer {
+    pub(crate) fn from_dict(mut dict: Dictionary) -> PdfResult<Self> {
+        let size = dict.expect_integer("Size")? as usize;
+        let prev = dict.get_integer("Prev")?.map(|i| i as usize);
+        let root = dict.expect_reference("Root")?;
+        // TODO: trailer dicts
+        let encryption = None;
+        let info = None;
+        let id = None;
+
+        Ok(Trailer {
+            size,
+            prev,
+            root,
+            encryption,
+            info,
+            id,
+        })
+    }
 }

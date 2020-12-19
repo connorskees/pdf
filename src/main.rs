@@ -33,6 +33,13 @@ enum ParseError {
     },
     UnexpectedEof,
     IoError(io::Error),
+    MismatchedObjectType {
+        expected: ObjectType,
+        found: Object,
+    },
+    MissingRequiredKey {
+        key: &'static str,
+    },
     Todo,
 }
 
@@ -46,6 +53,26 @@ type PdfResult<T> = Result<T, ParseError>;
 
 struct Name(String);
 
+/// A reference to a non-existing object is considered a `null`
+#[derive(Debug, Clone)]
+struct Reference {
+    object_number: usize,
+    generation: usize,
+}
+
+#[derive(Debug)]
+enum ObjectType {
+    Null,
+    Boolean,
+    Integer,
+    Real,
+    Name,
+    Array,
+    Stream,
+    Dictionary,
+    Reference,
+}
+
 #[derive(Debug, Clone)]
 enum Object {
     Null,
@@ -57,21 +84,87 @@ enum Object {
     Name(String),
     Array(Vec<Self>),
     Stream(Vec<u8>),
-    Dictionary(HashMap<String, Self>),
+    Dictionary(Dictionary),
+    Reference(Reference),
+}
+
+#[derive(Debug, Clone)]
+struct Dictionary {
+    dict: HashMap<String, Object>,
+}
+
+impl Dictionary {
+    pub fn new(dict: HashMap<String, Object>) -> Self {
+        Self { dict }
+    }
+
+    fn swap<T>(t: Option<PdfResult<T>>) -> PdfResult<Option<T>> {
+        match t {
+            Some(Ok(v)) => Ok(Some(v)),
+            Some(Err(e)) => Err(e),
+            None => Ok(None),
+        }
+    }
+
+    pub fn get_integer(&mut self, key: &str) -> PdfResult<Option<i32>> {
+        Self::swap(self.dict.remove(key).map(Object::assert_integer))
+    }
+
+    pub fn expect_integer(&mut self, key: &'static str) -> PdfResult<i32> {
+        self.dict
+            .remove(key)
+            .map(Object::assert_integer)
+            .ok_or(ParseError::MissingRequiredKey { key })?
+    }
+
+    pub fn get_reference(&mut self, key: &str) -> PdfResult<Option<Reference>> {
+        Self::swap(self.dict.remove(key).map(Object::assert_reference))
+    }
+
+    pub fn expect_reference(&mut self, key: &'static str) -> PdfResult<Reference> {
+        self.dict
+            .remove(key)
+            .map(Object::assert_reference)
+            .ok_or(ParseError::MissingRequiredKey { key })?
+    }
+
+    pub fn get_object(&mut self, key: &str) -> Option<Object> {
+        self.dict.remove(key)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.dict.is_empty()
+    }
 }
 
 impl Object {
     pub fn assert_integer(self) -> PdfResult<i32> {
         match self {
             Self::Integer(i) => Ok(i),
-            _ => Err(ParseError::Todo),
+            found => Err(ParseError::MismatchedObjectType {
+                expected: ObjectType::Integer,
+                found,
+            }),
         }
     }
 
-    pub fn assert_dict(self) -> PdfResult<HashMap<String, Self>> {
+    pub fn assert_dict(self) -> PdfResult<Dictionary> {
         match self {
             Self::Dictionary(d) => Ok(d),
-            _ => Err(ParseError::Todo),
+            found => Err(ParseError::MismatchedObjectType {
+                expected: ObjectType::Dictionary,
+                found,
+            }),
+        }
+    }
+
+    pub fn assert_reference(self) -> PdfResult<Reference> {
+        match self {
+            Self::Reference(r) => Ok(r),
+            found => Err(ParseError::MismatchedObjectType {
+                expected: ObjectType::Reference,
+                found,
+            }),
         }
     }
 }
@@ -87,22 +180,15 @@ struct StreamDict {
 }
 
 impl StreamDict {
-    pub fn from_dict(mut dict: HashMap<String, Object>) -> PdfResult<Self> {
-        let len = dict
-            .remove("Length")
-            .map(Object::assert_integer)
-            .ok_or(ParseError::Todo)?? as usize;
+    pub fn from_dict(mut dict: Dictionary) -> PdfResult<Self> {
+        let len = dict.get_integer("Length")?.ok_or(ParseError::Todo)? as usize;
 
-        let filter = dict.remove("Filter");
-        let decode_params = dict.remove("DecodeParms");
-        let f = dict.remove("F");
-        let f_filter = dict.remove("FFilter");
-        let f_decode_params = dict.remove("FDecodeParms");
-        let dl = match dict.remove("DL").map(Object::assert_integer) {
-            Some(Ok(v)) => Some(v as usize),
-            Some(Err(e)) => return Err(e),
-            None => None,
-        };
+        let filter = dict.get_object("Filter");
+        let decode_params = dict.get_object("DecodeParms");
+        let f = dict.get_object("F");
+        let f_filter = dict.get_object("FFilter");
+        let f_decode_params = dict.get_object("FDecodeParms");
+        let dl = dict.get_integer("DL")?.map(|i| i as usize);
 
         if !dict.is_empty() {
             todo!()
@@ -213,10 +299,11 @@ impl Lexer {
 
             let name = self.lex_name()?;
             let value = self.lex_object()?;
+            self.skip_whitespace();
             dict.insert(name, value);
         }
 
-        Ok(Object::Dictionary(dict))
+        Ok(Object::Dictionary(Dictionary::new(dict)))
     }
 
     fn lex_hex_string(&mut self) -> PdfResult<Object> {
@@ -266,13 +353,43 @@ impl Lexer {
 
         let whole_number = self.lex_whole_number();
 
-        Ok(if self.peek_byte() == Some(b'.') {
+        let whole_end_pos = self.pos;
+
+        if self.peek_byte() == Some(b'.') {
             self.next_byte();
             let decimal_number = format!("{}.{}", whole_number, self.lex_whole_number());
-            Object::Real(decimal_number.parse::<f32>().unwrap() * negative as f32)
-        } else {
-            Object::Integer(whole_number.parse::<i32>().unwrap() * negative)
-        })
+            return Ok(Object::Real(
+                decimal_number.parse::<f32>().unwrap() * negative as f32,
+            ));
+        }
+
+        self.skip_whitespace();
+        if self
+            .peek_byte()
+            .map(char::from)
+            .as_ref()
+            .map(char::is_ascii_digit)
+            .unwrap_or(false)
+        {
+            let generation = self.lex_whole_number();
+            self.skip_whitespace();
+            match self.next_byte() {
+                Some(b'R') => {
+                    dbg!(self.peek_byte());
+                    return Ok(Object::Reference(Reference {
+                        object_number: whole_number.parse::<usize>().unwrap(),
+                        generation: generation.parse::<usize>().unwrap(),
+                    }));
+                }
+                Some(..) | None => {
+                    self.pos = whole_end_pos;
+                }
+            }
+        }
+
+        Ok(Object::Integer(
+            whole_number.parse::<i32>().unwrap() * negative,
+        ))
     }
 
     // TODO: throw error on empty string
@@ -583,7 +700,19 @@ impl Lexer {
     }
 
     fn lex_trailer(&mut self) -> PdfResult<Trailer> {
-        todo!()
+        self.expect_byte(b't')?;
+        self.expect_byte(b'r')?;
+        self.expect_byte(b'a')?;
+        self.expect_byte(b'i')?;
+        self.expect_byte(b'l')?;
+        self.expect_byte(b'e')?;
+        self.expect_byte(b'r')?;
+        self.skip_whitespace();
+
+        let trailer_dict = self.lex_dict()?.assert_dict()?;
+        let trailer = Trailer::from_dict(trailer_dict)?;
+
+        Ok(trailer)
     }
 
     fn lex_xref(&mut self) -> PdfResult<Xref> {
@@ -650,6 +779,9 @@ impl Parser {
     pub fn new(p: &'static str) -> PdfResult<Self> {
         let mut lexer = Lexer::new(p)?;
         let xref = lexer.read_xref()?;
+        let trailer = lexer.lex_trailer()?;
+
+        dbg!(trailer);
 
         Ok(Self { lexer, xref })
     }
