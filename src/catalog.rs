@@ -10,7 +10,7 @@ be displayed automatically and whether some location
 other than the first page shall be shown when the
 document is opened.
 */
-use std::{cell::RefCell, fmt, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, fmt, rc::Rc};
 
 use crate::{Dictionary, Object, ParseError, PdfResult, Reference};
 
@@ -490,8 +490,62 @@ pub struct Legal;
 pub struct Requirement;
 #[derive(Debug)]
 pub struct Collection;
+
 #[derive(Debug)]
-pub struct Resources;
+pub struct Resources {
+    /// A dictionary that maps resource names to
+    /// graphics state parameter dictionaries
+    ext_g_state: Option<Dictionary>,
+    // ext_g_state: Option<HashMap<String, GraphicsStateParameters>>,
+    /// A dictionary that maps each resource name to
+    /// either the name of a device-dependent color
+    /// space or an array describing a color space
+    color_space: Option<Dictionary>,
+    // color_space: Option<HashMap<String, ColorSpace>>,
+    pattern: Option<Dictionary>,
+    shading: Option<Dictionary>,
+    xobject: Option<Dictionary>,
+    font: Option<Dictionary>,
+    proc_set: Option<Vec<ProcedureSet>>,
+    properties: Option<Dictionary>,
+    // pattern: Option<HashMap<String, Pattern>>,
+    // shading: Option<HashMap<String, Shading>>,
+    // xobject: Option<HashMap<String, XObject>>,
+    // font: Option<HashMap<String, Font>>,
+    // properties: Option<HashMap<String, PropertyList>>,
+}
+
+impl Resources {
+    pub(crate) fn from_dict(mut dict: Dictionary) -> PdfResult<Self> {
+        let ext_g_state = dict.get_dict("ExtGState")?;
+        let color_space = dict.get_dict("ColorSpace")?;
+        let pattern = dict.get_dict("Pattern")?;
+        let shading = dict.get_dict("Shading")?;
+        let xobject = dict.get_dict("XObject")?;
+        let font = dict.get_dict("Font")?;
+        let proc_set = dict
+            .get_arr("ProcSet")?
+            .map(|proc| {
+                proc.into_iter()
+                    .map(|proc| ProcedureSet::from_str(&proc.assert_name()?))
+                    .collect::<PdfResult<Vec<ProcedureSet>>>()
+            })
+            .transpose()?;
+        let properties = dict.get_dict("Properties")?;
+
+        Ok(Resources {
+            ext_g_state,
+            color_space,
+            pattern,
+            shading,
+            xobject,
+            font,
+            proc_set,
+            properties,
+        })
+    }
+}
+
 #[derive(Debug)]
 pub struct Date;
 #[derive(Debug)]
@@ -512,6 +566,70 @@ pub struct SeparationInfo;
 pub struct NavigationNode;
 #[derive(Debug)]
 pub struct Viewport;
+#[derive(Debug)]
+pub struct GraphicsStateParameters;
+#[derive(Debug)]
+pub struct Pattern;
+#[derive(Debug)]
+pub struct Shading;
+#[derive(Debug)]
+pub struct XObject;
+#[derive(Debug)]
+pub struct Font;
+
+#[derive(Debug)]
+pub enum ProcedureSet {
+    Pdf,
+    Text,
+    ImageB,
+    ImageC,
+    ImageI,
+}
+
+impl ProcedureSet {
+    pub(crate) fn from_str(s: &str) -> PdfResult<Self> {
+        Ok(match s {
+            "PDF" => Self::Pdf,
+            "Text" => Self::Text,
+            "ImageB" => Self::ImageB,
+            "ImageC" => Self::ImageC,
+            "ImageI" => Self::ImageI,
+            _ => return Err(ParseError::Todo),
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct PropertyList;
+
+#[derive(Debug)]
+pub enum ColorSpace {
+    // Device
+    DeviceGray(f32),
+    DeviceRGB {
+        red: f32,
+        green: f32,
+        blue: f32,
+    },
+    DeviceCMYK {
+        cyan: f32,
+        magenta: f32,
+        yellow: f32,
+        key: f32,
+    },
+
+    // CIE-based
+    CalGray,
+    CalRGB,
+    Lab,
+    ICCBased,
+
+    // Special
+    Indexed,
+    Pattern,
+    Separation,
+    DeviceN,
+}
 
 /// Specifies the page layout when the document is opened
 #[derive(Debug)]

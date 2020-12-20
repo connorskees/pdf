@@ -104,16 +104,11 @@ impl Dictionary {
         Self { dict }
     }
 
-    fn swap<T>(t: Option<PdfResult<T>>) -> PdfResult<Option<T>> {
-        match t {
-            Some(Ok(v)) => Ok(Some(v)),
-            Some(Err(e)) => Err(e),
-            None => Ok(None),
-        }
-    }
-
     pub fn get_integer(&mut self, key: &str) -> PdfResult<Option<i32>> {
-        Self::swap(self.dict.remove(key).map(Object::assert_integer))
+        self.dict
+            .remove(key)
+            .map(Object::assert_integer)
+            .transpose()
     }
 
     pub fn expect_integer(&mut self, key: &'static str) -> PdfResult<i32> {
@@ -124,11 +119,14 @@ impl Dictionary {
     }
 
     pub fn get_reference(&mut self, key: &str) -> PdfResult<Option<Reference>> {
-        Self::swap(self.dict.remove(key).map(Object::assert_reference))
+        self.dict
+            .remove(key)
+            .map(Object::assert_reference)
+            .transpose()
     }
 
     pub fn get_string(&mut self, key: &str) -> PdfResult<Option<String>> {
-        Self::swap(self.dict.remove(key).map(Object::assert_string))
+        self.dict.remove(key).map(Object::assert_string).transpose()
     }
 
     pub fn expect_reference(&mut self, key: &'static str) -> PdfResult<Reference> {
@@ -147,7 +145,7 @@ impl Dictionary {
     }
 
     pub fn get_name(&mut self, key: &str) -> PdfResult<Option<String>> {
-        Self::swap(self.dict.remove(key).map(Object::assert_name))
+        self.dict.remove(key).map(Object::assert_name).transpose()
     }
 
     pub fn expect_name(&mut self, key: &'static str) -> PdfResult<String> {
@@ -155,6 +153,10 @@ impl Dictionary {
             .remove(key)
             .map(Object::assert_name)
             .ok_or(ParseError::MissingRequiredKey { key })?
+    }
+
+    pub fn get_dict(&mut self, key: &str) -> PdfResult<Option<Dictionary>> {
+        self.dict.remove(key).map(Object::assert_dict).transpose()
     }
 
     pub fn expect_dict(&mut self, key: &'static str) -> PdfResult<Dictionary> {
@@ -165,7 +167,7 @@ impl Dictionary {
     }
 
     pub fn get_arr(&mut self, key: &str) -> PdfResult<Option<Vec<Object>>> {
-        Self::swap(self.dict.remove(key).map(Object::assert_arr))
+        self.dict.remove(key).map(Object::assert_arr).transpose()
     }
 
     pub fn expect_arr(&mut self, key: &'static str) -> PdfResult<Vec<Object>> {
@@ -184,7 +186,7 @@ impl Dictionary {
     }
 
     pub fn get_bool(&mut self, key: &str) -> PdfResult<Option<bool>> {
-        Self::swap(self.dict.remove(key).map(Object::assert_bool))
+        self.dict.remove(key).map(Object::assert_bool).transpose()
     }
 }
 
@@ -958,7 +960,7 @@ impl Lexer {
     ) -> PdfResult<()> {
         let parent = dict.expect_reference("Parent")?;
         let last_modified = None;
-        let resources = Resources; //dict.expect_dict("Resources")?;
+        let resources = Resources::from_dict(dict.expect_dict("Resources")?)?;
         let media_box = Rectangle;
         let crop_box = None;
         let bleed_box = None;
