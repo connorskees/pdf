@@ -10,7 +10,7 @@ be displayed automatically and whether some location
 other than the first page shall be shown when the
 document is opened.
 */
-use std::todo;
+use std::{cell::RefCell, fmt, rc::Rc};
 
 use crate::{Dictionary, Object, ParseError, PdfResult, Reference};
 
@@ -36,7 +36,7 @@ pub struct DocumentCatalog {
 
     extensions: Option<Extensions>,
 
-    pages: Reference,
+    pub pages: Reference,
 
     /// A number tree defining the page labelling for
     /// the document. The keys in this tree shall be
@@ -229,57 +229,78 @@ pub struct InformationDictionary;
 #[derive(Debug)]
 pub struct Extensions;
 
-struct PageTree {
-    // kids: Vec<PageNode>,
-    kids: Vec<Reference>,
-    count: usize,
+pub struct PageTree {
+    pub kids: Vec<PageNode>,
+    // kids: Vec<Reference>,
+    pub count: usize,
 }
 
-// enum PageNode {
-//     Node(PageTreeNode),
-//     Leaf(PageObject),
-// }
+#[derive(Clone)]
+pub enum PageNode {
+    Root(Rc<RefCell<PageTree>>),
+    Node(Rc<RefCell<PageTreeNode>>),
+    Leaf(Rc<PageObject>),
+}
 
-struct PageTreeNode {
-    // "Pages"
-    ty: String,
+impl fmt::Debug for PageNode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Root(r) => f
+                .debug_struct("PageNode::Root")
+                .field("kids", &r.borrow().kids)
+                .field("count", &r.borrow().count)
+                .finish(),
+            Self::Node(r) => f
+                .debug_struct("PageNode::Node")
+                // .field("parent", &r.borrow().parent)
+                .field("kids", &r.borrow().kids)
+                .field("count", &r.borrow().count)
+                .finish(),
+            Self::Leaf(r) => f
+                .debug_struct("PageNode::Leaf")
+                .field("resources", &r.resources)
+                .finish(),
+        }
+    }
+}
 
+// "Pages"
+pub struct PageTreeNode {
     /// The page tree node that is the immediate parent of this one.
     ///
     /// Required except in root node; prohibited in the root node
-    parent: Reference,
+    pub parent: PageNode,
 
     /// An array of indirect references to the immediate children
     /// of this node. The children shall only be page objects or
     /// other page tree nodes.
-    kids: Vec<Reference>,
+    pub kids: Vec<PageNode>,
 
     /// The number of leaf nodes (page objects) that are descendants
     /// of this node within the page tree
-    count: usize,
+    pub count: usize,
 }
 
-struct PageObject {
-    // "Page"
-    ty: String,
-    parent: Reference,
+// "Page"
+pub struct PageObject {
+    pub parent: PageNode,
     /// The date and time when the page's contents were most recently
     /// modified. If a page-piece dictionary ([`PieceInfo`](crate::PieceInfo))
     /// is present, the modification date shall be used to ascertain
     /// which of the application data dictionaries that it contains
     /// correspond to the current content of the page.
-    last_modified: Option<Date>,
+    pub last_modified: Option<Date>,
 
     /// A dictionary containing any resources required by the page. If the
     /// page requires no resources, the value of this entry shall be an
     /// empty dictionary. Omitting the entry entirely indicates that the
     /// resources shall be inherited from an ancestor node in the page tree.
-    resources: Resources,
+    pub resources: Resources,
 
     /// A rectangle, expressed in default user space units, that shall define
     /// the boundaries of the physical medium on which the page shall be displayed
     /// or printed.
-    media_box: Rectangle,
+    pub media_box: Rectangle,
 
     /// A rectangle, expressed in default user space units, that shall
     /// define the visible region of default user space. When the page
@@ -288,27 +309,27 @@ struct PageObject {
     /// in some implementation-defined manner.
     ///
     /// Default value: the value of `media_box`.
-    crop_box: Option<Rectangle>,
+    pub crop_box: Option<Rectangle>,
 
     /// A rectangle, expressed in default user space units, that shall
     /// define the region to which the contents of the page shall be
     /// clipped when output in a production environment.
     ///
     /// Default value: the value of `crop_box`.
-    bleed_box: Option<Rectangle>,
+    pub bleed_box: Option<Rectangle>,
 
     /// A rectangle, expressed in default user space units, that shall
     /// define the intended dimensions of the finished page after trimming.
     ///
     /// Default value: the value of `crop_box`.
-    trim_box: Option<Rectangle>,
+    pub trim_box: Option<Rectangle>,
 
     /// A rectangle, expressed in default user space units, that shall
     /// define the extent of the page's meaningful content (including
     /// potential white space) as intended by the page's creator.
     ///
     /// Default value: the value of `crop_box`.
-    art_box: Option<Rectangle>,
+    pub art_box: Option<Rectangle>,
 
     /// A box colour information dictionary that shall specify the
     /// colours and other visual characteristics that should be used
@@ -317,7 +338,7 @@ struct PageObject {
     ///
     /// If this entry is absent, the application shall use its own
     /// current default settings.
-    box_color_info: Option<BoxColorInfo>,
+    pub box_color_info: Option<BoxColorInfo>,
 
     /// A content stream that shall describe the contents of this page.
     ///
@@ -335,25 +356,25 @@ struct PageObject {
     /// not preserve the existing structure of the Contents array.
     ///
     /// Conforming writers shall not create a Contents array containing no elements.
-    contents: Option<ContentStream>,
+    pub contents: Option<ContentStream>,
 
     /// The number of degrees by which the page shall be rotated clockwise
     /// when displayed or printed. The value shall be a multiple of 90.
     ///
     /// Default value: 0.
-    rotate: i32,
+    pub rotate: i32,
 
     /// A group attributes dictionary that shall specify the attributes of
     /// the page's page group for use in the transparent imaging model
-    group: Option<GroupAttributes>,
+    pub group: Option<GroupAttributes>,
 
     /// A stream object that shall define the page's thumbnail image
-    thumb: Option<Vec<u8>>,
+    pub thumb: Option<Vec<u8>>,
 
     /// An array that shall contain indirect references to all article beads
     /// appearing on the page. The beads shall be listed in the array in
     /// natural reading order.
-    b: Option<Vec<Reference>>,
+    pub b: Option<Vec<Reference>>,
 
     /// The page's display duration (also called its advance timing): the
     /// maximum length of time, in seconds, that the page shall be displayed
@@ -362,36 +383,36 @@ struct PageObject {
     ///
     /// By default, the viewer shall not advance automatically.
     // TODO: type=number?
-    dur: Option<f32>,
+    pub dur: Option<f32>,
 
     /// A transition dictionary describing the transition effect that shall
     /// be used when displaying the page during presentations
-    trans: Option<Transitions>,
+    pub trans: Option<Transitions>,
 
     /// An array of annotation dictionaries that shall contain indirect
     /// references to all annotations associated with the page
-    annots: Option<Vec<Annotation>>,
+    pub annots: Option<Vec<Annotation>>,
 
     /// An additional-actions dictionary that shall define actions to
     /// be performed when the page is opened or closed
-    aa: Option<AdditionalActions>,
+    pub aa: Option<AdditionalActions>,
 
-    metadata: Option<MetadataStream>,
-    piece_info: Option<PagePiece>,
+    pub metadata: Option<MetadataStream>,
+    pub piece_info: Option<PagePiece>,
 
     /// The integer key of the page's entry in the structural parent tree
-    struct_parents: Option<i32>,
+    pub struct_parents: Option<i32>,
 
     /// The digital identifier of the page's parent Web Capture content set
-    id: Option<String>,
+    pub id: Option<String>,
 
     /// The page's preferred zoom (magnification) factor: the factor by
     /// which it shall be scaled to achieve the natural display magnification
-    pz: Option<f32>,
+    pub pz: Option<f32>,
 
     /// A separation dictionary that shall contain information needed to
     /// generate colour separations for the page
-    separation_info: Option<SeparationInfo>,
+    pub separation_info: Option<SeparationInfo>,
 
     /// A name specifying the tab order that shall be used for annotations on the page.
     ///
@@ -399,29 +420,29 @@ struct PageObject {
     ///   * R (row order)
     ///   * C (column order)
     ///   * S (structure order).
-    tabs: Option<TabOrder>,
+    pub tabs: Option<TabOrder>,
 
     /// The name of the originating page object
-    template_instantiated: Option<String>,
+    pub template_instantiated: Option<String>,
 
     /// A navigation node dictionary that shall represent the first
     /// node on the page
-    pres_steps: Option<NavigationNode>,
+    pub pres_steps: Option<NavigationNode>,
 
     /// A positive number that shall give the size of default user space units,
     /// in multiples of 1/72 inch. The range of supported values shall be
     /// mplementation-dependent.
     ///
     /// Default value: 1.0 (user space unit is 1/72 inch).
-    user_unit: Option<f32>,
+    pub user_unit: Option<f32>,
 
     /// An array of viewport dictionaries that shall specify rectangular
     /// regions of the page.
-    vp: Option<Viewport>,
+    pub vp: Option<Viewport>,
 }
 
 #[derive(Debug)]
-enum TabOrder {
+pub enum TabOrder {
     Row,
     Column,
     Structure,

@@ -5,12 +5,17 @@ mod catalog;
 mod xref;
 
 use std::{
+    cell::RefCell,
     collections::HashMap,
     fs::File,
     io::{self, Read},
+    rc::Rc,
+    todo,
 };
 
-use catalog::DocumentCatalog;
+use catalog::{
+    DocumentCatalog, PageNode, PageObject, PageTree, PageTreeNode, Rectangle, Resources,
+};
 
 use crate::{
     catalog::Trailer,
@@ -54,7 +59,7 @@ impl From<io::Error> for ParseError {
 type PdfResult<T> = Result<T, ParseError>;
 
 /// A reference to a non-existing object is considered a `null`
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct Reference {
     object_number: usize,
     generation: usize,
@@ -161,6 +166,21 @@ impl Dictionary {
 
     pub fn get_arr(&mut self, key: &str) -> PdfResult<Option<Vec<Object>>> {
         Self::swap(self.dict.remove(key).map(Object::assert_arr))
+    }
+
+    pub fn expect_arr(&mut self, key: &'static str) -> PdfResult<Vec<Object>> {
+        self.dict
+            .remove(key)
+            .map(Object::assert_arr)
+            .ok_or(ParseError::MissingRequiredKey { key })?
+    }
+
+    pub fn expect_arr_no_remove(&self, key: &'static str) -> PdfResult<Vec<Object>> {
+        self.dict
+            .get(key)
+            .cloned()
+            .map(Object::assert_arr)
+            .ok_or(ParseError::MissingRequiredKey { key })?
     }
 
     pub fn get_bool(&mut self, key: &str) -> PdfResult<Option<bool>> {
@@ -874,6 +894,182 @@ impl Lexer {
 
         Ok(Xref { objects })
     }
+
+    fn lex_page_tree(&mut self, xref: &Xref, root_reference: Reference) -> PdfResult<PageTree> {
+        if xref.get_offset(root_reference).is_none() {
+            return Ok(PageTree {
+                kids: Vec::new(),
+                count: 0,
+            });
+        };
+
+        let mut root_dict = self
+            .lex_object_from_reference(root_reference, xref)?
+            .assert_dict()?;
+        let count = root_dict.expect_integer("Count")? as usize;
+        let raw_kids = root_dict.expect_arr("Kids")?;
+
+        if root_dict.expect_name("Type")? != "Pages" {
+            todo!()
+        }
+
+        if !root_dict.is_empty() {
+            todo!("dict not empty: {:#?}", root_dict);
+        }
+
+        let root = PageNode::Root(Rc::new(RefCell::new(PageTree {
+            count,
+            kids: Vec::new(),
+        })));
+
+        // let mut page_refs = HashMap::new();
+        let mut pages = HashMap::new();
+
+        pages.insert(root_reference, root.clone());
+
+        let mut page_queue = raw_kids
+            .into_iter()
+            .map(Object::assert_reference)
+            .collect::<PdfResult<Vec<Reference>>>()?;
+
+        while let Some(kid_ref) = page_queue.pop() {
+            let mut kid_dict = self
+                .lex_object_from_reference(kid_ref, xref)?
+                .assert_dict()?;
+
+            match kid_dict.expect_name("Type")?.as_ref() {
+                "Pages" => {
+                    self.lex_page_tree_node(kid_dict, kid_ref, &mut page_queue, &mut pages)?
+                }
+                "Page" => self.lex_page_object(kid_dict, &mut pages)?,
+                _ => todo!(),
+            };
+        }
+
+        dbg!(root);
+
+        todo!()
+    }
+
+    fn lex_page_object(
+        &mut self,
+        mut dict: Dictionary,
+        pages: &mut HashMap<Reference, PageNode>,
+    ) -> PdfResult<()> {
+        let parent = dict.expect_reference("Parent")?;
+        let last_modified = None;
+        let resources = Resources; //dict.expect_dict("Resources")?;
+        let media_box = Rectangle;
+        let crop_box = None;
+        let bleed_box = None;
+        let trim_box = None;
+        let art_box = None;
+        let box_color_info = None;
+        let contents = None;
+        let rotate = None.unwrap_or(0);
+        let group = None;
+        let thumb = None;
+        let b = None;
+        let dur = None;
+        let trans = None;
+        let annots = None;
+        let aa = None;
+        let metadata = None;
+        let piece_info = None;
+        let struct_parents = None;
+        let id = None;
+        let pz = None;
+        let separation_info = None;
+        let tabs = None;
+        let template_instantiated = None;
+        let pres_steps = None;
+        let user_unit = None;
+        let vp = None;
+
+        if !dict.is_empty() {
+            todo!("dict not empty: {:#?}", dict);
+        }
+
+        let parent = pages.get(&parent).unwrap().clone();
+
+        let this_node = PageNode::Leaf(Rc::new(PageObject {
+            parent: parent.clone(),
+            last_modified,
+            resources,
+            media_box,
+            crop_box,
+            bleed_box,
+            trim_box,
+            art_box,
+            box_color_info,
+            contents,
+            rotate,
+            group,
+            thumb,
+            b,
+            dur,
+            trans,
+            annots,
+            aa,
+            metadata,
+            piece_info,
+            struct_parents,
+            id,
+            pz,
+            separation_info,
+            tabs,
+            template_instantiated,
+            pres_steps,
+            user_unit,
+            vp,
+        }));
+
+        match parent {
+            PageNode::Node(node) => node.borrow_mut().kids.push(this_node.clone()),
+            PageNode::Root(node) => node.borrow_mut().kids.push(this_node.clone()),
+            PageNode::Leaf(..) => todo!("unreachable"),
+        }
+
+        // PageNode::Leaf(Rc::new());
+        Ok(())
+    }
+
+    fn lex_page_tree_node(
+        &mut self,
+        mut dict: Dictionary,
+        kid_ref: Reference,
+        page_queue: &mut Vec<Reference>,
+        pages: &mut HashMap<Reference, PageNode>,
+    ) -> PdfResult<()> {
+        let kids = dict.expect_arr("Kids")?;
+        let parent = dict.expect_reference("Parent")?;
+        let count = dict.expect_integer("Count")? as usize;
+
+        let parent = pages.get(&parent).unwrap().clone();
+
+        let this_node = PageNode::Node(Rc::new(RefCell::new(PageTreeNode {
+            kids: Vec::new(),
+            parent: parent.clone(),
+            count,
+        })));
+
+        match parent {
+            PageNode::Node(node) => node.borrow_mut().kids.push(this_node.clone()),
+            PageNode::Root(node) => node.borrow_mut().kids.push(this_node.clone()),
+            PageNode::Leaf(..) => todo!("unreachable"),
+        }
+
+        pages.insert(kid_ref, this_node);
+
+        page_queue.append(
+            &mut kids
+                .into_iter()
+                .map(Object::assert_reference)
+                .collect::<PdfResult<Vec<Reference>>>()?,
+        );
+
+        Ok(())
+    }
 }
 
 struct Parser {
@@ -881,6 +1077,7 @@ struct Parser {
     xref: Xref,
     trailer: Trailer,
     catalog: DocumentCatalog,
+    page_tree: PageTree,
 }
 
 impl Parser {
@@ -893,13 +1090,14 @@ impl Parser {
                 .lex_object_from_reference(trailer.root, &xref)?
                 .assert_dict()?,
         )?;
-        dbg!(&catalog);
+        let page_tree = lexer.lex_page_tree(&xref, catalog.pages)?;
 
         Ok(Self {
             lexer,
             xref,
             trailer,
             catalog,
+            page_tree,
         })
     }
 
