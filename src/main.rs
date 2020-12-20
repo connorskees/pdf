@@ -49,6 +49,10 @@ enum ParseError {
     MissingRequiredKey {
         key: &'static str,
     },
+    ArrayOfInvalidLength {
+        expected: usize,
+        found: Vec<Object>,
+    },
     Todo,
 }
 
@@ -190,6 +194,18 @@ impl Object {
             Self::Integer(i) => Ok(i),
             found => Err(ParseError::MismatchedObjectType {
                 expected: ObjectType::Integer,
+                found,
+            }),
+        }
+    }
+
+    /// Either an integer, or a real
+    pub fn assert_number(self) -> PdfResult<f32> {
+        match self {
+            Self::Integer(i) => Ok(i as f32),
+            Self::Real(i) => Ok(i),
+            found => Err(ParseError::MismatchedObjectType {
+                expected: ObjectType::Real,
                 found,
             }),
         }
@@ -955,11 +971,23 @@ impl Lexer {
         let parent = dict.expect_reference("Parent")?;
         let last_modified = None;
         let resources = Resources::from_dict(dict.expect_dict("Resources")?)?;
-        let media_box = Rectangle;
-        let crop_box = None;
-        let bleed_box = None;
-        let trim_box = None;
-        let art_box = None;
+        let media_box = Rectangle::from_arr(dict.expect_arr("MediaBox")?)?;
+        let crop_box = dict
+            .get_arr("CropBox")?
+            .map(Rectangle::from_arr)
+            .transpose()?;
+        let bleed_box = dict
+            .get_arr("BleedBox")?
+            .map(Rectangle::from_arr)
+            .transpose()?;
+        let trim_box = dict
+            .get_arr("TrimBox")?
+            .map(Rectangle::from_arr)
+            .transpose()?;
+        let art_box = dict
+            .get_arr("ArtBox")?
+            .map(Rectangle::from_arr)
+            .transpose()?;
         let box_color_info = None;
         let contents = None;
         let rotate = None.unwrap_or(0);

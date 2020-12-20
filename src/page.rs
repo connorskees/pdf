@@ -38,6 +38,11 @@ impl fmt::Debug for PageNode {
             Self::Leaf(r) => f
                 .debug_struct("PageNode::Leaf")
                 .field("resources", &r.resources)
+                .field("media_box", &r.media_box)
+                .field("crop_box", &r.crop_box)
+                .field("bleed_box", &r.bleed_box)
+                .field("trim_box", &r.trim_box)
+                .field("art_box", &r.art_box)
                 .finish(),
         }
     }

@@ -328,8 +328,38 @@ impl Resources {
 
 #[derive(Debug)]
 pub struct Date;
+
 #[derive(Debug)]
-pub struct Rectangle;
+pub struct Rectangle {
+    lower_left_x: f32,
+    lower_left_y: f32,
+    upper_right_x: f32,
+    upper_right_y: f32,
+}
+
+impl Rectangle {
+    pub(crate) fn from_arr(mut arr: Vec<Object>) -> PdfResult<Self> {
+        if arr.len() != 4 {
+            return Err(ParseError::ArrayOfInvalidLength {
+                expected: 4,
+                found: arr,
+            });
+        }
+
+        let upper_right_y = arr.pop().unwrap().assert_number()?;
+        let upper_right_x = arr.pop().unwrap().assert_number()?;
+        let lower_left_y = arr.pop().unwrap().assert_number()?;
+        let lower_left_x = arr.pop().unwrap().assert_number()?;
+
+        Ok(Rectangle {
+            lower_left_x,
+            lower_left_y,
+            upper_right_x,
+            upper_right_y,
+        })
+    }
+}
+
 #[derive(Debug)]
 pub struct BoxColorInfo;
 #[derive(Debug)]
