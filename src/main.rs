@@ -2,6 +2,7 @@
 // TODO: consider verifying the file header
 
 mod catalog;
+mod page;
 mod xref;
 
 use std::{
@@ -13,8 +14,9 @@ use std::{
     todo,
 };
 
-use catalog::{
-    DocumentCatalog, PageNode, PageObject, PageTree, PageTreeNode, Rectangle, Resources,
+use {
+    catalog::{DocumentCatalog, Rectangle, Resources},
+    page::{PageNode, PageObject, PageTree, PageTreeNode},
 };
 
 use crate::{
@@ -173,14 +175,6 @@ impl Dictionary {
     pub fn expect_arr(&mut self, key: &'static str) -> PdfResult<Vec<Object>> {
         self.dict
             .remove(key)
-            .map(Object::assert_arr)
-            .ok_or(ParseError::MissingRequiredKey { key })?
-    }
-
-    pub fn expect_arr_no_remove(&self, key: &'static str) -> PdfResult<Vec<Object>> {
-        self.dict
-            .get(key)
-            .cloned()
             .map(Object::assert_arr)
             .ok_or(ParseError::MissingRequiredKey { key })?
     }
