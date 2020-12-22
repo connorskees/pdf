@@ -11,7 +11,6 @@ use crate::{
 
 pub struct PageTree {
     pub kids: Vec<PageNode>,
-    // kids: Vec<Reference>,
     pub count: usize,
 }
 

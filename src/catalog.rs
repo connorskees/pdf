@@ -11,7 +11,7 @@ other than the first page shall be shown when the
 document is opened.
 */
 
-use crate::{Dictionary, Object, ParseError, PdfResult, Reference};
+use crate::{Dictionary, Lexer, Object, ParseError, PdfResult, Reference, NUMBERS};
 
 /// See module level documentation
 #[derive(Debug)]
@@ -140,12 +140,12 @@ pub struct DocumentCatalog {
 }
 
 impl DocumentCatalog {
-    pub(crate) fn from_dict(mut dict: Dictionary) -> PdfResult<Self> {
-        if dict.expect_name("Type")? != "Catalog" {
+    pub(crate) fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
+        if dict.expect_name("Type", lexer)? != "Catalog" {
             todo!()
         }
 
-        let version = dict.get_name("Version")?;
+        let version = dict.get_name("Version", lexer)?;
         let extensions = None;
         let pages = dict.expect_reference("Pages")?;
         let page_labels = None;
@@ -154,12 +154,12 @@ impl DocumentCatalog {
         let viewer_preferences = None;
 
         let page_layout = dict
-            .get_name("PageLayout")?
+            .get_name("PageLayout", lexer)?
             .as_deref()
             .map(PageLayout::from_str)
             .unwrap_or(Ok(PageLayout::default()))?;
         let page_mode = dict
-            .get_name("PageMode")?
+            .get_name("PageMode", lexer)?
             .as_deref()
             .map(PageMode::from_str)
             .unwrap_or(Ok(PageMode::default()))?;
@@ -173,7 +173,7 @@ impl DocumentCatalog {
         let metadata = dict.get_reference("Metadata")?;
         let struct_tree_root = None;
         let mark_info = None;
-        let lang = dict.get_string("Lang")?;
+        let lang = dict.get_string("Lang", lexer)?;
         let spider_info = None;
         let output_intents = None;
         let piece_info = None;
@@ -182,7 +182,7 @@ impl DocumentCatalog {
         let legal = None;
         let requirements = None;
         let collection = None;
-        let needs_rendering = dict.get_bool("NeedsRendering")?.unwrap_or(false);
+        let needs_rendering = dict.get_bool("NeedsRendering", lexer)?.unwrap_or(false);
 
         if !dict.is_empty() {
             todo!("dict not empty: {:#?}", dict);
@@ -224,7 +224,107 @@ impl DocumentCatalog {
 #[derive(Debug)]
 pub struct Encryption;
 #[derive(Debug)]
-pub struct InformationDictionary;
+pub struct InformationDictionary {
+    title: Option<String>,
+    author: Option<String>,
+    subject: Option<String>,
+    keywords: Option<String>,
+
+    /// If the document was converted to PDF from
+    /// another format, the name of the conforming
+    /// product that created the original document
+    /// from which it was converted
+    creator: Option<String>,
+
+    /// If the document was converted to PDF from
+    /// another format, the name of the conforming
+    /// product that converted it to PDF
+    producer: Option<String>,
+
+    creation_date: Option<Date>,
+    mod_date: Option<Date>,
+    trapped: Trapped,
+}
+
+impl InformationDictionary {
+    pub(crate) fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
+        let title = dict.get_string("Title", lexer)?;
+        let author = dict.get_string("Author", lexer)?;
+        let subject = dict.get_string("Subject", lexer)?;
+        let keywords = dict.get_string("Keywords", lexer)?;
+        let creator = dict.get_string("Creator", lexer)?;
+        let producer = dict.get_string("Producer", lexer)?;
+        let creation_date = dict
+            .get_string("CreationDate", lexer)?
+            .as_deref()
+            .map(Date::from_str)
+            .transpose()?;
+        let mod_date = dict
+            .get_string("ModDate", lexer)?
+            .as_deref()
+            .map(Date::from_str)
+            .transpose()?;
+        let trapped = dict
+            .get_name("Trapped", lexer)?
+            .as_deref()
+            .map(Trapped::from_str)
+            .transpose()?
+            .unwrap_or_default();
+
+        if !dict.is_empty() {
+            todo!("dict not empty: {:#?}", dict);
+        }
+
+        Ok(InformationDictionary {
+            title,
+            author,
+            subject,
+            keywords,
+            creator,
+            producer,
+            creation_date,
+            mod_date,
+            trapped,
+        })
+    }
+}
+
+/// A name object indicating whether the document
+/// has been modified to include trapping information
+#[derive(Debug)]
+pub enum Trapped {
+    /// The document has been fully trapped; no further
+    /// trapping shall be needed. This shall be the name
+    /// "True", not the boolean value true.
+    True,
+
+    /// The document has not yet been trapped. This shall
+    /// be the name "False", not the boolean value false
+    False,
+
+    /// Either it is unknown whether the document has been
+    /// trapped or it has been partly but not yet fully
+    /// trapped; some additional trapping may still be needed
+    Unknown,
+}
+
+impl Default for Trapped {
+    fn default() -> Self {
+        Self::Unknown
+    }
+}
+
+impl Trapped {
+    pub(crate) fn from_str(s: &str) -> PdfResult<Self> {
+        Ok(match s {
+            "True" => Self::True,
+            "False" => Self::False,
+            "Unknown" => Self::Unknown,
+            _ => return Err(ParseError::Todo),
+        })
+    }
+}
+
 #[derive(Debug)]
 pub struct Extensions;
 
@@ -296,22 +396,22 @@ pub struct Resources {
 }
 
 impl Resources {
-    pub(crate) fn from_dict(mut dict: Dictionary) -> PdfResult<Self> {
-        let ext_g_state = dict.get_dict("ExtGState")?;
-        let color_space = dict.get_dict("ColorSpace")?;
-        let pattern = dict.get_dict("Pattern")?;
-        let shading = dict.get_dict("Shading")?;
-        let xobject = dict.get_dict("XObject")?;
-        let font = dict.get_dict("Font")?;
+    pub(crate) fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
+        let ext_g_state = dict.get_dict("ExtGState", lexer)?;
+        let color_space = dict.get_dict("ColorSpace", lexer)?;
+        let pattern = dict.get_dict("Pattern", lexer)?;
+        let shading = dict.get_dict("Shading", lexer)?;
+        let xobject = dict.get_dict("XObject", lexer)?;
+        let font = dict.get_dict("Font", lexer)?;
         let proc_set = dict
-            .get_arr("ProcSet")?
+            .get_arr("ProcSet", lexer)?
             .map(|proc| {
                 proc.into_iter()
-                    .map(|proc| ProcedureSet::from_str(&proc.assert_name()?))
+                    .map(|proc| ProcedureSet::from_str(&lexer.assert_name(proc)?))
                     .collect::<PdfResult<Vec<ProcedureSet>>>()
             })
             .transpose()?;
-        let properties = dict.get_dict("Properties")?;
+        let properties = dict.get_dict("Properties", lexer)?;
 
         Ok(Resources {
             ext_g_state,
@@ -327,7 +427,128 @@ impl Resources {
 }
 
 #[derive(Debug)]
-pub struct Date;
+// todo: we can probably get away with making the fields u8
+pub struct Date {
+    year: Option<u16>,
+    month: Option<u16>,
+    day: Option<u16>,
+    hour: Option<u16>,
+    minute: Option<u16>,
+    second: Option<u16>,
+
+    ut_relationship: Option<UtRelationship>,
+    ut_hour_offset: Option<u16>,
+    ut_minute_offset: Option<u16>,
+}
+
+impl Date {
+    pub(crate) fn from_str(s: &str) -> PdfResult<Self> {
+        let mut chars = s.bytes();
+
+        let mut date = Date {
+            year: None,
+            month: None,
+            day: None,
+            hour: None,
+            minute: None,
+            second: None,
+            ut_relationship: None,
+            ut_hour_offset: None,
+            ut_minute_offset: None,
+        };
+
+        match chars.next() {
+            Some(b'D') => {}
+            found => {
+                return Err(ParseError::MismatchedByte {
+                    expected: b'D',
+                    found,
+                });
+            }
+        }
+
+        match chars.next() {
+            Some(b':') => {}
+            found => {
+                return Err(ParseError::MismatchedByte {
+                    expected: b':',
+                    found,
+                });
+            }
+        }
+
+        #[cfg(not(debug_assertions))]
+        {
+            macro_rules! unit {
+                ($unit:ident, $len:literal) => {
+                    let mut $unit = 0;
+
+                    for _ in 0..$len {
+                        let next = match chars.next() {
+                            Some(n @ b'0'..=b'9') => n - b'0',
+                            None => return Ok(date),
+                            found => {
+                                return Err(ParseError::MismatchedByteMany {
+                                    expected: NUMBERS,
+                                    found,
+                                });
+                            }
+                        };
+
+                        $unit *= 10;
+                        $unit += next as u16;
+                    }
+
+                    date.$unit = Some($unit);
+                };
+            }
+
+            unit!(year, 4);
+            unit!(month, 2);
+            unit!(day, 2);
+            unit!(hour, 2);
+            unit!(minute, 2);
+            unit!(second, 2);
+            date.ut_relationship = chars.next().map(UtRelationship::from_byte).transpose()?;
+            unit!(ut_hour_offset, 2);
+            match chars.next() {
+                Some(b'\'') => {}
+                found => {
+                    return Err(ParseError::MismatchedByte {
+                        expected: b'\'',
+                        found,
+                    })
+                }
+            }
+            unit!(ut_minute_offset, 2);
+        }
+
+        Ok(date)
+    }
+}
+
+#[derive(Debug)]
+enum UtRelationship {
+    Plus,
+    Minus,
+    Equal,
+}
+
+impl UtRelationship {
+    pub fn from_byte(b: u8) -> PdfResult<Self> {
+        Ok(match b {
+            b'+' => Self::Plus,
+            b'-' => Self::Minus,
+            b'Z' => Self::Equal,
+            found => {
+                return Err(ParseError::MismatchedByteMany {
+                    expected: &[b'+', b'-', b'Z'],
+                    found: Some(found),
+                })
+            }
+        })
+    }
+}
 
 #[derive(Debug)]
 pub struct Rectangle {
@@ -338,7 +559,7 @@ pub struct Rectangle {
 }
 
 impl Rectangle {
-    pub(crate) fn from_arr(mut arr: Vec<Object>) -> PdfResult<Self> {
+    pub(crate) fn from_arr(mut arr: Vec<Object>, lexer: &mut Lexer) -> PdfResult<Self> {
         if arr.len() != 4 {
             return Err(ParseError::ArrayOfInvalidLength {
                 expected: 4,
@@ -346,10 +567,10 @@ impl Rectangle {
             });
         }
 
-        let upper_right_y = arr.pop().unwrap().assert_number()?;
-        let upper_right_x = arr.pop().unwrap().assert_number()?;
-        let lower_left_y = arr.pop().unwrap().assert_number()?;
-        let lower_left_x = arr.pop().unwrap().assert_number()?;
+        let upper_right_y = lexer.assert_number(arr.pop().unwrap())?;
+        let upper_right_x = lexer.assert_number(arr.pop().unwrap())?;
+        let lower_left_y = lexer.assert_number(arr.pop().unwrap())?;
+        let lower_left_x = lexer.assert_number(arr.pop().unwrap())?;
 
         Ok(Rectangle {
             lower_left_x,
@@ -406,7 +627,12 @@ impl ProcedureSet {
             "ImageB" => Self::ImageB,
             "ImageC" => Self::ImageC,
             "ImageI" => Self::ImageI,
-            _ => return Err(ParseError::Todo),
+            _ => {
+                return Err(ParseError::UnrecognizedVariant {
+                    found: s.to_owned(),
+                    ty: "ProcedureSet",
+                })
+            }
         })
     }
 }
@@ -476,7 +702,12 @@ impl PageLayout {
             "TwoColumnRight" => Self::TwoColumnRight,
             "TwoPageLeft" => Self::TwoPageLeft,
             "TwoPageRight" => Self::TwoPageRight,
-            _ => return Err(ParseError::Todo),
+            _ => {
+                return Err(ParseError::UnrecognizedVariant {
+                    found: s.to_owned(),
+                    ty: "PageLayout",
+                })
+            }
         })
     }
 }
@@ -521,7 +752,12 @@ impl PageMode {
             "FullScreen" => Self::FullScreen,
             "UseOc" => Self::UseOc,
             "UseAttachments" => Self::UseAttachments,
-            _ => return Err(ParseError::Todo),
+            _ => {
+                return Err(ParseError::UnrecognizedVariant {
+                    found: s.to_owned(),
+                    ty: "PageMode",
+                })
+            }
         })
     }
 }
@@ -564,13 +800,13 @@ pub struct Trailer {
 }
 
 impl Trailer {
-    pub(crate) fn from_dict(mut dict: Dictionary) -> PdfResult<Self> {
-        let size = dict.expect_integer("Size")? as usize;
-        let prev = dict.get_integer("Prev")?.map(|i| i as usize);
+    pub(crate) fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
+        let size = dict.expect_integer("Size", lexer)? as usize;
+        let prev = dict.get_integer("Prev", lexer)?.map(|i| i as usize);
         let root = dict.expect_reference("Root")?;
         // TODO: encryption dicts
         let encryption = None;
-        let id = dict.get_arr("ID")?;
+        let id = dict.get_arr("ID", lexer)?;
         let info = dict.get_reference("Info")?;
 
         if !dict.is_empty() {
