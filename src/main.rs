@@ -2,6 +2,7 @@
 // TODO: consider verifying the file header
 
 mod catalog;
+mod error;
 mod objects;
 mod page;
 mod xref;
@@ -17,6 +18,7 @@ use std::{
 
 use {
     catalog::{DocumentCatalog, Rectangle, Resources},
+    error::{ParseError, PdfResult},
     objects::{Dictionary, Object, ObjectType, Reference, StreamDict},
     page::{PageNode, PageObject, PageTree, PageTreeNode},
 };
@@ -35,44 +37,6 @@ pub(crate) const NUMBERS: &[u8] = b"0123456789";
 
 const START_XREF_SIGNATURE: &[u8; 9] = b"startxref";
 const KILOBYTE: usize = 1024;
-
-#[derive(Debug)]
-pub enum ParseError {
-    MismatchedByte {
-        expected: u8,
-        found: Option<u8>,
-    },
-    MismatchedByteMany {
-        expected: &'static [u8],
-        found: Option<u8>,
-    },
-    UnexpectedEof,
-    IoError(io::Error),
-    MismatchedObjectType {
-        expected: ObjectType,
-        found: Object,
-    },
-    MissingRequiredKey {
-        key: &'static str,
-    },
-    ArrayOfInvalidLength {
-        expected: usize,
-        found: Vec<Object>,
-    },
-    UnrecognizedVariant {
-        found: String,
-        ty: &'static str,
-    },
-    Todo,
-}
-
-impl From<io::Error> for ParseError {
-    fn from(err: io::Error) -> Self {
-        Self::IoError(err)
-    }
-}
-
-type PdfResult<T> = Result<T, ParseError>;
 
 trait Lex {
     fn buffer(&self) -> &[u8];
