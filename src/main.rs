@@ -2,6 +2,7 @@
 // TODO: consider verifying the file header
 
 mod catalog;
+mod objects;
 mod page;
 mod xref;
 
@@ -16,6 +17,7 @@ use std::{
 
 use {
     catalog::{DocumentCatalog, Rectangle, Resources},
+    objects::{Dictionary, Object, ObjectType, Reference, StreamDict},
     page::{PageNode, PageObject, PageTree, PageTreeNode},
 };
 
@@ -35,7 +37,7 @@ const START_XREF_SIGNATURE: &[u8; 9] = b"startxref";
 const KILOBYTE: usize = 1024;
 
 #[derive(Debug)]
-enum ParseError {
+pub enum ParseError {
     MismatchedByte {
         expected: u8,
         found: Option<u8>,
@@ -71,155 +73,6 @@ impl From<io::Error> for ParseError {
 }
 
 type PdfResult<T> = Result<T, ParseError>;
-
-/// A reference to a non-existing object is considered a `null`
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub struct Reference {
-    object_number: usize,
-    generation: usize,
-}
-
-#[derive(Debug)]
-enum ObjectType {
-    Null,
-    Boolean,
-    Integer,
-    Real,
-    String,
-    Name,
-    Array,
-    Stream,
-    Dictionary,
-    Reference,
-}
-
-#[derive(Debug, Clone)]
-enum Object {
-    Null,
-    True,
-    False,
-    Integer(i32),
-    Real(f32),
-    String(String),
-    Name(String),
-    Array(Vec<Self>),
-    Stream(Vec<u8>),
-    Dictionary(Dictionary),
-    Reference(Reference),
-}
-
-#[derive(Debug, Clone)]
-struct Dictionary {
-    dict: HashMap<String, Object>,
-}
-
-impl Dictionary {
-    pub fn new(dict: HashMap<String, Object>) -> Self {
-        Self { dict }
-    }
-
-    pub fn get_integer(&mut self, key: &str, lexer: &mut Lexer) -> PdfResult<Option<i32>> {
-        self.dict
-            .remove(key)
-            .map(|obj| lexer.assert_integer(obj))
-            .transpose()
-    }
-
-    pub fn expect_integer(&mut self, key: &'static str, lexer: &mut Lexer) -> PdfResult<i32> {
-        self.dict
-            .remove(key)
-            .map(|obj| lexer.assert_integer(obj))
-            .ok_or(ParseError::MissingRequiredKey { key })?
-    }
-
-    pub fn get_reference(&mut self, key: &str) -> PdfResult<Option<Reference>> {
-        self.dict
-            .remove(key)
-            .map(Lexer::assert_reference)
-            .transpose()
-    }
-
-    pub fn get_string(&mut self, key: &str, lexer: &mut Lexer) -> PdfResult<Option<String>> {
-        self.dict
-            .remove(key)
-            .map(|obj| lexer.assert_string(obj))
-            .transpose()
-    }
-
-    pub fn expect_reference(&mut self, key: &'static str) -> PdfResult<Reference> {
-        self.dict
-            .remove(key)
-            .map(Lexer::assert_reference)
-            .ok_or(ParseError::MissingRequiredKey { key })?
-    }
-
-    pub fn get_object(&mut self, key: &str) -> Option<Object> {
-        self.dict.remove(key)
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.dict.is_empty()
-    }
-
-    pub fn get_name(&mut self, key: &str, lexer: &mut Lexer) -> PdfResult<Option<String>> {
-        self.dict
-            .remove(key)
-            .map(|obj| lexer.assert_name(obj))
-            .transpose()
-    }
-
-    pub fn expect_name(&mut self, key: &'static str, lexer: &mut Lexer) -> PdfResult<String> {
-        self.dict
-            .remove(key)
-            .map(|obj| lexer.assert_name(obj))
-            .ok_or(ParseError::MissingRequiredKey { key })?
-    }
-
-    pub fn get_dict(&mut self, key: &str, lexer: &mut Lexer) -> PdfResult<Option<Dictionary>> {
-        self.dict
-            .remove(key)
-            .map(|obj| lexer.assert_dict(obj))
-            .transpose()
-    }
-
-    pub fn expect_dict(&mut self, key: &'static str, lexer: &mut Lexer) -> PdfResult<Dictionary> {
-        self.dict
-            .remove(key)
-            .map(|obj| lexer.assert_dict(obj))
-            .ok_or(ParseError::MissingRequiredKey { key })?
-    }
-
-    pub fn get_arr(&mut self, key: &str, lexer: &mut Lexer) -> PdfResult<Option<Vec<Object>>> {
-        self.dict
-            .remove(key)
-            .map(|obj| lexer.assert_arr(obj))
-            .transpose()
-    }
-
-    pub fn expect_arr(&mut self, key: &'static str, lexer: &mut Lexer) -> PdfResult<Vec<Object>> {
-        self.dict
-            .remove(key)
-            .map(|obj| lexer.assert_arr(obj))
-            .ok_or(ParseError::MissingRequiredKey { key })?
-    }
-
-    pub fn get_bool(&mut self, key: &str, lexer: &mut Lexer) -> PdfResult<Option<bool>> {
-        self.dict
-            .remove(key)
-            .map(|obj| lexer.assert_bool(obj))
-            .transpose()
-    }
-}
-
-struct StreamDict {
-    len: usize,
-    filter: Option<Object>,
-    decode_params: Option<Object>,
-    f: Option<Object>,
-    f_filter: Option<Object>,
-    f_decode_params: Option<Object>,
-    dl: Option<usize>,
-}
 
 trait Lex {
     fn buffer(&self) -> &[u8];
@@ -478,7 +331,7 @@ impl Lex for Lexer {
     }
 }
 
-struct Lexer {
+pub struct Lexer {
     file: Vec<u8>,
     pos: usize,
     xref: Rc<Xref>,
