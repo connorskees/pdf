@@ -195,7 +195,6 @@ impl Lexer {
     }
 
     fn lex_stream_dict(&mut self, mut dict: Dictionary) -> PdfResult<StreamDict> {
-        dbg!(&dict);
         let len = dict.expect_integer("Length", self)? as usize;
 
         let filter = dict.get_object("Filter");
@@ -641,8 +640,6 @@ impl Lexer {
             };
         }
 
-        // dbg!(&root);
-
         Ok(root)
     }
 
@@ -908,7 +905,6 @@ impl Parser {
         let xref = Rc::new(xref);
         let mut lexer = Lexer::new(file, xref.clone())?;
         let trailer = lexer.lex_trailer(trailer_offset)?;
-        dbg!(&trailer);
         let catalog = DocumentCatalog::from_dict(
             lexer.assert_dict(Object::Reference(trailer.root))?,
             &mut lexer,
@@ -935,7 +931,6 @@ impl Parser {
     }
 
     pub fn run(mut self) -> PdfResult<Vec<Object>> {
-        dbg!(self.info());
         todo!()
     }
 }
