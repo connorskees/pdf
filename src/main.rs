@@ -153,7 +153,7 @@ impl Dictionary {
             .ok_or(ParseError::MissingRequiredKey { key })?
     }
 
-    pub fn get_object(&mut self, key: &str, lexer: &mut Lexer) -> Option<Object> {
+    pub fn get_object(&mut self, key: &str) -> Option<Object> {
         self.dict.remove(key)
     }
 
@@ -506,11 +506,11 @@ impl Lexer {
         dbg!(&dict);
         let len = dict.expect_integer("Length", self)? as usize;
 
-        let filter = dict.get_object("Filter", self);
-        let decode_params = dict.get_object("DecodeParms", self);
-        let f = dict.get_object("F", self);
-        let f_filter = dict.get_object("FFilter", self);
-        let f_decode_params = dict.get_object("FDecodeParms", self);
+        let filter = dict.get_object("Filter");
+        let decode_params = dict.get_object("DecodeParms");
+        let f = dict.get_object("F");
+        let f_filter = dict.get_object("FFilter");
+        let f_decode_params = dict.get_object("FDecodeParms");
         let dl = dict.get_integer("DL", self)?.map(|i| i as usize);
 
         if !dict.is_empty() {
@@ -1040,8 +1040,8 @@ impl Lexer {
         }));
 
         match parent {
-            PageNode::Node(node) => node.borrow_mut().kids.push(this_node.clone()),
-            PageNode::Root(node) => node.borrow_mut().kids.push(this_node.clone()),
+            PageNode::Node(node) => node.borrow_mut().kids.push(this_node),
+            PageNode::Root(node) => node.borrow_mut().kids.push(this_node),
             PageNode::Leaf(..) => todo!("unreachable"),
         }
 
