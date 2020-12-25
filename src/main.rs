@@ -1,8 +1,11 @@
 #![feature(or_patterns)]
+#![allow(dead_code)]
 // TODO: consider verifying the file header
 
 mod catalog;
 mod error;
+mod file_specification;
+mod font;
 mod objects;
 mod page;
 mod xref;
@@ -25,6 +28,7 @@ use {
 };
 
 use catalog::InformationDictionary;
+use objects::{Stream, TypeOrArray};
 
 use crate::{catalog::Trailer, xref::Xref};
 
@@ -191,31 +195,24 @@ impl Lexer {
             }
         }
 
+        self.pos = start_pos;
+
         true
     }
 
-    fn lex_stream_dict(&mut self, mut dict: Dictionary) -> PdfResult<StreamDict> {
-        let len = dict.expect_integer("Length", self)? as usize;
-
-        let filter = dict.get_object("Filter");
-        let decode_params = dict.get_object("DecodeParms");
-        let f = dict.get_object("F");
-        let f_filter = dict.get_object("FFilter");
-        let f_decode_params = dict.get_object("FDecodeParms");
-        let dl = dict.get_integer("DL", self)?.map(|i| i as usize);
-
-        if !dict.is_empty() {
-            todo!()
-        }
-
-        Ok(StreamDict {
-            len,
-            filter,
-            decode_params,
-            f,
-            f_filter,
-            f_decode_params,
-            dl,
+    fn get_type_or_arr<T>(
+        &mut self,
+        obj: Object,
+        convert: impl Fn(&mut Lexer, Object) -> PdfResult<T>,
+    ) -> PdfResult<TypeOrArray<T>> {
+        Ok(if let Object::Array(els) = obj {
+            TypeOrArray::Array(
+                els.into_iter()
+                    .map(|el| convert(self, el))
+                    .collect::<PdfResult<Vec<T>>>()?,
+            )
+        } else {
+            TypeOrArray::Type(convert(self, obj)?)
         })
     }
 
@@ -334,7 +331,7 @@ impl Lexer {
         self.skip_whitespace();
 
         if self.next_matches(b"stream") {
-            let stream_dict = self.lex_stream_dict(Dictionary::new(dict))?;
+            let stream_dict = StreamDict::from_dict(Dictionary::new(dict), self)?;
             return self.lex_stream(stream_dict);
         }
 
@@ -550,7 +547,10 @@ impl Lexer {
         self.expect_byte(b'm')?;
         self.expect_eol()?;
 
-        Ok(Object::Stream(stream))
+        Ok(Object::Stream(Stream {
+            stream,
+            dict: stream_dict,
+        }))
     }
 
     fn peek_byte_offset(&self, offset: usize) -> Option<u8> {
@@ -669,7 +669,7 @@ impl Lexer {
             .map(|objs| Rectangle::from_arr(objs, self))
             .transpose()?;
         let box_color_info = None;
-        let contents = None;
+        let contents = dict.get_type_or_arr("Contents", self, Lexer::assert_stream)?;
         let rotate = dict.get_integer("Rotate", self)?.unwrap_or(0);
         let group = None;
         let thumb = None;
@@ -691,7 +691,7 @@ impl Lexer {
         let vp = None;
 
         if !dict.is_empty() {
-            // todo!("dict not empty: {:#?}", dict);
+            todo!("dict not empty: {:#?}", dict);
         }
 
         let parent = pages.get(&parent).unwrap().clone();
@@ -886,6 +886,31 @@ impl Lexer {
             }),
         }
     }
+
+    pub fn assert_stream(&mut self, obj: Object) -> PdfResult<Stream> {
+        match obj {
+            Object::Stream(s) => Ok(s),
+            Object::Reference(r) => {
+                let obj = self.lex_object_from_reference(r)?;
+                self.assert_stream(obj)
+            }
+            found => Err(ParseError::MismatchedObjectType {
+                expected: ObjectType::Stream,
+                found,
+            }),
+        }
+    }
+
+    /// Resolve all references
+    pub fn resolve(&mut self, obj: Object) -> PdfResult<Object> {
+        match obj {
+            Object::Reference(r) => {
+                let obj = self.lex_object_from_reference(r)?;
+                self.resolve(obj)
+            }
+            obj => Ok(obj),
+        }
+    }
 }
 
 struct Parser {
@@ -930,13 +955,14 @@ impl Parser {
         )?))
     }
 
-    pub fn run(mut self) -> PdfResult<Vec<Object>> {
+    pub fn run(self) -> PdfResult<Vec<Object>> {
+        dbg!(self.page_tree);
         todo!()
     }
 }
 
 fn main() -> PdfResult<()> {
-    let mut parser = Parser::new("test2.pdf")?;
+    let parser = Parser::new("hello-world.pdf")?;
 
     dbg!(parser.run().unwrap());
 

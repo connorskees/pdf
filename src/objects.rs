@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{Lexer, ParseError, PdfResult};
+use crate::{file_specification::FileSpecification, Lexer, ParseError, PdfResult};
 
 #[derive(Debug)]
 pub enum ObjectType {
@@ -26,9 +26,15 @@ pub enum Object {
     String(String),
     Name(String),
     Array(Vec<Self>),
-    Stream(Vec<u8>),
+    Stream(Stream),
     Dictionary(Dictionary),
     Reference(Reference),
+}
+
+#[derive(Debug, Clone)]
+pub struct Stream {
+    pub(crate) dict: StreamDict,
+    pub(crate) stream: Vec<u8>,
 }
 
 /// A reference to a non-existing object is considered a `null`
@@ -38,14 +44,51 @@ pub struct Reference {
     pub generation: usize,
 }
 
+#[derive(Debug, Clone)]
+pub enum TypeOrArray<T> {
+    Type(T),
+    Array(Vec<T>),
+}
+
+#[derive(Debug, Clone)]
 pub struct StreamDict {
     pub len: usize,
-    pub filter: Option<Object>,
-    pub decode_params: Option<Object>,
-    pub f: Option<Object>,
-    pub f_filter: Option<Object>,
-    pub f_decode_params: Option<Object>,
+    pub filter: Option<TypeOrArray<String>>,
+    pub decode_params: Option<TypeOrArray<Dictionary>>,
+    pub f: Option<FileSpecification>,
+    pub f_filter: Option<TypeOrArray<String>>,
+    pub f_decode_params: Option<TypeOrArray<Dictionary>>,
     pub dl: Option<usize>,
+}
+
+impl StreamDict {
+    pub fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<StreamDict> {
+        let len = dict.expect_integer("Length", lexer)? as usize;
+
+        let filter = dict.get_type_or_arr("Filter", lexer, Lexer::assert_name)?;
+        let decode_params = dict.get_type_or_arr("DecodeParms", lexer, Lexer::assert_dict)?;
+        let f = dict
+            .get_object("F")
+            .map(|obj| FileSpecification::from_obj(obj, lexer))
+            .transpose()?;
+        let f_filter = dict.get_type_or_arr("FFilter", lexer, Lexer::assert_name)?;
+        let f_decode_params = dict.get_type_or_arr("FDecodeParms", lexer, Lexer::assert_dict)?;
+        let dl = dict.get_integer("DL", lexer)?.map(|i| i as usize);
+
+        if !dict.is_empty() {
+            todo!()
+        }
+
+        Ok(StreamDict {
+            len,
+            filter,
+            decode_params,
+            f,
+            f_filter,
+            f_decode_params,
+            dl,
+        })
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -56,6 +99,25 @@ pub struct Dictionary {
 impl Dictionary {
     pub fn new(dict: HashMap<String, Object>) -> Self {
         Self { dict }
+    }
+
+    pub fn get_stream(&mut self, key: &str, lexer: &mut Lexer) -> PdfResult<Option<Stream>> {
+        self.dict
+            .remove(key)
+            .map(|obj| lexer.assert_stream(obj))
+            .transpose()
+    }
+
+    pub fn get_type_or_arr<T>(
+        &mut self,
+        key: &'static str,
+        lexer: &mut Lexer,
+        convert: impl Fn(&mut Lexer, Object) -> PdfResult<T>,
+    ) -> PdfResult<Option<TypeOrArray<T>>> {
+        self.dict
+            .remove(key)
+            .map(|obj| lexer.get_type_or_arr(obj, convert))
+            .transpose()
     }
 
     pub fn get_integer(&mut self, key: &str, lexer: &mut Lexer) -> PdfResult<Option<i32>> {

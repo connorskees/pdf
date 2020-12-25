@@ -368,7 +368,7 @@ pub struct Permissions;
 pub struct Legal;
 #[derive(Debug)]
 pub struct Requirement;
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Collection;
 
 #[derive(Debug)]
@@ -403,6 +403,11 @@ impl Resources {
         let shading = dict.get_dict("Shading", lexer)?;
         let xobject = dict.get_dict("XObject", lexer)?;
         let font = dict.get_dict("Font", lexer)?;
+        // .unwrap()
+        // .get_reference("Helv")?
+        // .unwrap();
+        // dbg!(lexer.lex_object_from_reference(font)?);
+        // panic!();
         let proc_set = dict
             .get_arr("ProcSet", lexer)?
             .map(|proc| {
@@ -477,51 +482,48 @@ impl Date {
             }
         }
 
-        #[cfg(not(debug_assertions))]
-        {
-            macro_rules! unit {
-                ($unit:ident, $len:literal) => {
-                    let mut $unit = 0;
+        macro_rules! unit {
+            ($unit:ident, $len:literal) => {
+                let mut $unit = 0;
 
-                    for _ in 0..$len {
-                        let next = match chars.next() {
-                            Some(n @ b'0'..=b'9') => n - b'0',
-                            None => return Ok(date),
-                            found => {
-                                return Err(ParseError::MismatchedByteMany {
-                                    expected: NUMBERS,
-                                    found,
-                                });
-                            }
-                        };
+                for _ in 0..$len {
+                    let next = match chars.next() {
+                        Some(n @ b'0'..=b'9') => n - b'0',
+                        None => return Ok(date),
+                        found => {
+                            return Err(ParseError::MismatchedByteMany {
+                                expected: NUMBERS,
+                                found,
+                            });
+                        }
+                    };
 
-                        $unit *= 10;
-                        $unit += next as u16;
-                    }
-
-                    date.$unit = Some($unit);
-                };
-            }
-
-            unit!(year, 4);
-            unit!(month, 2);
-            unit!(day, 2);
-            unit!(hour, 2);
-            unit!(minute, 2);
-            unit!(second, 2);
-            date.ut_relationship = chars.next().map(UtRelationship::from_byte).transpose()?;
-            unit!(ut_hour_offset, 2);
-            match chars.next() {
-                Some(b'\'') => {}
-                found => {
-                    return Err(ParseError::MismatchedByte {
-                        expected: b'\'',
-                        found,
-                    })
+                    $unit *= 10;
+                    $unit += next as u16;
                 }
-            }
-            unit!(ut_minute_offset, 2);
+
+                date.$unit = Some($unit);
+            };
         }
+
+        unit!(year, 4);
+        unit!(month, 2);
+        unit!(day, 2);
+        unit!(hour, 2);
+        unit!(minute, 2);
+        unit!(second, 2);
+        date.ut_relationship = chars.next().map(UtRelationship::from_byte).transpose()?;
+        unit!(ut_hour_offset, 2);
+        match chars.next() {
+            Some(b'\'') => {}
+            found => {
+                return Err(ParseError::MismatchedByte {
+                    expected: b'\'',
+                    found,
+                })
+            }
+        }
+        unit!(ut_minute_offset, 2);
 
         Ok(date)
     }

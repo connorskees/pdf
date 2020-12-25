@@ -2,10 +2,10 @@ use std::{cell::RefCell, fmt, rc::Rc};
 
 use crate::{
     catalog::{
-        AdditionalActions, Annotation, BoxColorInfo, ContentStream, Date, GroupAttributes,
-        MetadataStream, NavigationNode, PagePiece, Rectangle, Resources, SeparationInfo,
-        Transitions, Viewport,
+        AdditionalActions, Annotation, BoxColorInfo, Date, GroupAttributes, MetadataStream,
+        NavigationNode, PagePiece, Rectangle, Resources, SeparationInfo, Transitions, Viewport,
     },
+    objects::{Stream, TypeOrArray},
     Reference,
 };
 
@@ -37,6 +37,7 @@ impl fmt::Debug for PageNode {
             Self::Leaf(r) => f
                 .debug_struct("PageNode::Leaf")
                 .field("resources", &r.resources)
+                .field("content", &r.contents)
                 .field("media_box", &r.media_box)
                 .field("crop_box", &r.crop_box)
                 .field("bleed_box", &r.bleed_box)
@@ -139,7 +140,7 @@ pub struct PageObject {
     /// not preserve the existing structure of the Contents array.
     ///
     /// Conforming writers shall not create a Contents array containing no elements.
-    pub contents: Option<ContentStream>,
+    pub contents: Option<TypeOrArray<Stream>>,
 
     /// The number of degrees by which the page shall be rotated clockwise
     /// when displayed or printed. The value shall be a multiple of 90.
