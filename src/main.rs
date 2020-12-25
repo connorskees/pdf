@@ -961,7 +961,7 @@ impl Parser {
 }
 
 fn main() -> PdfResult<()> {
-    let parser = Parser::new("test2.pdf")?;
+    let parser = Parser::new("hello-world.pdf")?;
 
     dbg!(parser.run().unwrap());
 

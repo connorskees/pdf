@@ -29,6 +29,10 @@ pub enum ParseError {
         found: String,
         ty: &'static str,
     },
+    MismatchedTypeKey {
+        expected: &'static str,
+        found: String,
+    },
     Todo,
 }
 

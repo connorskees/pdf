@@ -61,6 +61,28 @@ impl Dictionary {
             .transpose()
     }
 
+    pub fn expect_type(
+        &mut self,
+        ty: &'static str,
+        lexer: &mut Lexer,
+        required: bool,
+    ) -> PdfResult<()> {
+        let type_val = self.get_name("Type", lexer)?;
+
+        match type_val {
+            Some(val) if val != ty => {
+                return Err(ParseError::MismatchedTypeKey {
+                    expected: ty,
+                    found: val,
+                });
+            }
+            None if required => return Err(ParseError::MissingRequiredKey { key: "Type" }),
+            Some(..) | None => {}
+        }
+
+        Ok(())
+    }
+
     pub fn get_type_or_arr<T>(
         &mut self,
         key: &'static str,

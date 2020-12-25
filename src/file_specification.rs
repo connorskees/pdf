@@ -104,9 +104,7 @@ impl FullFileSpecification {
     const TYPE: &'static str = "Typespec";
 
     pub(crate) fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
-        if dict.get_name("Type", lexer)?.as_deref() != Some(Self::TYPE) {
-            todo!()
-        }
+        dict.expect_type(Self::TYPE, lexer, false)?;
 
         let file_system = dict.get_name("Fs", lexer)?;
         let file_specification_string = dict
