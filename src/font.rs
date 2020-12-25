@@ -1,4 +1,7 @@
-use crate::objects::{Dictionary, Reference, Stream};
+use crate::{
+    objects::{Dictionary, Reference},
+    stream::Stream,
+};
 
 enum Font {
     Type1(Type1Font),

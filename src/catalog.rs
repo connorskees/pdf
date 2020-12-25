@@ -403,11 +403,7 @@ impl Resources {
         let shading = dict.get_dict("Shading", lexer)?;
         let xobject = dict.get_dict("XObject", lexer)?;
         let font = dict.get_dict("Font", lexer)?;
-        // .unwrap()
-        // .get_reference("Helv")?
-        // .unwrap();
-        // dbg!(lexer.lex_object_from_reference(font)?);
-        // panic!();
+
         let proc_set = dict
             .get_arr("ProcSet", lexer)?
             .map(|proc| {

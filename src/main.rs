@@ -8,6 +8,7 @@ mod file_specification;
 mod font;
 mod objects;
 mod page;
+mod stream;
 mod xref;
 
 use std::{
@@ -20,15 +21,13 @@ use std::{
 };
 
 use {
-    catalog::{DocumentCatalog, Rectangle, Resources},
+    catalog::{DocumentCatalog, InformationDictionary, Rectangle, Resources},
     error::{ParseError, PdfResult},
-    objects::{Dictionary, Object, ObjectType, Reference, StreamDict},
+    objects::{Dictionary, Object, ObjectType, Reference, TypeOrArray},
     page::{PageNode, PageObject, PageTree, PageTreeNode},
+    stream::{Stream, StreamDict},
     xref::XrefParser,
 };
-
-use catalog::InformationDictionary;
-use objects::{Stream, TypeOrArray};
 
 use crate::{catalog::Trailer, xref::Xref};
 
@@ -680,7 +679,7 @@ impl Lexer {
         let aa = None;
         let metadata = None;
         let piece_info = None;
-        let struct_parents = None;
+        let struct_parents = dict.get_integer("StructParents", self)?;
         let id = None;
         let pz = None;
         let separation_info = None;
@@ -962,7 +961,7 @@ impl Parser {
 }
 
 fn main() -> PdfResult<()> {
-    let parser = Parser::new("hello-world.pdf")?;
+    let parser = Parser::new("test2.pdf")?;
 
     dbg!(parser.run().unwrap());
 

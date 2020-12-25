@@ -5,7 +5,8 @@ use crate::{
         AdditionalActions, Annotation, BoxColorInfo, Date, GroupAttributes, MetadataStream,
         NavigationNode, PagePiece, Rectangle, Resources, SeparationInfo, Transitions, Viewport,
     },
-    objects::{Stream, TypeOrArray},
+    objects::TypeOrArray,
+    stream::Stream,
     Reference,
 };
 
