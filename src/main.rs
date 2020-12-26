@@ -636,7 +636,12 @@ impl Lexer {
                     self.lex_page_tree_node(kid_dict, kid_ref, &mut page_queue, &mut pages)?
                 }
                 "Page" => self.lex_page_object(kid_dict, &mut pages)?,
-                _ => todo!(),
+                found => {
+                    return Err(ParseError::MismatchedTypeKey {
+                        expected: "Page",
+                        found: found.to_owned(),
+                    })
+                }
             };
         }
 
