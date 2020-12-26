@@ -29,6 +29,8 @@ use {
     xref::XrefParser,
 };
 
+use catalog::GroupAttributes;
+
 use crate::{catalog::Trailer, xref::Xref};
 
 const FORM_FEED: u8 = b'\x0C';
@@ -604,9 +606,7 @@ impl Lexer {
         let count = root_dict.expect_integer("Count", self)? as usize;
         let raw_kids = root_dict.expect_arr("Kids", self)?;
 
-        if root_dict.expect_name("Type", self)? != "Pages" {
-            todo!()
-        }
+        root_dict.expect_type("Pages", self, true)?;
 
         if !root_dict.is_empty() {
             todo!("dict not empty: {:#?}", root_dict);
@@ -670,7 +670,10 @@ impl Lexer {
         let box_color_info = None;
         let contents = dict.get_type_or_arr("Contents", self, Lexer::assert_stream)?;
         let rotate = dict.get_integer("Rotate", self)?.unwrap_or(0);
-        let group = None;
+        let group = dict
+            .get_dict("Group", self)?
+            .map(|dict| GroupAttributes::from_dict(dict, self))
+            .transpose()?;
         let thumb = None;
         let b = None;
         let dur = None;

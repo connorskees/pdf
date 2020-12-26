@@ -11,7 +11,9 @@ other than the first page shall be shown when the
 document is opened.
 */
 
-use crate::{Dictionary, Lexer, Object, ParseError, PdfResult, Reference, NUMBERS};
+use crate::{
+    objects::TypeOrArray, Dictionary, Lexer, Object, ParseError, PdfResult, Reference, NUMBERS,
+};
 
 /// See module level documentation
 #[derive(Debug)]
@@ -583,8 +585,92 @@ impl Rectangle {
 pub struct BoxColorInfo;
 #[derive(Debug)]
 pub struct ContentStream;
+
 #[derive(Debug)]
-pub struct GroupAttributes;
+pub struct GroupAttributes {
+    /// The group colour space, which is used for the following purposes:
+    ///
+    ///  * As the colour space into which colours shall be converted when painted into the
+    ///    group
+    ///  * As the blending colour space in which objects shall be composited within the group
+    ///  * As the colour space of the group as a whole when it in turn is painted as an object
+    ///    onto its backdrop
+    ///
+    /// The group colour space shall be any device or CIE-based colour space that treats its
+    /// components as independent additive or subtractive values in the range 0.0 to 1.0,
+    /// subject to the restrictions described in Blending Colour Space. These restrictions
+    /// exclude Lab and lightnesschromaticity ICCBased colour spaces, as well as the special
+    /// colour spaces Pattern, Indexed, Separation, and DeviceN. Device colour spaces shall be
+    /// subject to remapping according to the DefaultGray, DefaultRGB, and DefaultCMYK entries
+    /// in the ColorSpace subdictionary of the current resource dictionary.
+    ///
+    /// Ordinarily, the CS entry may be present only for isolated transparency groups (those
+    /// for which I is true), and even then it is optional. However, this entry shall be present
+    /// in the group attributes dictionary for any transparency group XObject that has no parent
+    /// group or page from which to inherit—in particular, one that is the value of the G entry
+    /// in a soft-mask dictionary of subtype Luminosity.
+    ///
+    /// Additionally, the CS entry may be present in the group attributes dictionary associated
+    /// with a page object, even if I is false or absent. In the normal case in which the page
+    /// is imposed directly on the output medium, the page group is effectively isolated regardless
+    /// of the I value, and the specified CS value shall therefore be honoured. But if the page
+    /// is in turn used as an element of some other page and if the group is nonisolated, CS shall
+    /// be ignored and the colour space shall be inherited from the actual backdrop with which the
+    /// page is composited.
+    ///
+    /// Default value: the colour space of the parent group or page into which this transparency
+    /// group is painted. (The parent’s colour space in turn may be either explicitly specified or
+    /// inherited.)
+    ///
+    /// For a transparency group XObject used as an annotation appearance, the default colour space
+    /// shall be inherited from the page on which the annotation appears
+    cs: Option<TypeOrArray<Object>>,
+
+    /// A flag specifying whether the transparency group is isolated.
+    ///
+    /// If this flag is true, objects within the group shall be composited against a fully
+    /// transparent initial backdrop; if false, they shall be composited against the group’s
+    /// backdrop.
+    ///
+    /// Default value: false.
+    ///
+    /// In the group attributes dictionary for a page, the interpretation of this entry shall
+    /// be slightly altered. In the normal case in which the page is imposed directly on the
+    /// output medium, the page group is effectively isolated and the specified I value shall
+    /// be ignored. But if the page is in turn used as an element of some other page, it shall
+    /// be treated as if it were a transparency group XObject; the I value shall be interpreted
+    /// in the normal way to determine whether the page group is isolated.
+    is_isolated: bool,
+
+    /// A flag specifying whether the transparency group is a knockout group.
+    ///
+    /// If this flag is false, later objects within the group shall be composited with earlier
+    /// ones with which they overlap; if true, they shall be composited with the group’s initial
+    /// backdrop and shall overwrite (“knock out”) any earlier overlapping objects.
+    ///
+    /// Default value: false.
+    is_knockout: bool,
+}
+
+impl GroupAttributes {
+    pub fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
+        let s = dict.expect_name("S", lexer)?;
+        if s != "Transparency" {
+            todo!()
+        }
+
+        let cs = dict.get_type_or_arr("CS", lexer, |_, obj| Ok(obj))?;
+        let is_isolated = dict.get_bool("I", lexer)?.unwrap_or(false);
+        let is_knockout = dict.get_bool("K", lexer)?.unwrap_or(false);
+
+        Ok(GroupAttributes {
+            cs,
+            is_isolated,
+            is_knockout,
+        })
+    }
+}
+
 #[derive(Debug)]
 pub struct Transitions;
 #[derive(Debug)]
