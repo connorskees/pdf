@@ -2,9 +2,10 @@ use std::{cell::RefCell, fmt, rc::Rc};
 
 use crate::{
     catalog::{
-        AdditionalActions, Annotation, BoxColorInfo, Date, GroupAttributes, MetadataStream,
+        AdditionalActions, Annotation, BoxColorInfo, GroupAttributes, MetadataStream,
         NavigationNode, PagePiece, Rectangle, Resources, SeparationInfo, Transitions, Viewport,
     },
+    date::Date,
     objects::TypeOrArray,
     stream::Stream,
     Reference,

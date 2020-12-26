@@ -3,6 +3,7 @@
 // TODO: consider verifying the file header
 
 mod catalog;
+mod date;
 mod error;
 mod file_specification;
 mod font;
