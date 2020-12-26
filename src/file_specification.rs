@@ -1,4 +1,5 @@
 use crate::{
+    assert_empty,
     catalog::Collection,
     error::{ParseError, PdfResult},
     objects::{Dictionary, Object, ObjectType},
@@ -126,9 +127,7 @@ impl FullFileSpecification {
         let description = dict.get_string("Desc", lexer)?;
         let collection_item_dict = dict.get_dict("CI", lexer)?.map(|_| todo!());
 
-        if !dict.is_empty() {
-            todo!("dict not empty: {:#?}", dict);
-        }
+        assert_empty(dict);
 
         Ok(FullFileSpecification {
             file_system,

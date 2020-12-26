@@ -12,7 +12,8 @@ document is opened.
 */
 
 use crate::{
-    date::Date, objects::TypeOrArray, Dictionary, Lexer, Object, ParseError, PdfResult, Reference,
+    assert_empty, date::Date, objects::TypeOrArray, Dictionary, Lexer, Object, ParseError,
+    PdfResult, Reference,
 };
 
 /// See module level documentation
@@ -186,9 +187,7 @@ impl DocumentCatalog {
         let collection = None;
         let needs_rendering = dict.get_bool("NeedsRendering", lexer)?.unwrap_or(false);
 
-        if !dict.is_empty() {
-            todo!("dict not empty: {:#?}", dict);
-        }
+        assert_empty(dict);
 
         Ok(DocumentCatalog {
             version,
@@ -273,9 +272,7 @@ impl InformationDictionary {
             .transpose()?
             .unwrap_or_default();
 
-        if !dict.is_empty() {
-            todo!("dict not empty: {:#?}", dict);
-        }
+        assert_empty(dict);
 
         Ok(InformationDictionary {
             title,
@@ -772,9 +769,7 @@ impl Trailer {
         let id = dict.get_arr("ID", lexer)?;
         let info = dict.get_reference("Info")?;
 
-        if !dict.is_empty() {
-            todo!("dict not empty: {:#?}", dict);
-        }
+        assert_empty(dict);
 
         Ok(Trailer {
             size,

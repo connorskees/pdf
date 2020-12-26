@@ -39,6 +39,13 @@ const BACKSPACE: u8 = b'\x08';
 
 pub(crate) const NUMBERS: &[u8] = b"0123456789";
 
+#[track_caller]
+fn assert_empty(dict: Dictionary) {
+    if !dict.is_empty() {
+        todo!("dict not empty: {:#?}", dict);
+    }
+}
+
 trait Lex {
     fn buffer(&self) -> &[u8];
     fn cursor(&self) -> usize;
@@ -698,9 +705,7 @@ impl Lexer {
         let user_unit = None;
         let vp = None;
 
-        if !dict.is_empty() {
-            todo!("dict not empty: {:#?}", dict);
-        }
+        assert_empty(dict);
 
         let parent = pages.get(&parent).unwrap().clone();
 

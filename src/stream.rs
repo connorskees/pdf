@@ -1,6 +1,7 @@
 use std::fmt;
 
 use crate::{
+    assert_empty,
     error::PdfResult,
     file_specification::FileSpecification,
     objects::{Dictionary, TypeOrArray},
@@ -47,9 +48,7 @@ impl StreamDict {
         let f_decode_params = dict.get_type_or_arr("FDecodeParms", lexer, Lexer::assert_dict)?;
         let dl = dict.get_integer("DL", lexer)?.map(|i| i as usize);
 
-        if !dict.is_empty() {
-            todo!()
-        }
+        assert_empty(dict);
 
         Ok(StreamDict {
             len,
