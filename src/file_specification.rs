@@ -165,7 +165,7 @@ struct EmbeddedFileStream;
 struct RelatedFilesArray;
 
 #[derive(Debug, Clone)]
-struct FileIdentifier(String, String);
+pub struct FileIdentifier(String, String);
 
 impl FileIdentifier {
     pub fn from_arr(arr: Vec<Object>, lexer: &mut Lexer) -> PdfResult<Self> {

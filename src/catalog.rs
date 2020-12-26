@@ -12,8 +12,8 @@ document is opened.
 */
 
 use crate::{
-    assert_empty, date::Date, objects::TypeOrArray, Dictionary, Lexer, Object, ParseError,
-    PdfResult, Reference,
+    assert_empty, date::Date, file_specification::FileIdentifier, objects::TypeOrArray, Dictionary,
+    Lexer, Object, ParseError, PdfResult, Reference,
 };
 
 /// See module level documentation
@@ -754,8 +754,7 @@ pub struct Trailer {
     pub root: Reference,
 
     pub encryption: Option<Encryption>,
-    id: Option<Vec<Object>>,
-    // pub id: Option<[String; 2]>,
+    pub id: Option<FileIdentifier>,
     pub info: Option<Reference>,
 }
 
@@ -766,7 +765,10 @@ impl Trailer {
         let root = dict.expect_reference("Root")?;
         // TODO: encryption dicts
         let encryption = None;
-        let id = dict.get_arr("ID", lexer)?;
+        let id = dict
+            .get_arr("ID", lexer)?
+            .map(|objs| FileIdentifier::from_arr(objs, lexer))
+            .transpose()?;
         let info = dict.get_reference("Info")?;
 
         assert_empty(dict);
