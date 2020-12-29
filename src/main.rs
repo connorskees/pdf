@@ -618,9 +618,7 @@ impl Lexer {
 
         root_dict.expect_type("Pages", self, true)?;
 
-        if !root_dict.is_empty() {
-            todo!("dict not empty: {:#?}", root_dict);
-        }
+        assert_empty(root_dict);
 
         let root = PageNode::Root(Rc::new(RefCell::new(PageTree {
             count,
