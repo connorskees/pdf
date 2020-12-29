@@ -322,7 +322,12 @@ impl Trapped {
             "True" => Self::True,
             "False" => Self::False,
             "Unknown" => Self::Unknown,
-            _ => return Err(ParseError::Todo),
+            found => {
+                return Err(ParseError::UnrecognizedVariant {
+                    found: found.to_owned(),
+                    ty: "Trapped",
+                })
+            }
         })
     }
 }

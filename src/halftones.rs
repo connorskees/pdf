@@ -128,7 +128,7 @@ impl HalftoneOne {
         let accurate_screens = dict.get_bool("AccurateScreens", lexer)?;
         let transfer_function = dict
             .get_object("TransferFunction", lexer)?
-            .map(|obj| TransferFunction::from_obj(obj))
+            .map(TransferFunction::from_obj)
             .transpose()?;
 
         Ok(HalftoneOne {
@@ -166,7 +166,7 @@ impl HalftoneSix {
         let height = dict.expect_integer("Height", lexer)?;
         let transfer_function = dict
             .get_object("TransferFunction", lexer)?
-            .map(|obj| TransferFunction::from_obj(obj))
+            .map(TransferFunction::from_obj)
             .transpose()?;
 
         Ok(HalftoneSix {
@@ -194,7 +194,7 @@ impl HalftoneTen {
         let y_square = dict.expect_integer("Ysquare", lexer)?;
         let transfer_function = dict
             .get_object("TransferFunction", lexer)?
-            .map(|obj| TransferFunction::from_obj(obj))
+            .map(TransferFunction::from_obj)
             .transpose()?;
 
         Ok(Self {
@@ -234,7 +234,7 @@ impl HalftoneSixteen {
         let height_two = dict.get_integer("Height2", lexer)?;
         let transfer_function = dict
             .get_object("TransferFunction", lexer)?
-            .map(|obj| TransferFunction::from_obj(obj))
+            .map(TransferFunction::from_obj)
             .transpose()?;
 
         Ok(Self {

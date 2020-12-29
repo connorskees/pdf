@@ -41,7 +41,6 @@ pub enum ParseError {
         expected: &'static str,
         found: String,
     },
-    Todo,
 }
 
 impl From<io::Error> for ParseError {

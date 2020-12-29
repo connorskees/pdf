@@ -140,7 +140,7 @@ impl SoftMask {
         let backdrop_color = dict.get_arr("BC", lexer)?;
         let transfer_function = dict
             .get_object("TransferFunction", lexer)?
-            .map(|obj| TransferFunction::from_obj(obj))
+            .map(TransferFunction::from_obj)
             .transpose()?;
 
         Ok(Self {
