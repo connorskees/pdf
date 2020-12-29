@@ -625,7 +625,6 @@ impl Lexer {
             kids: Vec::new(),
         })));
 
-        // let mut page_refs = HashMap::new();
         let mut pages = HashMap::new();
 
         pages.insert(root_reference, root.clone());
