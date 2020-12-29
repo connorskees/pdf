@@ -11,9 +11,12 @@ other than the first page shall be shown when the
 document is opened.
 */
 
+use std::{collections::HashMap, todo};
+
 use crate::{
-    assert_empty, date::Date, file_specification::FileIdentifier, objects::TypeOrArray, Dictionary,
-    Lexer, Object, ParseError, PdfResult, Reference,
+    assert_empty, date::Date, file_specification::FileIdentifier,
+    graphics_state_parameters::GraphicsStateParameters, objects::TypeOrArray, Dictionary, Lexer,
+    Object, ParseError, PdfResult, Reference,
 };
 
 /// See module level documentation
@@ -374,8 +377,8 @@ pub struct Collection;
 pub struct Resources {
     /// A dictionary that maps resource names to
     /// graphics state parameter dictionaries
-    ext_g_state: Option<Dictionary>,
-    // ext_g_state: Option<HashMap<String, GraphicsStateParameters>>,
+    ext_g_state: Option<HashMap<String, GraphicsStateParameters>>,
+
     /// A dictionary that maps each resource name to
     /// either the name of a device-dependent color
     /// space or an array describing a color space
@@ -396,7 +399,20 @@ pub struct Resources {
 
 impl Resources {
     pub(crate) fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
-        let ext_g_state = dict.get_dict("ExtGState", lexer)?;
+        let ext_g_state = dict
+            .get_dict("ExtGState", lexer)?
+            .map(|dict| {
+                dict.entries()
+                    .map(|(key, value)| {
+                        let dict = lexer.assert_dict(value)?;
+                        let graphics = GraphicsStateParameters::from_dict(dict, lexer)?;
+
+                        Ok((key, graphics))
+                    })
+                    .collect::<PdfResult<HashMap<String, GraphicsStateParameters>>>()
+            })
+            .transpose()?;
+
         let color_space = dict.get_dict("ColorSpace", lexer)?;
         let pattern = dict.get_dict("Pattern", lexer)?;
         let shading = dict.get_dict("Shading", lexer)?;
@@ -558,8 +574,6 @@ pub struct NavigationNode;
 #[derive(Debug)]
 pub struct Viewport;
 #[derive(Debug)]
-pub struct GraphicsStateParameters;
-#[derive(Debug)]
 pub struct Pattern;
 #[derive(Debug)]
 pub struct Shading;
@@ -598,7 +612,6 @@ impl ProcedureSet {
 }
 
 #[derive(Debug)]
-#[allow(unused)]
 pub enum ColorSpace {
     // Device
     DeviceGray(f32),

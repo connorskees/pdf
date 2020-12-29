@@ -31,6 +31,20 @@ pub enum Object {
     Reference(Reference),
 }
 
+impl Object {
+    /// If self is an instance of `Object::Name`, returns whether or not
+    /// the names are equivalent.
+    ///
+    /// Otherwise, returns false
+    pub fn name_is(&self, name: &str) -> bool {
+        if let Object::Name(name_two) = self {
+            name == name_two
+        } else {
+            false
+        }
+    }
+}
+
 /// A reference to a non-existing object is considered a `null`
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct Reference {
@@ -54,11 +68,36 @@ impl Dictionary {
         Self { dict }
     }
 
+    pub fn entries(self) -> impl Iterator<Item = (String, Object)> {
+        self.dict.into_iter()
+    }
+
     pub fn get_stream(&mut self, key: &str, lexer: &mut Lexer) -> PdfResult<Option<Stream>> {
         self.dict
             .remove(key)
             .map(|obj| lexer.assert_stream(obj))
             .transpose()
+    }
+
+    pub fn expect_stream(&mut self, key: &'static str, lexer: &mut Lexer) -> PdfResult<Stream> {
+        self.dict
+            .remove(key)
+            .map(|obj| lexer.assert_stream(obj))
+            .ok_or(ParseError::MissingRequiredKey { key })?
+    }
+
+    pub fn get_number(&mut self, key: &str, lexer: &mut Lexer) -> PdfResult<Option<f32>> {
+        self.dict
+            .remove(key)
+            .map(|obj| lexer.assert_number(obj))
+            .transpose()
+    }
+
+    pub fn expect_number(&mut self, key: &'static str, lexer: &mut Lexer) -> PdfResult<f32> {
+        self.dict
+            .remove(key)
+            .map(|obj| lexer.assert_number(obj))
+            .ok_or(ParseError::MissingRequiredKey { key })?
     }
 
     pub fn expect_type(
@@ -130,8 +169,18 @@ impl Dictionary {
             .ok_or(ParseError::MissingRequiredKey { key })?
     }
 
-    pub fn get_object(&mut self, key: &str) -> Option<Object> {
-        self.dict.remove(key)
+    pub fn get_object(&mut self, key: &str, lexer: &mut Lexer) -> PdfResult<Option<Object>> {
+        self.dict
+            .remove(key)
+            .map(|obj| lexer.resolve(obj))
+            .transpose()
+    }
+
+    pub fn expect_object(&mut self, key: &'static str, lexer: &mut Lexer) -> PdfResult<Object> {
+        self.dict
+            .remove(key)
+            .map(|obj| lexer.resolve(obj))
+            .ok_or(ParseError::MissingRequiredKey { key })?
     }
 
     pub fn is_empty(&self) -> bool {

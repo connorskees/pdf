@@ -41,7 +41,7 @@ impl StreamDict {
         let filter = dict.get_type_or_arr("Filter", lexer, Lexer::assert_name)?;
         let decode_params = dict.get_type_or_arr("DecodeParms", lexer, Lexer::assert_dict)?;
         let f = dict
-            .get_object("F")
+            .get_object("F", lexer)?
             .map(|obj| FileSpecification::from_obj(obj, lexer))
             .transpose()?;
         let f_filter = dict.get_type_or_arr("FFilter", lexer, Lexer::assert_name)?;

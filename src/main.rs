@@ -7,6 +7,9 @@ mod date;
 mod error;
 mod file_specification;
 mod font;
+mod function;
+mod graphics_state_parameters;
+mod halftones;
 mod objects;
 mod page;
 mod stream;
@@ -18,7 +21,6 @@ use std::{
     fs::File,
     io::{self, Read},
     rc::Rc,
-    todo,
 };
 
 use {

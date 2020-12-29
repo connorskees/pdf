@@ -18,6 +18,14 @@ pub enum ParseError {
         expected: ObjectType,
         found: Object,
     },
+    MismatchedObjectTypeAny {
+        expected: &'static [ObjectType],
+        found: Object,
+    },
+    InvalidDictionaryValueForKey {
+        key: &'static str,
+        found: Object,
+    },
     MissingRequiredKey {
         key: &'static str,
     },
