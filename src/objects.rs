@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{stream::Stream, Lexer, ParseError, PdfResult};
+use crate::{stream::Stream, Lexer, ParseError, PdfResult, Resolve};
 
 #[derive(Debug)]
 pub enum ObjectType {

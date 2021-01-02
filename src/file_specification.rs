@@ -3,7 +3,7 @@ use crate::{
     catalog::Collection,
     error::{ParseError, PdfResult},
     objects::{Dictionary, Object, ObjectType},
-    Lexer,
+    Lexer, Resolve,
 };
 
 #[derive(Debug, Clone)]

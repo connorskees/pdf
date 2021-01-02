@@ -5,7 +5,7 @@ use crate::{
     halftones::Halftones,
     objects::{Dictionary, Object, ObjectType},
     stream::Stream,
-    Lexer,
+    Lexer, Resolve,
 };
 
 #[derive(Debug)]

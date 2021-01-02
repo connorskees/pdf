@@ -5,7 +5,7 @@ use crate::{
     error::PdfResult,
     file_specification::FileSpecification,
     objects::{Dictionary, TypeOrArray},
-    Lexer,
+    Lexer, Resolve,
 };
 
 #[derive(Clone)]

@@ -48,6 +48,161 @@ fn assert_empty(dict: Dictionary) {
     }
 }
 
+pub trait Resolve {
+    fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object>;
+
+    fn assert_integer(&mut self, obj: Object) -> PdfResult<i32> {
+        match obj {
+            Object::Integer(i) => Ok(i),
+            Object::Reference(r) => {
+                let obj = self.lex_object_from_reference(r)?;
+                self.assert_integer(obj)
+            }
+            found => Err(ParseError::MismatchedObjectType {
+                expected: ObjectType::Integer,
+                found,
+            }),
+        }
+    }
+
+    /// Either an integer, or a real
+    fn assert_number(&mut self, obj: Object) -> PdfResult<f32> {
+        match obj {
+            Object::Integer(i) => Ok(i as f32),
+            Object::Real(i) => Ok(i),
+            Object::Reference(r) => {
+                let obj = self.lex_object_from_reference(r)?;
+                self.assert_number(obj)
+            }
+            found => Err(ParseError::MismatchedObjectType {
+                expected: ObjectType::Real,
+                found,
+            }),
+        }
+    }
+
+    fn assert_dict(&mut self, obj: Object) -> PdfResult<Dictionary> {
+        match obj {
+            Object::Dictionary(d) => Ok(d),
+            Object::Reference(r) => {
+                let obj = self.lex_object_from_reference(r)?;
+                self.assert_dict(obj)
+            }
+            found => Err(ParseError::MismatchedObjectType {
+                expected: ObjectType::Dictionary,
+                found,
+            }),
+        }
+    }
+
+    fn assert_reference(obj: Object) -> PdfResult<Reference> {
+        match obj {
+            Object::Reference(r) => Ok(r),
+            found => Err(ParseError::MismatchedObjectType {
+                expected: ObjectType::Reference,
+                found,
+            }),
+        }
+    }
+
+    fn assert_name(&mut self, obj: Object) -> PdfResult<String> {
+        match obj {
+            Object::Name(n) => Ok(n),
+            Object::Reference(r) => {
+                let obj = self.lex_object_from_reference(r)?;
+                self.assert_name(obj)
+            }
+            found => Err(ParseError::MismatchedObjectType {
+                expected: ObjectType::Name,
+                found,
+            }),
+        }
+    }
+
+    fn assert_string(&mut self, obj: Object) -> PdfResult<String> {
+        match obj {
+            Object::String(s) => Ok(s),
+            Object::Reference(r) => {
+                let obj = self.lex_object_from_reference(r)?;
+                self.assert_string(obj)
+            }
+            found => Err(ParseError::MismatchedObjectType {
+                expected: ObjectType::String,
+                found,
+            }),
+        }
+    }
+
+    fn assert_arr(&mut self, obj: Object) -> PdfResult<Vec<Object>> {
+        match obj {
+            Object::Array(a) => Ok(a),
+            Object::Reference(r) => {
+                let obj = self.lex_object_from_reference(r)?;
+                self.assert_arr(obj)
+            }
+            found => Err(ParseError::MismatchedObjectType {
+                expected: ObjectType::Array,
+                found,
+            }),
+        }
+    }
+
+    fn assert_bool(&mut self, obj: Object) -> PdfResult<bool> {
+        match obj {
+            Object::True => Ok(true),
+            Object::False => Ok(false),
+            Object::Reference(r) => {
+                let obj = self.lex_object_from_reference(r)?;
+                self.assert_bool(obj)
+            }
+            found => Err(ParseError::MismatchedObjectType {
+                expected: ObjectType::Boolean,
+                found,
+            }),
+        }
+    }
+
+    fn assert_stream(&mut self, obj: Object) -> PdfResult<Stream> {
+        match obj {
+            Object::Stream(s) => Ok(s),
+            Object::Reference(r) => {
+                let obj = self.lex_object_from_reference(r)?;
+                self.assert_stream(obj)
+            }
+            found => Err(ParseError::MismatchedObjectType {
+                expected: ObjectType::Stream,
+                found,
+            }),
+        }
+    }
+
+    /// Resolve all references
+    fn resolve(&mut self, obj: Object) -> PdfResult<Object> {
+        match obj {
+            Object::Reference(r) => {
+                let obj = self.lex_object_from_reference(r)?;
+                self.resolve(obj)
+            }
+            obj => Ok(obj),
+        }
+    }
+
+    fn assert_or_null<T>(
+        &mut self,
+        obj: Object,
+        convert: impl Fn(&mut Self, Object) -> PdfResult<T>,
+    ) -> PdfResult<Option<T>> {
+        match obj {
+            Object::Reference(r) => {
+                let obj = self.lex_object_from_reference(r)?;
+                self.assert_or_null(obj, convert)
+            }
+            Object::Null => Ok(None),
+            obj => Some(convert(self, obj)).transpose(),
+        }
+    }
+}
+
 trait Lex {
     fn buffer(&self) -> &[u8];
     fn cursor(&self) -> usize;
@@ -225,34 +380,6 @@ impl Lexer {
         } else {
             TypeOrArray::Type(convert(self, obj)?)
         })
-    }
-
-    fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object> {
-        self.pos = match self.xref.get_offset(reference) {
-            Some(p) => p,
-            None => return Ok(Object::Null),
-        };
-
-        self.lex_whole_number();
-        self.skip_whitespace();
-        self.lex_whole_number();
-        self.skip_whitespace();
-        self.expect_byte(b'o')?;
-        self.expect_byte(b'b')?;
-        self.expect_byte(b'j')?;
-        self.skip_whitespace();
-
-        let obj = self.lex_object()?;
-
-        self.skip_whitespace();
-        self.expect_byte(b'e')?;
-        self.expect_byte(b'n')?;
-        self.expect_byte(b'd')?;
-        self.expect_byte(b'o')?;
-        self.expect_byte(b'b')?;
-        self.expect_byte(b'j')?;
-
-        Ok(obj)
     }
 
     fn lex_object(&mut self) -> PdfResult<Object> {
@@ -608,6 +735,7 @@ impl Lexer {
         if xref.get_offset(root_reference).is_none() {
             return Ok(PageNode::Root(Rc::new(RefCell::new(PageTree {
                 kids: Vec::new(),
+                pages: HashMap::new(),
                 count: 0,
             }))));
         };
@@ -622,6 +750,7 @@ impl Lexer {
 
         let root = PageNode::Root(Rc::new(RefCell::new(PageTree {
             count,
+            pages: HashMap::new(),
             kids: Vec::new(),
         })));
 
@@ -641,7 +770,7 @@ impl Lexer {
                 "Pages" => {
                     self.lex_page_tree_node(kid_dict, kid_ref, &mut page_queue, &mut pages)?
                 }
-                "Page" => self.lex_page_object(kid_dict, &mut pages)?,
+                "Page" => self.lex_page_object(kid_dict, kid_ref, &mut pages)?,
                 found => {
                     return Err(ParseError::MismatchedTypeKey {
                         expected: "Page",
@@ -651,12 +780,20 @@ impl Lexer {
             };
         }
 
+        match root.clone() {
+            PageNode::Root(root) => {
+                root.borrow_mut().pages = pages;
+            }
+            _ => unreachable!(),
+        }
+
         Ok(root)
     }
 
     fn lex_page_object(
         &mut self,
         mut dict: Dictionary,
+        kid_ref: Reference,
         pages: &mut HashMap<Reference, PageNode>,
     ) -> PdfResult<()> {
         let parent = dict.expect_reference("Parent")?;
@@ -740,6 +877,8 @@ impl Lexer {
             vp,
         }));
 
+        pages.insert(kid_ref, this_node.clone());
+
         match parent {
             PageNode::Node(node) => node.borrow_mut().kids.push(this_node),
             PageNode::Root(node) => node.borrow_mut().kids.push(this_node),
@@ -787,145 +926,40 @@ impl Lexer {
     }
 }
 
-impl Lexer {
-    pub fn assert_integer(&mut self, obj: Object) -> PdfResult<i32> {
-        match obj {
-            Object::Integer(i) => Ok(i),
-            Object::Reference(r) => {
-                let obj = self.lex_object_from_reference(r)?;
-                self.assert_integer(obj)
-            }
-            found => Err(ParseError::MismatchedObjectType {
-                expected: ObjectType::Integer,
-                found,
-            }),
-        }
-    }
+impl Resolve for Lexer {
+    fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object> {
+        let init_pos = self.pos;
+        self.pos = match self.xref.get_offset(reference) {
+            Some(p) => p,
+            None => return Ok(Object::Null),
+        };
 
-    /// Either an integer, or a real
-    pub fn assert_number(&mut self, obj: Object) -> PdfResult<f32> {
-        match obj {
-            Object::Integer(i) => Ok(i as f32),
-            Object::Real(i) => Ok(i),
-            Object::Reference(r) => {
-                let obj = self.lex_object_from_reference(r)?;
-                self.assert_number(obj)
-            }
-            found => Err(ParseError::MismatchedObjectType {
-                expected: ObjectType::Real,
-                found,
-            }),
-        }
-    }
+        self.lex_whole_number();
+        self.skip_whitespace();
+        self.lex_whole_number();
+        self.skip_whitespace();
+        self.expect_byte(b'o')?;
+        self.expect_byte(b'b')?;
+        self.expect_byte(b'j')?;
+        self.skip_whitespace();
 
-    pub fn assert_dict(&mut self, obj: Object) -> PdfResult<Dictionary> {
-        match obj {
-            Object::Dictionary(d) => Ok(d),
-            Object::Reference(r) => {
-                let obj = self.lex_object_from_reference(r)?;
-                self.assert_dict(obj)
-            }
-            found => Err(ParseError::MismatchedObjectType {
-                expected: ObjectType::Dictionary,
-                found,
-            }),
-        }
-    }
+        let obj = self.lex_object()?;
 
-    pub fn assert_reference(obj: Object) -> PdfResult<Reference> {
-        match obj {
-            Object::Reference(r) => Ok(r),
-            found => Err(ParseError::MismatchedObjectType {
-                expected: ObjectType::Reference,
-                found,
-            }),
-        }
-    }
+        self.skip_whitespace();
+        self.expect_byte(b'e')?;
+        self.expect_byte(b'n')?;
+        self.expect_byte(b'd')?;
+        self.expect_byte(b'o')?;
+        self.expect_byte(b'b')?;
+        self.expect_byte(b'j')?;
 
-    pub fn assert_name(&mut self, obj: Object) -> PdfResult<String> {
-        match obj {
-            Object::Name(n) => Ok(n),
-            Object::Reference(r) => {
-                let obj = self.lex_object_from_reference(r)?;
-                self.assert_name(obj)
-            }
-            found => Err(ParseError::MismatchedObjectType {
-                expected: ObjectType::Name,
-                found,
-            }),
-        }
-    }
+        self.pos = init_pos;
 
-    pub fn assert_string(&mut self, obj: Object) -> PdfResult<String> {
-        match obj {
-            Object::String(s) => Ok(s),
-            Object::Reference(r) => {
-                let obj = self.lex_object_from_reference(r)?;
-                self.assert_string(obj)
-            }
-            found => Err(ParseError::MismatchedObjectType {
-                expected: ObjectType::String,
-                found,
-            }),
-        }
-    }
-
-    pub fn assert_arr(&mut self, obj: Object) -> PdfResult<Vec<Object>> {
-        match obj {
-            Object::Array(a) => Ok(a),
-            Object::Reference(r) => {
-                let obj = self.lex_object_from_reference(r)?;
-                self.assert_arr(obj)
-            }
-            found => Err(ParseError::MismatchedObjectType {
-                expected: ObjectType::Array,
-                found,
-            }),
-        }
-    }
-
-    pub fn assert_bool(&mut self, obj: Object) -> PdfResult<bool> {
-        match obj {
-            Object::True => Ok(true),
-            Object::False => Ok(false),
-            Object::Reference(r) => {
-                let obj = self.lex_object_from_reference(r)?;
-                self.assert_bool(obj)
-            }
-            found => Err(ParseError::MismatchedObjectType {
-                expected: ObjectType::Boolean,
-                found,
-            }),
-        }
-    }
-
-    pub fn assert_stream(&mut self, obj: Object) -> PdfResult<Stream> {
-        match obj {
-            Object::Stream(s) => Ok(s),
-            Object::Reference(r) => {
-                let obj = self.lex_object_from_reference(r)?;
-                self.assert_stream(obj)
-            }
-            found => Err(ParseError::MismatchedObjectType {
-                expected: ObjectType::Stream,
-                found,
-            }),
-        }
-    }
-
-    /// Resolve all references
-    pub fn resolve(&mut self, obj: Object) -> PdfResult<Object> {
-        match obj {
-            Object::Reference(r) => {
-                let obj = self.lex_object_from_reference(r)?;
-                self.resolve(obj)
-            }
-            obj => Ok(obj),
-        }
+        Ok(obj)
     }
 }
 
-struct Parser {
+pub struct Parser {
     lexer: Lexer,
     xref: Rc<Xref>,
     trailer: Trailer,

@@ -14,9 +14,12 @@ document is opened.
 use std::{collections::HashMap, todo};
 
 use crate::{
-    assert_empty, date::Date, file_specification::FileIdentifier,
-    graphics_state_parameters::GraphicsStateParameters, objects::TypeOrArray, Dictionary, Lexer,
-    Object, ParseError, PdfResult, Reference,
+    assert_empty,
+    date::Date,
+    file_specification::FileIdentifier,
+    graphics_state_parameters::GraphicsStateParameters,
+    objects::{ObjectType, TypeOrArray},
+    Dictionary, Lexer, Object, ParseError, PdfResult, Reference, Resolve,
 };
 
 /// See module level documentation
@@ -76,6 +79,7 @@ pub struct DocumentCatalog {
     /// or an action that shall be performed when the document
     /// is opened. The value shall be either an array defining
     /// a destination or an action dictionary representing an action.
+    ///
     /// If this entry is absent, the document shall be opened to the
     /// top of the first page at the default magnification factor.
     open_action: Option<OpenAction>,
@@ -172,7 +176,10 @@ impl DocumentCatalog {
 
         let outlines = dict.get_reference("Outlines")?;
         let threads = dict.get_reference("Threads")?;
-        let open_action = None;
+        let open_action = dict
+            .get_object("OpenAction", lexer)?
+            .map(|obj| OpenAction::from_obj(obj, lexer))
+            .transpose()?;
         let aa = None;
         let uri = None;
         let acro_form = None;
@@ -347,8 +354,194 @@ pub struct ViewerPreferences;
 pub struct DocumentOutline;
 #[derive(Debug)]
 pub struct ThreadDictionary;
+
 #[derive(Debug)]
-pub struct OpenAction;
+enum DestinationKind {
+    /// Display the page designated by page, with the coordinates (left, top) positioned
+    /// at the upper-left corner of the window and the contents of the page magnified by
+    /// the factor zoom. A null value for any of the parameters left, top, or zoom specifies
+    /// that the current value of that parameter shall be retained unchanged. A zoom value
+    /// of 0 has the same meaning as a null value.
+    Xyz {
+        left: Option<f32>,
+        top: Option<f32>,
+        bottom: Option<f32>,
+    },
+
+    /// Display the page designated by page, with its contents magnified just enough to fit
+    /// the entire page within the window both horizontally and vertically. If the required
+    /// horizontal and vertical magnification factors are different, use the smaller of the
+    /// two, centering the page within the window in the other dimension.
+    Fit,
+
+    /// Display the page designated by page, with the vertical coordinate top positioned at
+    /// the top edge of the window and the contents of the page magnified just enough to fit
+    /// the entire width of the page within the window. A null value for top specifies that
+    /// the current value of that parameter shall be retained unchanged.
+    FitH { top: Option<f32> },
+
+    /// Display the page designated by page, with the horizontal coordinate left positioned
+    /// at the left edge of the window and the contents of the page magnified just enough to
+    /// fit the entire height of the page within the window. A null value for left specifies
+    /// that the current value of that parameter shall be retained unchanged.
+    FitV { left: Option<f32> },
+
+    /// Display the page designated by page, with its contents magnified just enough to fit
+    /// the rectangle specified by the coordinates left, bottom, right, and top entirely within
+    /// the window both horizontally and vertically. If the required horizontal and vertical
+    /// magnification factors are different, use the smaller of the two, centering the rectangle
+    /// within the window in the other dimension.
+    FitR {
+        left: Option<f32>,
+        bottom: Option<f32>,
+        right: Option<f32>,
+        top: Option<f32>,
+    },
+
+    /// Display the page designated by page, with its contents magnified just enough to fit its
+    /// bounding box entirely within the window both horizontally and vertically. If the required
+    /// horizontal and vertical magnification factors are different, use the smaller of the two,
+    /// centering the bounding box within the window in the other dimension.
+    FitB,
+
+    /// Display the page designated by page, with the vertical coordinate top positioned at the
+    /// top edge of the window and the contents of the page magnified just enough to fit the entire
+    /// width of its bounding box within the window. A null value for top specifies that the
+    /// current value of that parameter shall be retained unchanged.
+    FitBh { top: Option<f32> },
+
+    /// Display the page designated by page, with the horizontal coordinate left positioned at the
+    /// left edge of the window and the contents of the page magnified just enough to fit the entire
+    /// height of its bounding box within the window. A null value for left specifies that the
+    /// current value of that parameter shall be retained unchanged.
+    FitBv { left: Option<f32> },
+}
+
+#[derive(Debug)]
+pub struct Destination {
+    kind: DestinationKind,
+    page_ref: Reference,
+}
+
+fn assert_len(arr: &[Object], len: usize) -> PdfResult<()> {
+    if arr.len() != len {
+        return Err(ParseError::ArrayOfInvalidLength {
+            expected: len,
+            found: arr.to_vec(),
+        });
+    }
+
+    Ok(())
+}
+
+impl Destination {
+    pub fn from_arr(mut arr: Vec<Object>, lexer: &mut Lexer) -> PdfResult<Self> {
+        if arr.len() < 2 {
+            return Err(ParseError::ArrayOfInvalidLength {
+                expected: 2,
+                found: arr,
+            });
+        }
+
+        let vals = arr.split_off(2);
+
+        let dimensions = vals
+            .iter()
+            .cloned()
+            .map(|obj| lexer.assert_or_null(obj, Resolve::assert_number))
+            .collect::<PdfResult<Vec<Option<f32>>>>()?;
+
+        let kind_str = lexer.assert_name(arr.pop().unwrap())?;
+
+        let page_ref = Lexer::assert_reference(arr.pop().unwrap())?;
+
+        let kind = match kind_str.as_str() {
+            "XYZ" => {
+                assert_len(&vals, 3)?;
+                DestinationKind::Xyz {
+                    left: dimensions[0],
+                    top: dimensions[1],
+                    bottom: dimensions[2],
+                }
+            }
+            "Fit" => {
+                assert_len(&vals, 0)?;
+                DestinationKind::Fit
+            }
+            "FitH" => {
+                assert_len(&vals, 1)?;
+                DestinationKind::FitH { top: dimensions[0] }
+            }
+            "FitV" => {
+                assert_len(&vals, 1)?;
+                DestinationKind::FitV {
+                    left: dimensions[0],
+                }
+            }
+            "FitR" => {
+                assert_len(&vals, 4)?;
+                DestinationKind::FitR {
+                    left: dimensions[0],
+                    bottom: dimensions[1],
+                    right: dimensions[2],
+                    top: dimensions[3],
+                }
+            }
+            "FitB" => {
+                assert_len(&vals, 0)?;
+                DestinationKind::FitB
+            }
+            "FitBH" => {
+                assert_len(&vals, 1)?;
+                DestinationKind::FitBh { top: dimensions[0] }
+            }
+            "FitBV" => {
+                assert_len(&vals, 1)?;
+                DestinationKind::FitBv {
+                    left: dimensions[0],
+                }
+            }
+            found => {
+                return Err(ParseError::UnrecognizedVariant {
+                    found: found.to_owned(),
+                    ty: "DestinationKey",
+                })
+            }
+        };
+
+        Ok(Destination { kind, page_ref })
+    }
+}
+#[derive(Debug)]
+pub struct Actions;
+
+impl Actions {
+    pub fn from_dict(_dict: Dictionary, _lexer: &mut Lexer) -> PdfResult<Self> {
+        todo!()
+    }
+}
+
+#[derive(Debug)]
+pub enum OpenAction {
+    Destination(Destination),
+    Actions(Actions),
+}
+
+impl OpenAction {
+    pub fn from_obj(obj: Object, lexer: &mut Lexer) -> PdfResult<Self> {
+        Ok(match obj {
+            Object::Array(arr) => OpenAction::Destination(Destination::from_arr(arr, lexer)?),
+            Object::Dictionary(dict) => OpenAction::Actions(Actions::from_dict(dict, lexer)?),
+            found => {
+                return Err(ParseError::MismatchedObjectTypeAny {
+                    found,
+                    expected: &[ObjectType::Array, ObjectType::Dictionary],
+                })
+            }
+        })
+    }
+}
+
 #[derive(Debug)]
 pub struct AdditionalActions;
 #[derive(Debug)]
@@ -774,6 +967,9 @@ pub struct Trailer {
     pub encryption: Option<Encryption>,
     pub id: Option<FileIdentifier>,
     pub info: Option<Reference>,
+
+    /// LibreOffice specific extension, see <https://bugs.documentfoundation.org/show_bug.cgi?id=66580>
+    doc_checksum: Option<String>,
 }
 
 impl Trailer {
@@ -788,6 +984,7 @@ impl Trailer {
             .map(|objs| FileIdentifier::from_arr(objs, lexer))
             .transpose()?;
         let info = dict.get_reference("Info")?;
+        let doc_checksum = dict.get_name("DocChecksum", lexer)?;
 
         assert_empty(dict);
 
@@ -798,6 +995,7 @@ impl Trailer {
             encryption,
             info,
             id,
+            doc_checksum,
         })
     }
 }

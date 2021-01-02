@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fmt, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, fmt, rc::Rc};
 
 use crate::{
     catalog::{
@@ -13,6 +13,7 @@ use crate::{
 
 pub struct PageTree {
     pub kids: Vec<PageNode>,
+    pub pages: HashMap<Reference, PageNode>,
     pub count: usize,
 }
 
