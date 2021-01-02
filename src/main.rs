@@ -434,7 +434,7 @@ impl Lexer {
     fn lex_gt(&mut self) -> PdfResult<Object> {
         match self.peek_byte_offset(1) {
             Some(b'<') => self.lex_dict(),
-            Some(b'0'..=b'9' | b'A'..=b'F') => self.lex_hex_string(),
+            Some(b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F') => self.lex_hex_string(),
             // special cased empty byte string, `<>`
             Some(b'>') => {
                 self.next_byte();
