@@ -476,32 +476,52 @@ impl Lexer {
         Ok(Object::Dictionary(Dictionary::new(dict)))
     }
 
+    // utf-16 <FEFF0043006F006C006C00610062006F007200610020004F0066006600690063006500200036002E0034>
+    fn read_hex_char(&mut self, is_utf16: bool) -> char {
+        let mut val: u32 = 0;
+        let len = if is_utf16 { 4 } else { 2 };
+        let mut counter = 0;
+
+        while let Some(b) = self.peek_byte() {
+            val *= 16;
+
+            // if there is an odd number of bytes, we treat the last byte as if it were 0
+            if b == b'>' {
+                break;
+            }
+
+            self.next_byte();
+            val += Self::hex_byte_to_digit(b) as u32;
+
+            counter += 1;
+
+            if counter == len {
+                break;
+            }
+        }
+
+        // todo: invalid chars will panic (i think this is only possible for utf16)
+        std::char::from_u32(val).unwrap()
+    }
+
     fn lex_hex_string(&mut self) -> PdfResult<Object> {
         self.expect_byte(b'<')?;
 
         let mut string = String::new();
 
-        while let Some(b) = self.next_byte() {
+        let is_utf16 = self.next_matches(b"feff") || self.next_matches(b"FEFF");
+
+        if is_utf16 {
+            self.pos += 4;
+        }
+
+        while let Some(b) = self.peek_byte() {
             if b == b'>' {
+                self.next_byte();
                 break;
             }
 
-            if !b.is_ascii_hexdigit() {
-                todo!()
-            }
-
-            let mut this_byte = Self::hex_byte_to_digit(b);
-
-            this_byte *= 16;
-
-            match self.next_byte() {
-                Some(b @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z')) => {
-                    this_byte += Self::hex_byte_to_digit(b)
-                }
-                Some(..) | None => todo!(),
-            }
-
-            string.push(this_byte as char);
+            string.push(self.read_hex_char(is_utf16));
         }
 
         Ok(Object::String(string))
@@ -708,8 +728,8 @@ impl Lexer {
     fn hex_byte_to_digit(b: u8) -> u8 {
         match b {
             b'0'..=b'9' => b - b'0',
-            b'a'..=b'z' => b - b'a',
-            b'A'..=b'Z' => b - b'A',
+            b'a'..=b'f' => b - b'a' + 10,
+            b'A'..=b'F' => b - b'A' + 10,
             _ => todo!(),
         }
     }
