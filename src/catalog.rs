@@ -11,10 +11,10 @@ other than the first page shall be shown when the
 document is opened.
 */
 
-use std::{collections::HashMap, todo};
+use std::{collections::HashMap, convert::TryFrom};
 
 use crate::{
-    assert_empty,
+    assert_empty, assert_reference,
     date::Date,
     file_specification::FileIdentifier,
     graphics_state_parameters::GraphicsStateParameters,
@@ -150,10 +150,10 @@ pub struct DocumentCatalog {
 }
 
 impl DocumentCatalog {
+    const TYPE: &'static str = "Catalog";
+
     pub(crate) fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
-        if dict.expect_name("Type", lexer)? != "Catalog" {
-            todo!()
-        }
+        dict.expect_type(Self::TYPE, lexer, true)?;
 
         let version = dict.get_name("Version", lexer)?;
         let extensions = None;
@@ -423,7 +423,7 @@ pub struct Destination {
     page_ref: Reference,
 }
 
-fn assert_len(arr: &[Object], len: usize) -> PdfResult<()> {
+pub fn assert_len(arr: &[Object], len: usize) -> PdfResult<()> {
     if arr.len() != len {
         return Err(ParseError::ArrayOfInvalidLength {
             expected: len,
@@ -453,7 +453,7 @@ impl Destination {
 
         let kind_str = lexer.assert_name(arr.pop().unwrap())?;
 
-        let page_ref = Lexer::assert_reference(arr.pop().unwrap())?;
+        let page_ref = assert_reference(arr.pop().unwrap())?;
 
         let kind = match kind_str.as_str() {
             "XYZ" => {
@@ -650,12 +650,7 @@ pub struct Rectangle {
 
 impl Rectangle {
     pub(crate) fn from_arr(mut arr: Vec<Object>, lexer: &mut Lexer) -> PdfResult<Self> {
-        if arr.len() != 4 {
-            return Err(ParseError::ArrayOfInvalidLength {
-                expected: 4,
-                found: arr,
-            });
-        }
+        assert_len(&arr, 4)?;
 
         let upper_right_y = lexer.assert_number(arr.pop().unwrap())?;
         let upper_right_x = lexer.assert_number(arr.pop().unwrap())?;
@@ -969,24 +964,37 @@ pub struct Trailer {
     pub info: Option<Reference>,
 
     /// LibreOffice specific extension, see <https://bugs.documentfoundation.org/show_bug.cgi?id=66580>
-    doc_checksum: Option<String>,
+    pub(crate) doc_checksum: Option<String>,
+    // todo: XRefStm,
 }
 
 impl Trailer {
-    pub(crate) fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
-        let size = dict.expect_integer("Size", lexer)? as usize;
-        let prev = dict.get_integer("Prev", lexer)?.map(|i| i as usize);
+    pub(crate) fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        let trailer = Trailer::from_dict_ref(&mut dict, resolver)?;
+
+        assert_empty(dict);
+
+        Ok(trailer)
+    }
+
+    pub(crate) fn from_dict_ref(
+        dict: &mut Dictionary,
+        resolver: &mut dyn Resolve,
+    ) -> PdfResult<Self> {
+        let size = usize::try_from(dict.expect_integer("Size", resolver)?)?;
+        let prev = dict
+            .get_integer("Prev", resolver)?
+            .map(usize::try_from)
+            .transpose()?;
         let root = dict.expect_reference("Root")?;
         // TODO: encryption dicts
         let encryption = None;
         let id = dict
-            .get_arr("ID", lexer)?
-            .map(|objs| FileIdentifier::from_arr(objs, lexer))
+            .get_arr("ID", resolver)?
+            .map(|objs| FileIdentifier::from_arr(objs, resolver))
             .transpose()?;
         let info = dict.get_reference("Info")?;
-        let doc_checksum = dict.get_name("DocChecksum", lexer)?;
-
-        assert_empty(dict);
+        let doc_checksum = dict.get_name("DocChecksum", resolver)?;
 
         Ok(Trailer {
             size,

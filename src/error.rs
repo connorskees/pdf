@@ -1,4 +1,7 @@
-use std::io;
+use std::{
+    io,
+    num::{ParseIntError, TryFromIntError},
+};
 
 use crate::objects::{Object, ObjectType};
 
@@ -41,11 +44,25 @@ pub enum ParseError {
         expected: &'static str,
         found: String,
     },
+    IntegerConversionError(TryFromIntError),
+    ParseIntegerError(ParseIntError),
 }
 
 impl From<io::Error> for ParseError {
     fn from(err: io::Error) -> Self {
         Self::IoError(err)
+    }
+}
+
+impl From<TryFromIntError> for ParseError {
+    fn from(err: TryFromIntError) -> Self {
+        Self::IntegerConversionError(err)
+    }
+}
+
+impl From<ParseIntError> for ParseError {
+    fn from(err: ParseIntError) -> Self {
+        Self::ParseIntegerError(err)
     }
 }
 

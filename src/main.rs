@@ -6,33 +6,39 @@ mod catalog;
 mod date;
 mod error;
 mod file_specification;
+mod flate_decoder;
 mod font;
 mod function;
 mod graphics_state_parameters;
 mod halftones;
+mod object_stream;
 mod objects;
 mod page;
 mod stream;
 mod xref;
 
 use std::{
+    borrow::Cow,
     cell::RefCell,
     collections::HashMap,
+    convert::TryFrom,
     fs::File,
     io::{self, Read},
     rc::Rc,
+    todo,
 };
 
-use {
-    catalog::{DocumentCatalog, InformationDictionary, Rectangle, Resources},
+use xref::ByteOffset;
+
+use crate::{
+    catalog::{DocumentCatalog, GroupAttributes, InformationDictionary, Rectangle, Resources},
     error::{ParseError, PdfResult},
+    object_stream::{ObjectStream, ObjectStreamDict, ObjectStreamParser},
     objects::{Dictionary, Object, ObjectType, Reference, TypeOrArray},
     page::{PageNode, PageObject, PageTree, PageTreeNode},
-    stream::{Stream, StreamDict},
-    xref::XrefParser,
+    stream::{decode_stream, Stream, StreamDict},
+    xref::{TrailerOrOffset, XrefParser},
 };
-
-use catalog::GroupAttributes;
 
 use crate::{catalog::Trailer, xref::Xref};
 
@@ -48,6 +54,16 @@ fn assert_empty(dict: Dictionary) {
     }
 }
 
+pub fn assert_reference(obj: Object) -> PdfResult<Reference> {
+    match obj {
+        Object::Reference(r) => Ok(r),
+        found => Err(ParseError::MismatchedObjectType {
+            expected: ObjectType::Reference,
+            found,
+        }),
+    }
+}
+
 pub trait Resolve {
     fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object>;
 
@@ -57,6 +73,20 @@ pub trait Resolve {
             Object::Reference(r) => {
                 let obj = self.lex_object_from_reference(r)?;
                 self.assert_integer(obj)
+            }
+            found => Err(ParseError::MismatchedObjectType {
+                expected: ObjectType::Integer,
+                found,
+            }),
+        }
+    }
+
+    fn assert_unsigned_integer(&mut self, obj: Object) -> PdfResult<u32> {
+        match obj {
+            Object::Integer(i) => Ok(u32::try_from(i)?),
+            Object::Reference(r) => {
+                let obj = self.lex_object_from_reference(r)?;
+                self.assert_unsigned_integer(obj)
             }
             found => Err(ParseError::MismatchedObjectType {
                 expected: ObjectType::Integer,
@@ -90,16 +120,6 @@ pub trait Resolve {
             }
             found => Err(ParseError::MismatchedObjectType {
                 expected: ObjectType::Dictionary,
-                found,
-            }),
-        }
-    }
-
-    fn assert_reference(obj: Object) -> PdfResult<Reference> {
-        match obj {
-            Object::Reference(r) => Ok(r),
-            found => Err(ParseError::MismatchedObjectType {
-                expected: ObjectType::Reference,
                 found,
             }),
         }
@@ -191,7 +211,10 @@ pub trait Resolve {
         &mut self,
         obj: Object,
         convert: impl Fn(&mut Self, Object) -> PdfResult<T>,
-    ) -> PdfResult<Option<T>> {
+    ) -> PdfResult<Option<T>>
+    where
+        Self: Sized,
+    {
         match obj {
             Object::Reference(r) => {
                 let obj = self.lex_object_from_reference(r)?;
@@ -200,6 +223,25 @@ pub trait Resolve {
             Object::Null => Ok(None),
             obj => Some(convert(self, obj)).transpose(),
         }
+    }
+
+    fn get_type_or_arr<T>(
+        &mut self,
+        obj: Object,
+        convert: impl Fn(&mut Self, Object) -> PdfResult<T>,
+    ) -> PdfResult<TypeOrArray<T>>
+    where
+        Self: Sized,
+    {
+        Ok(if let Object::Array(els) = obj {
+            TypeOrArray::Array(
+                els.into_iter()
+                    .map(|el| convert(self, el))
+                    .collect::<PdfResult<Vec<T>>>()?,
+            )
+        } else {
+            TypeOrArray::Type(convert(self, obj)?)
+        })
     }
 }
 
@@ -292,6 +334,14 @@ trait Lex {
         }
     }
 
+    fn expect_bytes(&mut self, bytes: &[u8]) -> PdfResult<()> {
+        for &b in bytes {
+            self.expect_byte(b)?;
+        }
+
+        Ok(())
+    }
+
     fn expect_eol(&mut self) -> PdfResult<()> {
         match self.next_byte() {
             Some(b'\n') => Ok(()),
@@ -324,62 +374,31 @@ trait Lex {
 
         whole_number
     }
-}
 
-impl Lex for Lexer {
-    fn buffer(&self) -> &[u8] {
-        &self.file
-    }
-
-    fn cursor(&self) -> usize {
-        self.pos
-    }
-
-    fn cursor_mut(&mut self) -> &mut usize {
-        &mut self.pos
-    }
-}
-
-pub struct Lexer {
-    file: Vec<u8>,
-    pos: usize,
-    xref: Rc<Xref>,
-}
-
-impl Lexer {
-    pub fn new(file: Vec<u8>, xref: Rc<Xref>) -> io::Result<Self> {
-        Ok(Self { file, xref, pos: 0 })
-    }
-
+    /// Does not modify the cursor
     fn next_matches(&mut self, bytes: &[u8]) -> bool {
-        let start_pos = self.pos;
+        let start_pos = self.cursor();
 
         for &b in bytes {
             if Some(b) != self.next_byte() {
-                self.pos = start_pos;
+                *self.cursor_mut() = start_pos;
                 return false;
             }
         }
 
-        self.pos = start_pos;
+        *self.cursor_mut() = start_pos;
 
         true
     }
 
-    fn get_type_or_arr<T>(
-        &mut self,
-        obj: Object,
-        convert: impl Fn(&mut Lexer, Object) -> PdfResult<T>,
-    ) -> PdfResult<TypeOrArray<T>> {
-        Ok(if let Object::Array(els) = obj {
-            TypeOrArray::Array(
-                els.into_iter()
-                    .map(|el| convert(self, el))
-                    .collect::<PdfResult<Vec<T>>>()?,
-            )
-        } else {
-            TypeOrArray::Type(convert(self, obj)?)
-        })
+    fn previous_byte(&mut self) -> Option<u8> {
+        if self.cursor() == 0 {
+            return None;
+        }
+
+        *self.cursor_mut() -= 1;
+
+        self.buffer().get(self.cursor()).cloned()
     }
 
     fn lex_object(&mut self) -> PdfResult<Object> {
@@ -402,31 +421,21 @@ impl Lexer {
 
     /// Assumes leading 't' has not been consumed
     fn lex_true(&mut self) -> PdfResult<Object> {
-        self.expect_byte(b't')?;
-        self.expect_byte(b'r')?;
-        self.expect_byte(b'u')?;
-        self.expect_byte(b'e')?;
+        self.expect_bytes(b"true")?;
 
         Ok(Object::True)
     }
 
     /// Assumes leading 'f' has not been consumed
     fn lex_false(&mut self) -> PdfResult<Object> {
-        self.expect_byte(b'f')?;
-        self.expect_byte(b'a')?;
-        self.expect_byte(b'l')?;
-        self.expect_byte(b's')?;
-        self.expect_byte(b'e')?;
+        self.expect_bytes(b"false")?;
 
         Ok(Object::False)
     }
 
     /// Assumes leading 'n' has not been consumed
     fn lex_null(&mut self) -> PdfResult<Object> {
-        self.expect_byte(b'n')?;
-        self.expect_byte(b'u')?;
-        self.expect_byte(b'l')?;
-        self.expect_byte(b'l')?;
+        self.expect_bytes(b"null")?;
 
         Ok(Object::Null)
     }
@@ -446,7 +455,7 @@ impl Lexer {
         }
     }
 
-    fn lex_dict(&mut self) -> PdfResult<Object> {
+    fn lex_dict_ignore_stream(&mut self) -> PdfResult<Dictionary> {
         self.expect_byte(b'<')?;
         self.expect_byte(b'<')?;
         self.skip_whitespace();
@@ -468,13 +477,10 @@ impl Lexer {
 
         self.skip_whitespace();
 
-        if self.next_matches(b"stream") {
-            let stream_dict = StreamDict::from_dict(Dictionary::new(dict), self)?;
-            return self.lex_stream(stream_dict);
-        }
-
-        Ok(Object::Dictionary(Dictionary::new(dict)))
+        Ok(Dictionary::new(dict))
     }
+
+    fn lex_dict(&mut self) -> PdfResult<Object>;
 
     // utf-16 <FEFF0043006F006C006C00610062006F007200610020004F0066006600690063006500200036002E0034>
     fn read_hex_char(&mut self, is_utf16: bool) -> char {
@@ -512,7 +518,7 @@ impl Lexer {
         let is_utf16 = self.next_matches(b"feff") || self.next_matches(b"FEFF");
 
         if is_utf16 {
-            self.pos += 4;
+            *self.cursor_mut() += 4;
         }
 
         while let Some(b) = self.peek_byte() {
@@ -543,7 +549,7 @@ impl Lexer {
 
         let whole_number = self.lex_whole_number();
 
-        let whole_end_pos = self.pos;
+        let whole_end_pos = self.cursor();
 
         if self.peek_byte() == Some(b'.') {
             self.next_byte();
@@ -571,7 +577,7 @@ impl Lexer {
                     }));
                 }
                 Some(..) | None => {
-                    self.pos = whole_end_pos;
+                    *self.cursor_mut() = whole_end_pos;
                 }
             }
         }
@@ -680,49 +686,37 @@ impl Lexer {
         Ok(Object::Array(arr))
     }
 
-    fn lex_stream(&mut self, stream_dict: StreamDict) -> PdfResult<Object> {
-        self.expect_byte(b's')?;
-        self.expect_byte(b't')?;
-        self.expect_byte(b'r')?;
-        self.expect_byte(b'e')?;
-        self.expect_byte(b'a')?;
-        self.expect_byte(b'm')?;
+    fn lex_stream(&mut self, stream_dict: StreamDict) -> PdfResult<Stream> {
+        self.expect_bytes(b"stream")?;
         self.expect_eol()?;
 
-        let stream = self.get_byte_range(self.pos, self.pos + stream_dict.len);
-        self.pos += stream_dict.len;
+        let stream = self.get_byte_range(self.cursor(), self.cursor() + stream_dict.len);
+        *self.cursor_mut() += stream_dict.len;
 
         self.expect_eol()?;
 
-        self.expect_byte(b'e')?;
-        self.expect_byte(b'n')?;
-        self.expect_byte(b'd')?;
-        self.expect_byte(b's')?;
-        self.expect_byte(b't')?;
-        self.expect_byte(b'r')?;
-        self.expect_byte(b'e')?;
-        self.expect_byte(b'a')?;
-        self.expect_byte(b'm')?;
+        self.expect_bytes(b"endstream")?;
         self.expect_eol()?;
 
-        Ok(Object::Stream(Stream {
+        Ok(Stream {
             stream,
             dict: stream_dict,
-        }))
-    }
-
-    fn peek_byte_offset(&self, offset: usize) -> Option<u8> {
-        self.file.get(self.pos + offset).cloned()
+        })
     }
 
     /// `start` is inclusive, `end` is exclusive
     /// 0 indexed
+    // todo: DO NOT COPY
     fn get_byte_range(&self, start: usize, end: usize) -> Vec<u8> {
         if start == end {
             return Vec::new();
         }
 
-        self.file[start..end].to_vec()
+        self.buffer()[start..end].to_vec()
+    }
+
+    fn peek_byte_offset(&self, offset: usize) -> Option<u8> {
+        self.buffer().get(self.cursor() + offset).cloned()
     }
 
     fn hex_byte_to_digit(b: u8) -> u8 {
@@ -733,16 +727,89 @@ impl Lexer {
             _ => todo!(),
         }
     }
+}
+
+impl Lex for Lexer {
+    fn buffer(&self) -> &[u8] {
+        &self.file
+    }
+
+    fn cursor(&self) -> usize {
+        self.pos
+    }
+
+    fn cursor_mut(&mut self) -> &mut usize {
+        &mut self.pos
+    }
+
+    // TODO: move to Lex trait proper and restrain to where Self: Sized + Resolve
+    fn lex_dict(&mut self) -> PdfResult<Object> {
+        let dict = self.lex_dict_ignore_stream()?;
+
+        if self.next_matches(b"stream") {
+            let stream_dict = StreamDict::from_dict(dict, self)?;
+            return Ok(Object::Stream(self.lex_stream(stream_dict)?));
+        }
+
+        Ok(Object::Dictionary(dict))
+    }
+}
+
+pub struct Lexer {
+    file: Vec<u8>,
+    pos: usize,
+    xref: Rc<Xref>,
+    cached_object_streams: HashMap<usize, ObjectStreamParser>,
+}
+
+impl Lexer {
+    pub fn new(file: Vec<u8>, xref: Rc<Xref>) -> io::Result<Self> {
+        Ok(Self {
+            file,
+            xref,
+            pos: 0,
+            cached_object_streams: HashMap::new(),
+        })
+    }
+
+    fn read_obj_prelude(&mut self) -> PdfResult<()> {
+        self.lex_whole_number();
+        self.skip_whitespace();
+        self.lex_whole_number();
+        self.skip_whitespace();
+        self.expect_bytes(b"obj")?;
+        self.skip_whitespace();
+
+        Ok(())
+    }
+
+    fn read_obj_trailer(&mut self) -> PdfResult<()> {
+        self.skip_whitespace();
+        self.expect_bytes(b"endobj")?;
+
+        Ok(())
+    }
+
+    fn lex_object_stream(&mut self, byte_offset: usize) -> PdfResult<ObjectStream<'_>> {
+        self.pos = byte_offset;
+        self.read_obj_prelude()?;
+
+        let object_stream_dict = ObjectStreamDict::from_dict(self.lex_dict_ignore_stream()?, self)?;
+        let stream = self
+            .lex_stream(object_stream_dict.stream_dict.clone())?
+            .stream;
+
+        self.read_obj_trailer()?;
+
+        Ok(ObjectStream {
+            stream: Cow::Owned(stream),
+            dict: object_stream_dict,
+        })
+    }
 
     fn lex_trailer(&mut self, offset: usize) -> PdfResult<Trailer> {
         self.pos = offset;
-        self.expect_byte(b't')?;
-        self.expect_byte(b'r')?;
-        self.expect_byte(b'a')?;
-        self.expect_byte(b'i')?;
-        self.expect_byte(b'l')?;
-        self.expect_byte(b'e')?;
-        self.expect_byte(b'r')?;
+        self.expect_bytes(b"trailer")?;
         self.skip_whitespace();
 
         let trailer_dict = self.lex_dict()?;
@@ -752,7 +819,7 @@ impl Lexer {
     }
 
     fn lex_page_tree(&mut self, xref: &Xref, root_reference: Reference) -> PdfResult<PageNode> {
-        if xref.get_offset(root_reference).is_none() {
+        if xref.get_offset(root_reference, self)?.is_none() {
             return Ok(PageNode::Root(Rc::new(RefCell::new(PageTree {
                 kids: Vec::new(),
                 pages: HashMap::new(),
@@ -780,7 +847,7 @@ impl Lexer {
 
         let mut page_queue = raw_kids
             .into_iter()
-            .map(Self::assert_reference)
+            .map(assert_reference)
             .collect::<PdfResult<Vec<Reference>>>()?;
 
         while let Some(kid_ref) = page_queue.pop() {
@@ -808,6 +875,36 @@ impl Lexer {
         }
 
         Ok(root)
+    }
+
+    fn lex_object_from_object_stream(
+        &mut self,
+        byte_offset: usize,
+        reference: Reference,
+    ) -> PdfResult<Object> {
+        let parser = match self.cached_object_streams.get_mut(&byte_offset) {
+            Some(v) => v,
+            None => {
+                let ObjectStream { stream, dict } = self.lex_object_stream(byte_offset)?;
+
+                let decoded_stream = decode_stream(
+                    // SAFETY: the lexer does not mutate the underlying buffer
+                    //
+                    // We do this to avoid an unnecessary copy of the stream
+                    unsafe { &*(&*stream as *const [u8]) },
+                    &dict.stream_dict,
+                    self,
+                )?;
+
+                let parser = ObjectStreamParser::new(decoded_stream, dict)?;
+
+                self.cached_object_streams
+                    .entry(byte_offset)
+                    .or_insert(parser)
+            }
+        };
+
+        parser.parse_object(reference)
     }
 
     fn lex_page_object(
@@ -938,7 +1035,7 @@ impl Lexer {
         page_queue.append(
             &mut kids
                 .into_iter()
-                .map(Self::assert_reference)
+                .map(assert_reference)
                 .collect::<PdfResult<Vec<Reference>>>()?,
         );
 
@@ -949,29 +1046,19 @@ impl Lexer {
 impl Resolve for Lexer {
     fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object> {
         let init_pos = self.pos;
-        self.pos = match self.xref.get_offset(reference) {
-            Some(p) => p,
+        self.pos = match Rc::clone(&self.xref).get_offset(reference, self)? {
+            Some(ByteOffset::MainFile(p)) => p,
+            Some(ByteOffset::ObjectStream { byte_offset, .. }) => {
+                return self.lex_object_from_object_stream(byte_offset, reference);
+            }
             None => return Ok(Object::Null),
         };
 
-        self.lex_whole_number();
-        self.skip_whitespace();
-        self.lex_whole_number();
-        self.skip_whitespace();
-        self.expect_byte(b'o')?;
-        self.expect_byte(b'b')?;
-        self.expect_byte(b'j')?;
-        self.skip_whitespace();
+        self.read_obj_prelude()?;
 
         let obj = self.lex_object()?;
 
-        self.skip_whitespace();
-        self.expect_byte(b'e')?;
-        self.expect_byte(b'n')?;
-        self.expect_byte(b'd')?;
-        self.expect_byte(b'o')?;
-        self.expect_byte(b'b')?;
-        self.expect_byte(b'j')?;
+        self.read_obj_trailer()?;
 
         self.pos = init_pos;
 
@@ -992,10 +1079,15 @@ impl Parser {
         let mut file = Vec::new();
         File::open(p)?.read_to_end(&mut file)?;
 
-        let (xref, trailer_offset) = XrefParser::new(&file).read_xref()?;
-        let xref = Rc::new(xref);
+        let xref_and_trailer = XrefParser::new(&file).read_xref()?;
+        let xref = Rc::new(xref_and_trailer.xref);
         let mut lexer = Lexer::new(file, xref.clone())?;
-        let trailer = lexer.lex_trailer(trailer_offset)?;
+
+        let trailer = match xref_and_trailer.trailer_or_offset {
+            TrailerOrOffset::Offset(offset) => lexer.lex_trailer(offset)?,
+            TrailerOrOffset::Trailer(trailer) => trailer,
+        };
+
         let catalog = DocumentCatalog::from_dict(
             lexer.assert_dict(Object::Reference(trailer.root))?,
             &mut lexer,
@@ -1021,14 +1113,14 @@ impl Parser {
         )?))
     }
 
-    pub fn run(self) -> PdfResult<Vec<Object>> {
-        dbg!(self.page_tree);
+    pub fn run(mut self) -> PdfResult<Vec<Object>> {
+        dbg!(self.info().unwrap());
         todo!()
     }
 }
 
 fn main() -> PdfResult<()> {
-    let parser = Parser::new("hello-world.pdf")?;
+    let parser = Parser::new("test2.pdf")?;
 
     dbg!(parser.run().unwrap());
 

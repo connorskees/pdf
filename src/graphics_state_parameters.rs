@@ -1,5 +1,6 @@
 use crate::{
     assert_empty,
+    catalog::assert_len,
     error::{ParseError, PdfResult},
     function::{Function, TransferFunction},
     halftones::Halftones,
@@ -184,12 +185,7 @@ struct LineDashPattern {
 
 impl LineDashPattern {
     pub fn from_arr(mut arr: Vec<Object>, lexer: &mut Lexer) -> PdfResult<Self> {
-        if arr.len() != 2 {
-            return Err(ParseError::ArrayOfInvalidLength {
-                expected: 2,
-                found: arr,
-            });
-        }
+        assert_len(&arr, 2)?;
 
         let dash_phase = lexer.assert_integer(arr.pop().unwrap())?;
         let dash_array = lexer

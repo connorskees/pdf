@@ -1,9 +1,9 @@
 use crate::{
     assert_empty,
-    catalog::Collection,
+    catalog::{assert_len, Collection},
     error::{ParseError, PdfResult},
     objects::{Dictionary, Object, ObjectType},
-    Lexer, Resolve,
+    Resolve,
 };
 
 #[derive(Debug, Clone)]
@@ -13,11 +13,11 @@ pub enum FileSpecification {
 }
 
 impl FileSpecification {
-    pub fn from_obj(obj: Object, lexer: &mut Lexer) -> PdfResult<Self> {
-        match lexer.resolve(obj)? {
+    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        match resolver.resolve(obj)? {
             Object::String(s) => Ok(FileSpecification::Simple(FileSpecificationString::new(s))),
             Object::Dictionary(dict) => Ok(FileSpecification::Full(
-                FullFileSpecification::from_dict(dict, lexer)?,
+                FullFileSpecification::from_dict(dict, resolver)?,
             )),
             obj => Err(ParseError::MismatchedObjectType {
                 found: obj,
@@ -104,28 +104,28 @@ pub struct FullFileSpecification {
 impl FullFileSpecification {
     const TYPE: &'static str = "Typespec";
 
-    pub(crate) fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
-        dict.expect_type(Self::TYPE, lexer, false)?;
+    pub(crate) fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        dict.expect_type(Self::TYPE, resolver, false)?;
 
-        let file_system = dict.get_name("Fs", lexer)?;
+        let file_system = dict.get_name("Fs", resolver)?;
         let file_specification_string = dict
-            .get_string("F", lexer)?
+            .get_string("F", resolver)?
             .map(FileSpecificationString::new);
         let unicode_file_specification_string = dict
-            .get_string("UF", lexer)?
+            .get_string("UF", resolver)?
             .map(FileSpecificationString::new);
-        dict.get_string("DOS", lexer)?;
-        dict.get_string("Mac", lexer)?;
-        dict.get_string("Unix", lexer)?;
+        dict.get_string("DOS", resolver)?;
+        dict.get_string("Mac", resolver)?;
+        dict.get_string("Unix", resolver)?;
         let id = dict
-            .get_arr("UF", lexer)?
-            .map(|objs| FileIdentifier::from_arr(objs, lexer))
+            .get_arr("UF", resolver)?
+            .map(|objs| FileIdentifier::from_arr(objs, resolver))
             .transpose()?;
-        let is_volatile = dict.get_bool("V", lexer)?.unwrap_or(false);
-        let ef = dict.get_dict("EF", lexer)?;
-        let rf = dict.get_dict("RF", lexer)?;
-        let description = dict.get_string("Desc", lexer)?;
-        let collection_item_dict = dict.get_dict("CI", lexer)?.map(|_| todo!());
+        let is_volatile = dict.get_bool("V", resolver)?.unwrap_or(false);
+        let ef = dict.get_dict("EF", resolver)?;
+        let rf = dict.get_dict("RF", resolver)?;
+        let description = dict.get_string("Desc", resolver)?;
+        let collection_item_dict = dict.get_dict("CI", resolver)?.map(|_| todo!());
 
         assert_empty(dict);
 
@@ -168,15 +168,10 @@ struct RelatedFilesArray;
 pub struct FileIdentifier(String, String);
 
 impl FileIdentifier {
-    pub fn from_arr(arr: Vec<Object>, lexer: &mut Lexer) -> PdfResult<Self> {
-        if arr.len() != 2 {
-            return Err(ParseError::ArrayOfInvalidLength {
-                expected: 2,
-                found: arr,
-            });
-        }
+    pub fn from_arr(arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        assert_len(&arr, 2)?;
 
-        let mut iter = arr.into_iter().map(|obj| lexer.assert_string(obj));
+        let mut iter = arr.into_iter().map(|obj| resolver.assert_string(obj));
 
         Ok(FileIdentifier(iter.next().unwrap()?, iter.next().unwrap()?))
     }
