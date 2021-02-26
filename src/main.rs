@@ -26,10 +26,7 @@ use std::{
     fs::File,
     io::{self, Read},
     rc::Rc,
-    todo,
 };
-
-use xref::ByteOffset;
 
 use crate::{
     catalog::{DocumentCatalog, GroupAttributes, InformationDictionary, Rectangle, Resources},
@@ -39,7 +36,7 @@ use crate::{
     page::{PageNode, PageObject, PageTree, PageTreeNode},
     stream::{decode_stream, Stream, StreamDict},
     trailer::Trailer,
-    xref::{TrailerOrOffset, Xref, XrefParser},
+    xref::{ByteOffset, TrailerOrOffset, Xref, XrefParser},
 };
 
 const FORM_FEED: u8 = b'\x0C';
@@ -818,6 +815,36 @@ impl Lexer {
         Ok(trailer)
     }
 
+    fn lex_object_from_object_stream(
+        &mut self,
+        byte_offset: usize,
+        reference: Reference,
+    ) -> PdfResult<Object> {
+        let parser = match self.cached_object_streams.get_mut(&byte_offset) {
+            Some(v) => v,
+            None => {
+                let ObjectStream { stream, dict } = self.lex_object_stream(byte_offset)?;
+
+                let decoded_stream = decode_stream(
+                    // SAFETY: the lexer does not mutate the underlying buffer
+                    //
+                    // We do this to avoid an unnecessary copy of the stream
+                    unsafe { &*(&*stream as *const [u8]) },
+                    &dict.stream_dict,
+                    self,
+                )?;
+
+                let parser = ObjectStreamParser::new(decoded_stream, dict)?;
+
+                self.cached_object_streams
+                    .entry(byte_offset)
+                    .or_insert(parser)
+            }
+        };
+
+        parser.parse_object(reference)
+    }
+
     fn lex_page_tree(&mut self, xref: &Xref, root_reference: Reference) -> PdfResult<PageNode> {
         if xref.get_offset(root_reference, self)?.is_none() {
             return Ok(PageNode::Root(Rc::new(RefCell::new(PageTree {
@@ -875,36 +902,6 @@ impl Lexer {
         }
 
         Ok(root)
-    }
-
-    fn lex_object_from_object_stream(
-        &mut self,
-        byte_offset: usize,
-        reference: Reference,
-    ) -> PdfResult<Object> {
-        let parser = match self.cached_object_streams.get_mut(&byte_offset) {
-            Some(v) => v,
-            None => {
-                let ObjectStream { stream, dict } = self.lex_object_stream(byte_offset)?;
-
-                let decoded_stream = decode_stream(
-                    // SAFETY: the lexer does not mutate the underlying buffer
-                    //
-                    // We do this to avoid an unnecessary copy of the stream
-                    unsafe { &*(&*stream as *const [u8]) },
-                    &dict.stream_dict,
-                    self,
-                )?;
-
-                let parser = ObjectStreamParser::new(decoded_stream, dict)?;
-
-                self.cached_object_streams
-                    .entry(byte_offset)
-                    .or_insert(parser)
-            }
-        };
-
-        parser.parse_object(reference)
     }
 
     fn lex_page_object(
@@ -1111,6 +1108,11 @@ impl Parser {
             })?,
             &mut self.lexer,
         )?))
+    }
+
+    // todo: make this an iterator
+    pub fn pages(&self) -> Vec<Rc<PageObject>> {
+        self.page_tree.leaves()
     }
 
     pub fn run(mut self) -> PdfResult<Vec<Object>> {

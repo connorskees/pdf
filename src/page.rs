@@ -24,6 +24,24 @@ pub enum PageNode {
     Leaf(Rc<PageObject>),
 }
 
+impl PageNode {
+    pub fn leaves(&self) -> Vec<Rc<PageObject>> {
+        let mut leaves = Vec::new();
+
+        match self {
+            PageNode::Root(root) => {
+                for kid in &root.borrow().kids {
+                    leaves.append(&mut kid.leaves());
+                }
+            }
+            PageNode::Node(node) => leaves.append(&mut node.borrow().leaves()),
+            PageNode::Leaf(leaf) => leaves.push(Rc::clone(leaf)),
+        }
+
+        leaves
+    }
+}
+
 impl fmt::Debug for PageNode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -37,17 +55,7 @@ impl fmt::Debug for PageNode {
                 .field("kids", &r.borrow().kids)
                 .field("count", &r.borrow().count)
                 .finish(),
-            Self::Leaf(r) => f
-                .debug_struct("PageNode::Leaf")
-                .field("resources", &r.resources)
-                .field("contents", &r.contents)
-                .field("media_box", &r.media_box)
-                .field("crop_box", &r.crop_box)
-                .field("bleed_box", &r.bleed_box)
-                .field("trim_box", &r.trim_box)
-                .field("art_box", &r.art_box)
-                .field("group", &r.group)
-                .finish(),
+            Self::Leaf(r) => write!(f, "{:?}", r),
         }
     }
 }
@@ -69,9 +77,26 @@ pub struct PageTreeNode {
     pub count: usize,
 }
 
+impl PageTreeNode {
+    pub fn leaves(&self) -> Vec<Rc<PageObject>> {
+        let mut leaves = Vec::new();
+
+        for node in &self.kids {
+            match node {
+                PageNode::Root(..) => unreachable!(),
+                PageNode::Leaf(leaf) => leaves.push(Rc::clone(leaf)),
+                PageNode::Node(node) => leaves.append(&mut node.borrow().leaves()),
+            }
+        }
+
+        leaves
+    }
+}
+
 // "Page"
 pub struct PageObject {
     pub parent: PageNode,
+
     /// The date and time when the page's contents were most recently
     /// modified. If a page-piece dictionary ([`PieceInfo`](crate::PieceInfo))
     /// is present, the modification date shall be used to ascertain
@@ -227,6 +252,21 @@ pub struct PageObject {
     /// An array of viewport dictionaries that shall specify rectangular
     /// regions of the page.
     pub vp: Option<Viewport>,
+}
+
+impl fmt::Debug for PageObject {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PageNode::Leaf")
+            .field("resources", &self.resources)
+            .field("contents", &self.contents)
+            .field("media_box", &self.media_box)
+            .field("crop_box", &self.crop_box)
+            .field("bleed_box", &self.bleed_box)
+            .field("trim_box", &self.trim_box)
+            .field("art_box", &self.art_box)
+            .field("group", &self.group)
+            .finish()
+    }
 }
 
 #[derive(Debug)]
