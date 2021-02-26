@@ -1120,10 +1120,7 @@ impl Parser {
 }
 
 fn main() -> PdfResult<()> {
-    // let parser = Parser::new("test2.pdf")?;
-    // let parser = Parser::new("tnc280.pdf")?;
-    // let parser = Parser::new("download.pdf")?;
-    let parser = Parser::new("connor-skees.pdf")?;
+    let parser = Parser::new("test2.pdf")?;
 
     dbg!(parser.run().unwrap());
 

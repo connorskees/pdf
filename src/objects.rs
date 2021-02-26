@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::TryFrom};
+use std::{collections::HashMap, convert::TryFrom, fmt};
 
 use crate::{assert_reference, stream::Stream, ParseError, PdfResult, Resolve};
 
@@ -58,9 +58,21 @@ pub enum TypeOrArray<T> {
     Array(Vec<T>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Dictionary {
     dict: HashMap<String, Object>,
+}
+
+impl fmt::Debug for Dictionary {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut dictionary = f.debug_struct("Dictionary");
+
+        for (key, value) in &self.dict {
+            dictionary.field(key, &value);
+        }
+
+        dictionary.finish()
+    }
 }
 
 impl Dictionary {
