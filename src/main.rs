@@ -18,15 +18,7 @@ mod stream;
 mod trailer;
 mod xref;
 
-use std::{
-    borrow::Cow,
-    cell::RefCell,
-    collections::HashMap,
-    convert::TryFrom,
-    fs::File,
-    io::{self, Read},
-    rc::Rc,
-};
+use std::{borrow::Cow, cell::RefCell, collections::HashMap, convert::TryFrom, io, rc::Rc};
 
 use crate::{
     catalog::{DocumentCatalog, GroupAttributes, InformationDictionary, Rectangle, Resources},
@@ -341,18 +333,23 @@ trait Lex {
 
     fn expect_eol(&mut self) -> PdfResult<()> {
         match self.next_byte() {
-            Some(b'\n') => Ok(()),
+            Some(b'\n') => {}
             Some(b'\r') => {
                 if self.peek_byte() == Some(b'\n') {
                     self.next_byte();
                 }
-                Ok(())
             }
-            b => Err(ParseError::MismatchedByteMany {
-                expected: &[b'\n', b'\r'],
-                found: b,
-            }),
+            b => {
+                return Err(ParseError::MismatchedByteMany {
+                    expected: &[b'\n', b'\r'],
+                    found: b,
+                })
+            }
         }
+
+        self.skip_whitespace();
+
+        Ok(())
     }
 
     // TODO: throw error on empty string
@@ -1043,6 +1040,7 @@ impl Lexer {
 impl Resolve for Lexer {
     fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object> {
         let init_pos = self.pos;
+
         self.pos = match Rc::clone(&self.xref).get_offset(reference, self)? {
             Some(ByteOffset::MainFile(p)) => p,
             Some(ByteOffset::ObjectStream { byte_offset, .. }) => {
@@ -1073,8 +1071,7 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(p: &'static str) -> PdfResult<Self> {
-        let mut file = Vec::new();
-        File::open(p)?.read_to_end(&mut file)?;
+        let file = std::fs::read(p)?;
 
         let xref_and_trailer = XrefParser::new(&file).read_xref()?;
         let xref = Rc::new(xref_and_trailer.xref);

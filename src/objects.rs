@@ -146,7 +146,7 @@ impl Dictionary {
         Ok(())
     }
 
-    pub fn get_type_or_arr<T, S: Resolve + Sized>(
+    pub fn get_type_or_arr<T: fmt::Debug, S: Resolve + Sized>(
         &mut self,
         key: &'static str,
         lexer: &mut S,
