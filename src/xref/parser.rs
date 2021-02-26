@@ -1,9 +1,9 @@
 use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
-    catalog::Trailer,
     flate_decoder::{FlateDecoder, FlateDecoderParams},
     objects::{Dictionary, Object, ObjectType},
+    trailer::Trailer,
     xref::{
         stream::{XrefStream, XrefStreamDict},
         Xref,
@@ -46,12 +46,14 @@ impl<'a> Resolve for XrefParser<'a> {
     }
 }
 
+#[derive(Debug)]
 pub(crate) enum TrailerOrOffset {
     Trailer(Trailer),
     Offset(usize),
 }
 
 // todo: do this better
+#[derive(Debug)]
 pub(crate) struct XrefAndTrailer {
     pub(crate) xref: Xref,
     pub(crate) trailer_or_offset: TrailerOrOffset,
@@ -91,22 +93,14 @@ impl<'a> XrefParser<'a> {
 
         let xref_pos = self.lex_whole_number().parse::<usize>().unwrap();
 
-        self.pos = xref_pos;
-
-        self.lex_xref()
+        self.parse_xref_at_offset(xref_pos)
     }
 
-    fn lex_xref_stream(&mut self) -> PdfResult<XrefAndTrailer> {
-        // todo: lex external object instead of ad hoc+throwing away nums
-        self.lex_whole_number();
-        self.skip_whitespace();
-        self.lex_whole_number();
-        self.skip_whitespace();
-        self.expect_bytes(b"obj")?;
-        self.skip_whitespace();
+    fn parse_xref_stream(&mut self, is_previous: bool) -> PdfResult<XrefAndTrailer> {
+        self.read_obj_prelude()?;
 
         let xref_stream_dict = match self.lex_object()? {
-            Object::Dictionary(dict) => XrefStreamDict::from_dict(dict, self)?,
+            Object::Dictionary(dict) => XrefStreamDict::from_dict(dict, is_previous, self)?,
             obj => {
                 return Err(ParseError::MismatchedObjectType {
                     expected: ObjectType::Dictionary,
@@ -128,11 +122,29 @@ impl<'a> XrefParser<'a> {
 
         let decoded_stream = FlateDecoder::new(Cow::Owned(stream.stream), params).decode();
 
-        let xref =
+        let mut xref =
             XrefStreamParser::new(&decoded_stream, stream.dict.w, stream.dict.index).parse()?;
 
-        self.skip_whitespace();
-        self.expect_bytes(b"endobj")?;
+        self.read_obj_trailer()?;
+
+        if !is_previous {
+            let mut prev = stream.dict.trailer.prev;
+            while let Some(prev_offset) = prev {
+                self.pos = prev_offset;
+                let xref_and_trailer = self.parse_xref_stream(true)?;
+
+                xref.merge_with_previous(xref_and_trailer.xref);
+
+                let prev_trailer = match xref_and_trailer.trailer_or_offset {
+                    TrailerOrOffset::Trailer(trailer) => trailer,
+                    TrailerOrOffset::Offset(..) => {
+                        todo!("can't parse literal trailer without lexer")
+                    }
+                };
+
+                prev = prev_trailer.prev;
+            }
+        }
 
         Ok(XrefAndTrailer {
             xref,
@@ -159,9 +171,11 @@ impl<'a> XrefParser<'a> {
         })
     }
 
-    fn lex_xref(&mut self) -> PdfResult<XrefAndTrailer> {
+    fn parse_xref_at_offset(&mut self, offset: usize) -> PdfResult<XrefAndTrailer> {
+        self.pos = offset;
+
         if !self.next_matches(b"xref") {
-            return self.lex_xref_stream();
+            return self.parse_xref_stream(false);
         }
 
         self.expect_bytes(b"xref")?;

@@ -15,6 +15,7 @@ mod object_stream;
 mod objects;
 mod page;
 mod stream;
+mod trailer;
 mod xref;
 
 use std::{
@@ -37,10 +38,9 @@ use crate::{
     objects::{Dictionary, Object, ObjectType, Reference, TypeOrArray},
     page::{PageNode, PageObject, PageTree, PageTreeNode},
     stream::{decode_stream, Stream, StreamDict},
-    xref::{TrailerOrOffset, XrefParser},
+    trailer::Trailer,
+    xref::{TrailerOrOffset, Xref, XrefParser},
 };
-
-use crate::{catalog::Trailer, xref::Xref};
 
 const FORM_FEED: u8 = b'\x0C';
 const BACKSPACE: u8 = b'\x08';
@@ -625,10 +625,10 @@ trait Lex {
                     }
                 }
                 _ => {
-                    self.next_byte();
                     string.push(b as char);
                 }
             }
+            self.next_byte();
         }
 
         Ok(Object::String(string))
@@ -727,6 +727,24 @@ trait Lex {
             _ => todo!(),
         }
     }
+
+    fn read_obj_prelude(&mut self) -> PdfResult<()> {
+        self.lex_whole_number();
+        self.skip_whitespace();
+        self.lex_whole_number();
+        self.skip_whitespace();
+        self.expect_bytes(b"obj")?;
+        self.skip_whitespace();
+
+        Ok(())
+    }
+
+    fn read_obj_trailer(&mut self) -> PdfResult<()> {
+        self.skip_whitespace();
+        self.expect_bytes(b"endobj")?;
+
+        Ok(())
+    }
 }
 
 impl Lex for Lexer {
@@ -770,24 +788,6 @@ impl Lexer {
             pos: 0,
             cached_object_streams: HashMap::new(),
         })
-    }
-
-    fn read_obj_prelude(&mut self) -> PdfResult<()> {
-        self.lex_whole_number();
-        self.skip_whitespace();
-        self.lex_whole_number();
-        self.skip_whitespace();
-        self.expect_bytes(b"obj")?;
-        self.skip_whitespace();
-
-        Ok(())
-    }
-
-    fn read_obj_trailer(&mut self) -> PdfResult<()> {
-        self.skip_whitespace();
-        self.expect_bytes(b"endobj")?;
-
-        Ok(())
     }
 
     fn lex_object_stream(&mut self, byte_offset: usize) -> PdfResult<ObjectStream<'_>> {
@@ -1120,7 +1120,10 @@ impl Parser {
 }
 
 fn main() -> PdfResult<()> {
-    let parser = Parser::new("test2.pdf")?;
+    // let parser = Parser::new("test2.pdf")?;
+    // let parser = Parser::new("tnc280.pdf")?;
+    // let parser = Parser::new("download.pdf")?;
+    let parser = Parser::new("connor-skees.pdf")?;
 
     dbg!(parser.run().unwrap());
 

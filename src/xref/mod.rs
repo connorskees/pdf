@@ -60,6 +60,12 @@ impl Xref {
             },
         )
     }
+
+    pub fn merge_with_previous(&mut self, previous: Xref) {
+        for (key, value) in previous.objects.into_iter() {
+            self.objects.entry(key).or_insert(value);
+        }
+    }
 }
 
 #[derive(Debug)]

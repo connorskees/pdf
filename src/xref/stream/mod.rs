@@ -1,10 +1,11 @@
 use std::convert::TryFrom;
 
 use crate::{
-    catalog::{assert_len, Trailer},
+    catalog::assert_len,
     error::PdfResult,
     objects::{Dictionary, Object},
     stream::StreamDict,
+    trailer::Trailer,
     Resolve,
 };
 
@@ -56,10 +57,14 @@ pub struct XrefStreamDict {
 impl XrefStreamDict {
     const TYPE: &'static str = "XRef";
 
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut impl Resolve) -> PdfResult<Self> {
+    pub fn from_dict(
+        mut dict: Dictionary,
+        is_previous: bool,
+        resolver: &mut impl Resolve,
+    ) -> PdfResult<Self> {
         dict.expect_type(Self::TYPE, resolver, false)?;
 
-        let trailer = Trailer::from_dict_ref(&mut dict, resolver)?;
+        let trailer = Trailer::from_dict_ref(&mut dict, is_previous, resolver)?;
         let index = dict
             .get_arr("Index", resolver)?
             .map(|index| {

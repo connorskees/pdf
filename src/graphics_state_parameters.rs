@@ -49,6 +49,11 @@ pub struct GraphicsStateParameters {
     current_nonstroking_alpha_constant: Option<f32>,
     alpha_is_shape: Option<bool>,
     is_knockout: Option<bool>,
+
+    /// Apple-specific rendering hint, whether or not to disable anti-aliasing
+    /// Key of "AAPL:AA"
+    /// See <http://www.sibelius.com/cgi-bin/helpcenter/chat/chat.pl?com=thread&start=393193&groupid=3&&guest=1>
+    apple_antialiasing: Option<bool>,
 }
 
 #[derive(Debug)]
@@ -274,6 +279,7 @@ impl GraphicsStateParameters {
         let current_nonstroking_alpha_constant = dict.get_number("ca", lexer)?;
         let alpha_is_shape = dict.get_bool("AIS", lexer)?;
         let is_knockout = dict.get_bool("TK", lexer)?;
+        let apple_antialiasing = dict.get_bool("AAPL:AA", lexer)?;
 
         assert_empty(dict);
 
@@ -304,6 +310,7 @@ impl GraphicsStateParameters {
             current_nonstroking_alpha_constant,
             alpha_is_shape,
             is_knockout,
+            apple_antialiasing,
         })
     }
 }

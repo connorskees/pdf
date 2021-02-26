@@ -11,12 +11,11 @@ other than the first page shall be shown when the
 document is opened.
 */
 
-use std::{collections::HashMap, convert::TryFrom};
+use std::collections::HashMap;
 
 use crate::{
     assert_empty, assert_reference,
     date::Date,
-    file_specification::FileIdentifier,
     graphics_state_parameters::GraphicsStateParameters,
     objects::{ObjectType, TypeOrArray},
     Dictionary, Lexer, Object, ParseError, PdfResult, Reference, Resolve,
@@ -255,6 +254,8 @@ pub struct InformationDictionary {
     creation_date: Option<Date>,
     mod_date: Option<Date>,
     trapped: Trapped,
+
+    other: Dictionary,
 }
 
 impl InformationDictionary {
@@ -282,8 +283,6 @@ impl InformationDictionary {
             .transpose()?
             .unwrap_or_default();
 
-        assert_empty(dict);
-
         Ok(InformationDictionary {
             title,
             author,
@@ -294,6 +293,7 @@ impl InformationDictionary {
             creation_date,
             mod_date,
             trapped,
+            other: dict,
         })
     }
 }
@@ -931,79 +931,5 @@ impl PageMode {
 impl Default for PageMode {
     fn default() -> Self {
         Self::UseNone
-    }
-}
-
-#[derive(Debug)]
-pub struct Trailer {
-    /// The total number of entries in the
-    /// file's cross-reference table, as
-    /// defined by the combination of the
-    /// original section and all update sections.
-    ///
-    /// Equivalently, this value shall be 1 greater
-    /// than the highest object number defined in the
-    /// file. Any object in a cross-reference section
-    /// whose number is greater than this value shall
-    /// be ignored and defined to be missing by a
-    /// conforming reader.
-    pub size: usize,
-
-    /// The byte offset in the decoded stream from the
-    /// beginning of the file to the beginning of the
-    /// previous cross-reference section
-    ///
-    /// Present only if the file has more than one
-    /// cross-reference section.
-    pub prev: Option<usize>,
-
-    pub root: Reference,
-
-    pub encryption: Option<Encryption>,
-    pub id: Option<FileIdentifier>,
-    pub info: Option<Reference>,
-
-    /// LibreOffice specific extension, see <https://bugs.documentfoundation.org/show_bug.cgi?id=66580>
-    pub(crate) doc_checksum: Option<String>,
-    // todo: XRefStm,
-}
-
-impl Trailer {
-    pub(crate) fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
-        let trailer = Trailer::from_dict_ref(&mut dict, resolver)?;
-
-        assert_empty(dict);
-
-        Ok(trailer)
-    }
-
-    pub(crate) fn from_dict_ref(
-        dict: &mut Dictionary,
-        resolver: &mut dyn Resolve,
-    ) -> PdfResult<Self> {
-        let size = usize::try_from(dict.expect_integer("Size", resolver)?)?;
-        let prev = dict
-            .get_integer("Prev", resolver)?
-            .map(usize::try_from)
-            .transpose()?;
-        let root = dict.expect_reference("Root")?;
-        // TODO: encryption dicts
-        let encryption = None;
-        let id = dict
-            .get_arr("ID", resolver)?
-            .map(|objs| FileIdentifier::from_arr(objs, resolver))
-            .transpose()?;
-        let info = dict.get_reference("Info")?;
-        let doc_checksum = dict.get_name("DocChecksum", resolver)?;
-
-        Ok(Trailer {
-            size,
-            prev,
-            root,
-            encryption,
-            info,
-            id,
-            doc_checksum,
-        })
     }
 }
