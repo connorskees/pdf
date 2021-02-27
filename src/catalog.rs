@@ -44,8 +44,13 @@ pub struct DocumentCatalog {
     /// in the PDF file (for example, /1.4).
     version: Option<String>,
 
+    /// An extensions dictionary containing developer prefix
+    /// identification and version numbers for developer extensions
+    /// that occur in this document
     extensions: Option<Extensions>,
 
+    /// The page tree node that shall be the root of the document’s
+    /// page tree
     pub pages: Reference,
 
     /// A number tree defining the page labelling for
@@ -58,6 +63,7 @@ pub struct DocumentCatalog {
     /// page index 0.
     page_labels: Option<NumberTree>,
 
+    /// The document’s name dictionary
     names: Option<NameDictionary>,
 
     /// A dictionary of names and corresponding destinations
@@ -162,7 +168,7 @@ impl DocumentCatalog {
         let pages = dict.expect_reference("Pages")?;
         let page_labels = None;
         let names = None;
-        let dests = None;
+        let dests = dict.get_reference("Dests")?;
         let viewer_preferences = None;
 
         let page_layout = dict
