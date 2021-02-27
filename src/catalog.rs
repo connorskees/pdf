@@ -192,7 +192,10 @@ impl DocumentCatalog {
         let uri = None;
         let acro_form = None;
         let metadata = dict.get_reference("Metadata")?;
-        let struct_tree_root = None;
+        let struct_tree_root = dict
+            .get_dict("StructTreeRoot", lexer)?
+            .map(|dict| StructTreeRoot::from_dict(dict, lexer))
+            .transpose()?;
         let mark_info = None;
         let lang = dict.get_string("Lang", lexer)?;
         let spider_info = None;

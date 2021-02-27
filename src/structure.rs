@@ -1,4 +1,8 @@
-use crate::objects::{Dictionary, TypeOrArray};
+use crate::{
+    error::PdfResult,
+    objects::{Dictionary, TypeOrArray},
+    Resolve,
+};
 
 #[derive(Debug)]
 pub struct StructTreeRoot {
@@ -31,6 +35,10 @@ pub struct StructTreeRoot {
     ///
     /// Required if any structure element contains content items
     parent_tree: Option<NumberTree>,
+
+    ///  An integer greater than any key in the parent tree, shall be used as a
+    /// key for the next entry added to the tree.
+    parent_tree_next_key: Option<i32>,
 }
 
 #[derive(Debug)]
@@ -40,4 +48,10 @@ struct NumberTree;
 
 impl StructTreeRoot {
     const TYPE: &'static str = "StructTreeRoot";
+
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        dict.expect_type(Self::TYPE, resolver, true)?;
+
+        todo!()
+    }
 }
