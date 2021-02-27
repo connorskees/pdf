@@ -1,6 +1,9 @@
 use std::{collections::HashMap, convert::TryFrom, fmt};
 
-use crate::{assert_reference, stream::Stream, ParseError, PdfResult, Resolve};
+use crate::{
+    assert_reference, catalog::Rectangle, date::Date, stream::Stream, ParseError, PdfResult,
+    Resolve,
+};
 
 #[derive(Debug)]
 pub enum ObjectType {
@@ -124,37 +127,47 @@ impl Dictionary {
             .ok_or(ParseError::MissingRequiredKey { key })?
     }
 
-    pub fn expect_type(
+    fn expect_name_is_value(
         &mut self,
-        ty: &'static str,
-        resolver: &mut dyn Resolve,
+        key: &'static str,
+        val: &'static str,
         required: bool,
+        resolver: &mut dyn Resolve,
     ) -> PdfResult<()> {
-        let type_val = self.get_name("Type", resolver)?;
+        let type_val = self.get_name(key, resolver)?;
 
         match type_val {
-            Some(val) if val != ty => {
+            Some(name) if name != val => {
                 return Err(ParseError::MismatchedTypeKey {
-                    expected: ty,
-                    found: val,
+                    expected: val,
+                    found: name,
                 });
             }
-            None if required => return Err(ParseError::MissingRequiredKey { key: "Type" }),
+            None if required => return Err(ParseError::MissingRequiredKey { key }),
             Some(..) | None => {}
         }
 
         Ok(())
     }
 
+    pub fn expect_type(
+        &mut self,
+        ty: &'static str,
+        resolver: &mut dyn Resolve,
+        required: bool,
+    ) -> PdfResult<()> {
+        self.expect_name_is_value("Type", ty, required, resolver)
+    }
+
     pub fn get_type_or_arr<T: fmt::Debug, S: Resolve + Sized>(
         &mut self,
         key: &'static str,
-        lexer: &mut S,
+        resolver: &mut S,
         convert: impl Fn(&mut S, Object) -> PdfResult<T>,
     ) -> PdfResult<Option<TypeOrArray<T>>> {
         self.dict
             .remove(key)
-            .map(|obj| lexer.get_type_or_arr(obj, convert))
+            .map(|obj| resolver.get_type_or_arr(obj, convert))
             .transpose()
     }
 
@@ -211,6 +224,17 @@ impl Dictionary {
             .remove(key)
             .map(|obj| resolver.assert_string(obj))
             .transpose()
+    }
+
+    pub fn expect_string(
+        &mut self,
+        key: &'static str,
+        resolver: &mut dyn Resolve,
+    ) -> PdfResult<String> {
+        self.dict
+            .remove(key)
+            .map(|obj| resolver.assert_string(obj))
+            .ok_or(ParseError::MissingRequiredKey { key })?
     }
 
     pub fn expect_reference(&mut self, key: &'static str) -> PdfResult<Reference> {
@@ -313,5 +337,41 @@ impl Dictionary {
             .remove(key)
             .map(|obj| resolver.assert_bool(obj))
             .transpose()
+    }
+}
+
+/// Non-native objects
+impl Dictionary {
+    pub fn get_rectangle(
+        &mut self,
+        key: &str,
+        resolver: &mut dyn Resolve,
+    ) -> PdfResult<Option<Rectangle>> {
+        self.get_arr(key, resolver)?
+            .map(|objs| Rectangle::from_arr(objs, resolver))
+            .transpose()
+    }
+
+    pub fn expect_rectangle(
+        &mut self,
+        key: &'static str,
+        resolver: &mut dyn Resolve,
+    ) -> PdfResult<Rectangle> {
+        Rectangle::from_arr(self.expect_arr(key, resolver)?, resolver)
+    }
+
+    pub fn get_date(&mut self, key: &str, resolver: &mut dyn Resolve) -> PdfResult<Option<Date>> {
+        self.get_string(key, resolver)?
+            .as_deref()
+            .map(Date::from_str)
+            .transpose()
+    }
+
+    pub fn expect_date(
+        &mut self,
+        key: &'static str,
+        resolver: &mut dyn Resolve,
+    ) -> PdfResult<Date> {
+        Date::from_str(&self.expect_string(key, resolver)?)
     }
 }

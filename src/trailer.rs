@@ -10,12 +10,6 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(crate) struct PreviousTrailer {
-    size: usize,
-    prev: Option<usize>,
-}
-
-#[derive(Debug)]
 pub struct Trailer {
     /// The total number of entries in the
     /// file's cross-reference table, as

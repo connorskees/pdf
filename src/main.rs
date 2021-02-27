@@ -2,6 +2,8 @@
 #![allow(dead_code)]
 // TODO: consider verifying the file header
 
+mod actions;
+mod annotation;
 mod catalog;
 mod date;
 mod error;
@@ -22,6 +24,7 @@ mod xref;
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, convert::TryFrom, io, rc::Rc};
 
 use crate::{
+    annotation::Annotation,
     catalog::{DocumentCatalog, GroupAttributes, InformationDictionary, Rectangle, Resources},
     error::{ParseError, PdfResult},
     object_stream::{ObjectStream, ObjectStreamDict, ObjectStreamParser},
@@ -38,10 +41,43 @@ const BACKSPACE: u8 = b'\x08';
 pub(crate) const NUMBERS: &[u8] = b"0123456789";
 
 #[track_caller]
-fn assert_empty(dict: Dictionary) {
+pub(crate) fn assert_empty(dict: Dictionary) {
     if !dict.is_empty() {
         todo!("dict not empty: {:#?}", dict);
     }
+}
+
+#[macro_export]
+macro_rules! pdf_enum {
+    (
+        $(#[$attr:meta])*
+        $vis:vis enum $name:ident {
+            $(
+                $(#[$doc:meta])*
+                $variant:ident = $val:literal
+            ),*,
+            }
+    ) => {
+        $(#[$attr])*
+        $vis enum $name {
+            $(
+                $(#[$doc])*
+                $variant
+            ),*,
+        }
+
+        impl $name {
+            pub fn from_str(s: &str) -> crate::PdfResult<Self> {
+                Ok(match s {
+                    $($val => Self::$variant),*,
+                    _ => return Err(crate::ParseError::UnrecognizedVariant {
+                        ty: stringify!($name),
+                        found: s.to_owned(),
+                    })
+                })
+            }
+        }
+    };
 }
 
 pub fn assert_reference(obj: Object) -> PdfResult<Reference> {
@@ -949,7 +985,15 @@ impl Lexer {
         let b = None;
         let dur = None;
         let trans = None;
-        let annots = None;
+        let annots = dict
+            .get_arr("Annots", self)?
+            .map(|annots| {
+                annots
+                    .into_iter()
+                    .map(assert_reference)
+                    .collect::<PdfResult<Vec<Reference>>>()
+            })
+            .transpose()?;
         let aa = None;
         let metadata = None;
         let piece_info = None;
@@ -1122,6 +1166,24 @@ impl Parser {
     // todo: make this an iterator
     pub fn pages(&self) -> Vec<Rc<PageObject>> {
         self.page_tree.leaves()
+    }
+
+    pub fn page_annotations(&mut self, page: &PageObject) -> PdfResult<Option<Vec<Annotation>>> {
+        if let Some(annots) = &page.annots {
+            let annotations = annots
+                .into_iter()
+                .map(|&annot| {
+                    let obj = self.lexer.lex_object_from_reference(annot)?;
+                    let dict = self.lexer.assert_dict(obj)?;
+
+                    Annotation::from_dict(dict, &mut self.lexer)
+                })
+                .collect::<PdfResult<Vec<Annotation>>>()?;
+
+            return Ok(Some(annotations));
+        }
+
+        Ok(None)
     }
 
     pub fn run(mut self) -> PdfResult<Vec<Object>> {

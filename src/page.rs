@@ -2,8 +2,8 @@ use std::{cell::RefCell, collections::HashMap, fmt, rc::Rc};
 
 use crate::{
     catalog::{
-        AdditionalActions, Annotation, BoxColorInfo, GroupAttributes, MetadataStream,
-        NavigationNode, PagePiece, Rectangle, Resources, SeparationInfo, Transitions, Viewport,
+        AdditionalActions, BoxColorInfo, GroupAttributes, MetadataStream, NavigationNode,
+        PagePiece, Rectangle, Resources, SeparationInfo, Transitions, Viewport,
     },
     date::Date,
     objects::TypeOrArray,
@@ -55,7 +55,7 @@ impl fmt::Debug for PageNode {
                 .field("kids", &r.borrow().kids)
                 .field("count", &r.borrow().count)
                 .finish(),
-            Self::Leaf(r) => write!(f, "{:?}", r),
+            Self::Leaf(r) => write!(f, "{:#?}", r),
         }
     }
 }
@@ -204,7 +204,7 @@ pub struct PageObject {
 
     /// An array of annotation dictionaries that shall contain indirect
     /// references to all annotations associated with the page
-    pub annots: Option<Vec<Annotation>>,
+    pub annots: Option<Vec<Reference>>,
 
     /// An additional-actions dictionary that shall define actions to
     /// be performed when the page is opened or closed
@@ -265,6 +265,7 @@ impl fmt::Debug for PageObject {
             .field("trim_box", &self.trim_box)
             .field("art_box", &self.art_box)
             .field("group", &self.group)
+            .field("annots", &self.annots)
             .finish()
     }
 }

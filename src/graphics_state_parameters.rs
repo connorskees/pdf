@@ -183,20 +183,20 @@ impl SoftMaskSubtype {
 }
 
 #[derive(Debug)]
-struct LineDashPattern {
+pub struct LineDashPattern {
     dash_array: Vec<i32>,
     dash_phase: i32,
 }
 
 impl LineDashPattern {
-    pub fn from_arr(mut arr: Vec<Object>, lexer: &mut Lexer) -> PdfResult<Self> {
+    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         assert_len(&arr, 2)?;
 
-        let dash_phase = lexer.assert_integer(arr.pop().unwrap())?;
-        let dash_array = lexer
+        let dash_phase = resolver.assert_integer(arr.pop().unwrap())?;
+        let dash_array = resolver
             .assert_arr(arr.pop().unwrap())?
             .into_iter()
-            .map(|obj| lexer.assert_integer(obj))
+            .map(|obj| resolver.assert_integer(obj))
             .collect::<PdfResult<Vec<i32>>>()?;
 
         Ok(Self {

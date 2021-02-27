@@ -14,10 +14,12 @@ document is opened.
 use std::collections::HashMap;
 
 use crate::{
+    actions::Actions,
     assert_empty, assert_reference,
     date::Date,
     graphics_state_parameters::GraphicsStateParameters,
     objects::{ObjectType, TypeOrArray},
+    pdf_enum,
     structure::StructTreeRoot,
     Dictionary, Lexer, Object, ParseError, PdfResult, Reference, Resolve,
 };
@@ -299,44 +301,30 @@ impl InformationDictionary {
     }
 }
 
-/// A name object indicating whether the document
-/// has been modified to include trapping information
-#[derive(Debug)]
-pub enum Trapped {
-    /// The document has been fully trapped; no further
-    /// trapping shall be needed. This shall be the name
-    /// "True", not the boolean value true.
-    True,
+pdf_enum!(
+    /// A name object indicating whether the document
+    /// has been modified to include trapping information
+    #[derive(Debug)]
+    pub enum Trapped {
+        /// The document has been fully trapped; no further
+        /// trapping shall be needed. This shall be the name
+        /// "True", not the boolean value true.
+        True = "True",
 
-    /// The document has not yet been trapped. This shall
-    /// be the name "False", not the boolean value false
-    False,
+        /// The document has not yet been trapped. This shall
+        /// be the name "False", not the boolean value false
+        False = "False",
 
-    /// Either it is unknown whether the document has been
-    /// trapped or it has been partly but not yet fully
-    /// trapped; some additional trapping may still be needed
-    Unknown,
-}
+        /// Either it is unknown whether the document has been
+        /// trapped or it has been partly but not yet fully
+        /// trapped; some additional trapping may still be needed
+        Unknown = "Unknown",
+    }
+);
 
 impl Default for Trapped {
     fn default() -> Self {
         Self::Unknown
-    }
-}
-
-impl Trapped {
-    pub(crate) fn from_str(s: &str) -> PdfResult<Self> {
-        Ok(match s {
-            "True" => Self::True,
-            "False" => Self::False,
-            "Unknown" => Self::Unknown,
-            found => {
-                return Err(ParseError::UnrecognizedVariant {
-                    found: found.to_owned(),
-                    ty: "Trapped",
-                })
-            }
-        })
     }
 }
 
@@ -436,7 +424,7 @@ pub fn assert_len(arr: &[Object], len: usize) -> PdfResult<()> {
 }
 
 impl Destination {
-    pub fn from_arr(mut arr: Vec<Object>, lexer: &mut Lexer) -> PdfResult<Self> {
+    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut impl Resolve) -> PdfResult<Self> {
         if arr.len() < 2 {
             return Err(ParseError::ArrayOfInvalidLength {
                 expected: 2,
@@ -449,10 +437,10 @@ impl Destination {
         let dimensions = vals
             .iter()
             .cloned()
-            .map(|obj| lexer.assert_or_null(obj, Resolve::assert_number))
+            .map(|obj| resolver.assert_or_null(obj, Resolve::assert_number))
             .collect::<PdfResult<Vec<Option<f32>>>>()?;
 
-        let kind_str = lexer.assert_name(arr.pop().unwrap())?;
+        let kind_str = resolver.assert_name(arr.pop().unwrap())?;
 
         let page_ref = assert_reference(arr.pop().unwrap())?;
 
@@ -511,14 +499,6 @@ impl Destination {
         };
 
         Ok(Destination { kind, page_ref })
-    }
-}
-#[derive(Debug)]
-pub struct Actions;
-
-impl Actions {
-    pub fn from_dict(_dict: Dictionary, _lexer: &mut Lexer) -> PdfResult<Self> {
-        todo!()
     }
 }
 
@@ -648,13 +628,13 @@ pub struct Rectangle {
 }
 
 impl Rectangle {
-    pub(crate) fn from_arr(mut arr: Vec<Object>, lexer: &mut Lexer) -> PdfResult<Self> {
+    pub(crate) fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         assert_len(&arr, 4)?;
 
-        let upper_right_y = lexer.assert_number(arr.pop().unwrap())?;
-        let upper_right_x = lexer.assert_number(arr.pop().unwrap())?;
-        let lower_left_y = lexer.assert_number(arr.pop().unwrap())?;
-        let lower_left_x = lexer.assert_number(arr.pop().unwrap())?;
+        let upper_right_y = resolver.assert_number(arr.pop().unwrap())?;
+        let upper_right_x = resolver.assert_number(arr.pop().unwrap())?;
+        let lower_left_y = resolver.assert_number(arr.pop().unwrap())?;
+        let lower_left_x = resolver.assert_number(arr.pop().unwrap())?;
 
         Ok(Rectangle {
             lower_left_x,
@@ -757,8 +737,6 @@ impl GroupAttributes {
 
 #[derive(Debug)]
 pub struct Transitions;
-#[derive(Debug)]
-pub struct Annotation;
 #[derive(Debug)]
 pub struct SeparationInfo;
 #[derive(Debug)]
