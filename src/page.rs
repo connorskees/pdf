@@ -7,6 +7,7 @@ use crate::{
     },
     date::Date,
     objects::TypeOrArray,
+    pdf_enum,
     stream::Stream,
     Reference,
 };
@@ -270,9 +271,11 @@ impl fmt::Debug for PageObject {
     }
 }
 
-#[derive(Debug)]
-pub enum TabOrder {
-    Row,
-    Column,
-    Structure,
-}
+pdf_enum!(
+    #[derive(Debug)]
+    pub enum TabOrder {
+        Row = "R",
+        Column = "C",
+        Structure = "S",
+    }
+);

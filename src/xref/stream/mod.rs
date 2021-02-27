@@ -99,7 +99,7 @@ impl XrefStreamDict {
 }
 
 #[derive(Debug)]
-pub(crate) enum Field {
+pub(crate) enum XrefStreamField {
     One = 0,
     Two = 1,
     Three = 2,
@@ -127,11 +127,11 @@ impl XrefStreamFieldWidths {
         })
     }
 
-    pub fn field_width(&self, field: Field) -> usize {
+    pub fn field_width(&self, field: XrefStreamField) -> usize {
         (match field {
-            Field::One => self.field0,
-            Field::Two => self.field1,
-            Field::Three => self.field2,
+            XrefStreamField::One => self.field0,
+            XrefStreamField::Two => self.field1,
+            XrefStreamField::Three => self.field2,
         }) as usize
     }
 

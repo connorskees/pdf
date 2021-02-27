@@ -763,32 +763,16 @@ pub struct Font;
 #[derive(Debug)]
 pub struct PropertyList;
 
-#[derive(Debug)]
-pub enum ProcedureSet {
-    Pdf,
-    Text,
-    ImageB,
-    ImageC,
-    ImageI,
-}
-
-impl ProcedureSet {
-    pub(crate) fn from_str(s: &str) -> PdfResult<Self> {
-        Ok(match s {
-            "PDF" => Self::Pdf,
-            "Text" => Self::Text,
-            "ImageB" => Self::ImageB,
-            "ImageC" => Self::ImageC,
-            "ImageI" => Self::ImageI,
-            _ => {
-                return Err(ParseError::UnrecognizedVariant {
-                    found: s.to_owned(),
-                    ty: "ProcedureSet",
-                })
-            }
-        })
+pdf_enum!(
+    #[derive(Debug)]
+    pub enum ProcedureSet {
+        Pdf = "PDF",
+        Text = "Text",
+        ImageB = "ImageB",
+        ImageC = "ImageC",
+        ImageI = "ImageI",
     }
-}
+);
 
 #[derive(Debug)]
 pub enum ColorSpace {
@@ -819,50 +803,33 @@ pub enum ColorSpace {
     DeviceN,
 }
 
-/// Specifies the page layout when the document is opened
-#[derive(Debug)]
-enum PageLayout {
-    /// Display one page at a time
-    SinglePage,
+pdf_enum!(
+    /// Specifies the page layout when the document is opened
+    #[derive(Debug)]
+    enum PageLayout {
+        /// Display one page at a time
+        SinglePage = "SinglePage",
 
-    /// Display the pages in one column
-    OneColumn,
+        /// Display the pages in one column
+        OneColumn = "OneColumn",
 
-    /// Display the pages in two columns,
-    /// with odd-numbered pages on the left
-    TwoColumnLeft,
+        /// Display the pages in two columns,
+        /// with odd-numbered pages on the left
+        TwoColumnLeft = "TwoColumnLeft",
 
-    /// Display the pages in two columns,
-    /// with odd-numbered pages on the right
-    TwoColumnRight,
+        /// Display the pages in two columns,
+        /// with odd-numbered pages on the right
+        TwoColumnRight = "TwoColumnRight",
 
-    /// Display the pages two at a time,
-    /// with odd-numbered pages on the left
-    TwoPageLeft,
+        /// Display the pages two at a time,
+        /// with odd-numbered pages on the left
+        TwoPageLeft = "TwoPageLeft",
 
-    /// Display the pages two at a time,
-    /// with odd-numbered pages on the right
-    TwoPageRight,
-}
-
-impl PageLayout {
-    pub fn from_str(s: &str) -> PdfResult<Self> {
-        Ok(match s {
-            "SinglePage" => Self::SinglePage,
-            "OneColumn" => Self::OneColumn,
-            "TwoColumnLeft" => Self::TwoColumnLeft,
-            "TwoColumnRight" => Self::TwoColumnRight,
-            "TwoPageLeft" => Self::TwoPageLeft,
-            "TwoPageRight" => Self::TwoPageRight,
-            _ => {
-                return Err(ParseError::UnrecognizedVariant {
-                    found: s.to_owned(),
-                    ty: "PageLayout",
-                })
-            }
-        })
+        /// Display the pages two at a time,
+        /// with odd-numbered pages on the right
+        TwoPageRight = "TwoPageRight",
     }
-}
+);
 
 impl Default for PageLayout {
     fn default() -> Self {
@@ -870,49 +837,32 @@ impl Default for PageLayout {
     }
 }
 
-/// A name object specifying how the document shall be
-/// displayed when opened
-#[derive(Debug)]
-enum PageMode {
-    /// Neither document outline nor thumbnail
-    /// images visible
-    UseNone,
+pdf_enum!(
+    /// A name object specifying how the document shall be
+    /// displayed when opened
+    #[derive(Debug)]
+    enum PageMode {
+        /// Neither document outline nor thumbnail
+        /// images visible
+        UseNone = "UseNone",
 
-    /// Document outline visible
-    UseOutlines,
+        /// Document outline visible
+        UseOutlines = "UseOutlines",
 
-    /// Thumbnail images visible
-    UseThumbs,
+        /// Thumbnail images visible
+        UseThumbs = "UseThumbs",
 
-    /// Full-screen mode, with no menu bar, window
-    /// controls, or any other window visible
-    FullScreen,
+        /// Full-screen mode, with no menu bar, window
+        /// controls, or any other window visible
+        FullScreen = "FullScreen",
 
-    /// Optional content group panel visible
-    UseOc,
+        /// Optional content group panel visible
+        UseOc = "UseOc",
 
-    /// Attachments panel visible
-    UseAttachments,
-}
-
-impl PageMode {
-    pub fn from_str(s: &str) -> PdfResult<Self> {
-        Ok(match s {
-            "UseNone" => Self::UseNone,
-            "UseOutlines" => Self::UseOutlines,
-            "UseThumbs" => Self::UseThumbs,
-            "FullScreen" => Self::FullScreen,
-            "UseOc" => Self::UseOc,
-            "UseAttachments" => Self::UseAttachments,
-            _ => {
-                return Err(ParseError::UnrecognizedVariant {
-                    found: s.to_owned(),
-                    ty: "PageMode",
-                })
-            }
-        })
+        /// Attachments panel visible
+        UseAttachments = "UseAttachments",
     }
-}
+);
 
 impl Default for PageMode {
     fn default() -> Self {

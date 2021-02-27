@@ -1,7 +1,4 @@
-use crate::{
-    error::{ParseError, PdfResult},
-    objects::Object,
-};
+use crate::{error::PdfResult, objects::Object, pdf_enum};
 
 #[derive(Debug)]
 pub struct Function;
@@ -28,62 +25,31 @@ impl SpotFunction {
     }
 }
 
-#[derive(Debug)]
-pub enum PredefinedSpotFunction {
-    SimpleDot,
-    InvertedSimpleDot,
-    DoubleDot,
-    InvertedDoubleDot,
-    CosineDot,
-    Double,
-    Line,
-    LineX,
-    LineY,
-    Round,
-    Ellipse,
-    EllipseA,
-    InvertedEllipseA,
-    EllipseB,
-    EllipseC,
-    InvertedEllipseC,
-    Square,
-    Cross,
-    Rhomboid,
-    Diamond,
-}
-
-impl PredefinedSpotFunction {
-    pub fn from_str(s: &str) -> PdfResult<Self> {
-        Ok(match s {
-            "SimpleDot" => Self::SimpleDot,
-            "InvertedSimpleDot" => Self::InvertedSimpleDot,
-            "DoubleDot" => Self::DoubleDot,
-            "InvertedDoubleDot" => Self::InvertedDoubleDot,
-            "CosineDot" => Self::CosineDot,
-            "Double" => Self::Double,
-            "Line" => Self::Line,
-            "LineX" => Self::LineX,
-            "LineY" => Self::LineY,
-            "Round" => Self::Round,
-            "Ellipse" => Self::Ellipse,
-            "EllipseA" => Self::EllipseA,
-            "InvertedEllipseA" => Self::InvertedEllipseA,
-            "EllipseB" => Self::EllipseB,
-            "EllipseC" => Self::EllipseC,
-            "InvertedEllipseC" => Self::InvertedEllipseC,
-            "Square" => Self::Square,
-            "Cross" => Self::Cross,
-            "Rhomboid" => Self::Rhomboid,
-            "Diamond" => Self::Diamond,
-            found => {
-                return Err(ParseError::UnrecognizedVariant {
-                    found: found.to_owned(),
-                    ty: "PredefinedSpotFunction",
-                })
-            }
-        })
+pdf_enum!(
+    #[derive(Debug)]
+    pub enum PredefinedSpotFunction {
+        SimpleDot = "SimpleDot",
+        InvertedSimpleDot = "InvertedSimpleDot",
+        DoubleDot = "DoubleDot",
+        InvertedDoubleDot = "InvertedDoubleDot",
+        CosineDot = "CosineDot",
+        Double = "Double",
+        Line = "Line",
+        LineX = "LineX",
+        LineY = "LineY",
+        Round = "Round",
+        Ellipse = "Ellipse",
+        EllipseA = "EllipseA",
+        InvertedEllipseA = "InvertedEllipseA",
+        EllipseB = "EllipseB",
+        EllipseC = "EllipseC",
+        InvertedEllipseC = "InvertedEllipseC",
+        Square = "Square",
+        Cross = "Cross",
+        Rhomboid = "Rhomboid",
+        Diamond = "Diamond",
     }
-}
+);
 
 #[derive(Debug)]
 pub enum TransferFunction {

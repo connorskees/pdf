@@ -5,6 +5,7 @@ use crate::{
     function::{Function, TransferFunction},
     halftones::Halftones,
     objects::{Dictionary, Object, ObjectType},
+    pdf_enum,
     stream::Stream,
     Lexer, Resolve,
 };
@@ -158,29 +159,16 @@ impl SoftMask {
     }
 }
 
-#[derive(Debug)]
-enum SoftMaskSubtype {
-    /// The group's computed alpha shall be used, disregarding its colour
-    Alpha,
+pdf_enum!(
+    #[derive(Debug)]
+    enum SoftMaskSubtype {
+        /// The group's computed alpha shall be used, disregarding its colour
+        Alpha = "Alpha",
 
-    /// The group's computed colour shall be converted to a single-component luminosity value
-    Luminosity,
-}
-
-impl SoftMaskSubtype {
-    pub fn from_str(s: &str) -> PdfResult<Self> {
-        Ok(match s {
-            "Alpha" => Self::Alpha,
-            "Luminosity" => Self::Luminosity,
-            found => {
-                return Err(ParseError::UnrecognizedVariant {
-                    found: found.to_owned(),
-                    ty: "SoftMaskSubtype",
-                })
-            }
-        })
+        /// The group's computed colour shall be converted to a single-component luminosity value
+        Luminosity = "Luminosity",
     }
-}
+);
 
 #[derive(Debug)]
 pub struct LineDashPattern {
@@ -315,30 +303,15 @@ impl GraphicsStateParameters {
     }
 }
 
-#[derive(Debug)]
-enum RenderingIntent {
-    AbsoluteColorimetric,
-    RelativeColorimetric,
-    Saturation,
-    Perceptual,
-}
-
-impl RenderingIntent {
-    pub(crate) fn from_str(s: &str) -> PdfResult<Self> {
-        Ok(match s {
-            "AbsoluteColorimetric" => Self::AbsoluteColorimetric,
-            "RelativeColorimetric" => Self::RelativeColorimetric,
-            "Saturation" => Self::Saturation,
-            "Perceptual" => Self::Perceptual,
-            _ => {
-                return Err(ParseError::UnrecognizedVariant {
-                    found: s.to_owned(),
-                    ty: "RenderingIntent",
-                })
-            }
-        })
+pdf_enum!(
+    #[derive(Debug)]
+    enum RenderingIntent {
+        AbsoluteColorimetric = "AbsoluteColorimetric",
+        RelativeColorimetric = "RelativeColorimetric",
+        Saturation = "Saturation",
+        Perceptual = "Perceptual",
     }
-}
+);
 
 #[derive(Debug)]
 enum LineJoinStyle {

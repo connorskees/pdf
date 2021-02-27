@@ -13,6 +13,7 @@ mod font;
 mod function;
 mod graphics_state_parameters;
 mod halftones;
+mod macros;
 mod object_stream;
 mod objects;
 mod page;
@@ -29,7 +30,7 @@ use crate::{
     error::{ParseError, PdfResult},
     object_stream::{ObjectStream, ObjectStreamDict, ObjectStreamParser},
     objects::{Dictionary, Object, ObjectType, Reference, TypeOrArray},
-    page::{PageNode, PageObject, PageTree, PageTreeNode},
+    page::{PageNode, PageObject, PageTree, PageTreeNode, TabOrder},
     stream::{decode_stream, Stream, StreamDict},
     trailer::Trailer,
     xref::{ByteOffset, TrailerOrOffset, Xref, XrefParser},
@@ -45,39 +46,6 @@ pub(crate) fn assert_empty(dict: Dictionary) {
     if !dict.is_empty() {
         todo!("dict not empty: {:#?}", dict);
     }
-}
-
-#[macro_export]
-macro_rules! pdf_enum {
-    (
-        $(#[$attr:meta])*
-        $vis:vis enum $name:ident {
-            $(
-                $(#[$doc:meta])*
-                $variant:ident = $val:literal
-            ),*,
-            }
-    ) => {
-        $(#[$attr])*
-        $vis enum $name {
-            $(
-                $(#[$doc])*
-                $variant
-            ),*,
-        }
-
-        impl $name {
-            pub fn from_str(s: &str) -> crate::PdfResult<Self> {
-                Ok(match s {
-                    $($val => Self::$variant),*,
-                    _ => return Err(crate::ParseError::UnrecognizedVariant {
-                        ty: stringify!($name),
-                        found: s.to_owned(),
-                    })
-                })
-            }
-        }
-    };
 }
 
 pub fn assert_reference(obj: Object) -> PdfResult<Reference> {
@@ -1000,7 +968,11 @@ impl Lexer {
         let id = None;
         let pz = None;
         let separation_info = None;
-        let tabs = None;
+        let tabs = dict
+            .get_name("Tabs", self)?
+            .as_deref()
+            .map(TabOrder::from_str)
+            .transpose()?;
         let template_instantiated = None;
         let pres_steps = None;
         let user_unit = None;

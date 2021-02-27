@@ -3,7 +3,7 @@ use std::{collections::HashMap, convert::TryFrom, mem};
 use crate::{xref::Xref, PdfResult};
 
 use crate::xref::{
-    stream::{Field, XrefStreamFieldWidths},
+    stream::{XrefStreamField, XrefStreamFieldWidths},
     XrefEntry,
 };
 
@@ -74,7 +74,7 @@ impl<'a> XrefStreamParser<'a> {
     }
 
     fn parse_entry(&mut self) -> PdfResult<XrefEntry> {
-        let entry_type = parse_integer(self.next_field(Field::One), Some(1))?;
+        let entry_type = parse_integer(self.next_field(XrefStreamField::One), Some(1))?;
 
         match entry_type {
             0 => self.parse_type_zero_entry(),
@@ -86,8 +86,11 @@ impl<'a> XrefStreamParser<'a> {
 
     /// Equivalent to free entries in a regular xref table
     fn parse_type_zero_entry(&mut self) -> PdfResult<XrefEntry> {
-        let next_free_object = parse_integer(self.next_field(Field::Two), None)?;
-        let generation_number = u16::try_from(parse_integer(self.next_field(Field::Three), None)?)?;
+        let next_free_object = parse_integer(self.next_field(XrefStreamField::Two), None)?;
+        let generation_number = u16::try_from(parse_integer(
+            self.next_field(XrefStreamField::Three),
+            None,
+        )?)?;
 
         Ok(XrefEntry::Free {
             next_free_object,
@@ -97,9 +100,12 @@ impl<'a> XrefStreamParser<'a> {
 
     /// Equivalent to in-use entires in a regular xref table
     fn parse_type_one_entry(&mut self) -> PdfResult<XrefEntry> {
-        let byte_offset = usize::try_from(parse_integer(self.next_field(Field::Two), None)?)?;
-        let generation_number =
-            u16::try_from(parse_integer(self.next_field(Field::Three), Some(0))?)?;
+        let byte_offset =
+            usize::try_from(parse_integer(self.next_field(XrefStreamField::Two), None)?)?;
+        let generation_number = u16::try_from(parse_integer(
+            self.next_field(XrefStreamField::Three),
+            Some(0),
+        )?)?;
 
         Ok(XrefEntry::InUse {
             byte_offset,
@@ -109,8 +115,11 @@ impl<'a> XrefStreamParser<'a> {
 
     /// Compressed xref entries
     fn parse_type_two_entry(&mut self) -> PdfResult<XrefEntry> {
-        let object_number = parse_integer(self.next_field(Field::Two), None)?;
-        let index = usize::try_from(parse_integer(self.next_field(Field::Three), None)?)?;
+        let object_number = parse_integer(self.next_field(XrefStreamField::Two), None)?;
+        let index = usize::try_from(parse_integer(
+            self.next_field(XrefStreamField::Three),
+            None,
+        )?)?;
 
         Ok(XrefEntry::Compressed {
             object_number,
@@ -119,13 +128,13 @@ impl<'a> XrefStreamParser<'a> {
     }
 
     fn parse_type_unknown_entry(&mut self) -> PdfResult<XrefEntry> {
-        self.next_field(Field::Two);
-        self.next_field(Field::Three);
+        self.next_field(XrefStreamField::Two);
+        self.next_field(XrefStreamField::Three);
 
         Ok(XrefEntry::Null)
     }
 
-    fn next_field(&mut self, field: Field) -> &'a [u8] {
+    fn next_field(&mut self, field: XrefStreamField) -> &'a [u8] {
         let field_width = self.w.field_width(field);
         // todo: this will panic
         let field_val = &self.stream[self.cursor..(self.cursor + field_width)];
