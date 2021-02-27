@@ -15,6 +15,7 @@ mod object_stream;
 mod objects;
 mod page;
 mod stream;
+mod structure;
 mod trailer;
 mod xref;
 
@@ -581,6 +582,10 @@ trait Lex {
         ))
     }
 
+    fn line_number(&self) -> usize {
+        self.buffer().iter().filter(|&&c| c == b'\n').count()
+    }
+
     fn lex_string(&mut self) -> PdfResult<Object> {
         self.expect_byte(b'(')?;
 
@@ -615,8 +620,14 @@ trait Lex {
                         // TODO: do we skip whitespace after `\` in multiline string?
                         Some(b'\n' | b'\r') => self.skip_whitespace(),
                         // TODO: octal escape
-                        Some(..) | None => todo!(),
+                        Some(c) => todo!(
+                            "unhandled escaped char {:?} on line {}",
+                            c as char,
+                            self.line_number()
+                        ),
+                        None => todo!(),
                     }
+                    continue;
                 }
                 _ => {
                     string.push(b as char);
@@ -1086,6 +1097,7 @@ impl Parser {
             lexer.assert_dict(Object::Reference(trailer.root))?,
             &mut lexer,
         )?;
+
         let page_tree = lexer.lex_page_tree(&xref, catalog.pages)?;
 
         Ok(Self {

@@ -40,7 +40,7 @@ pub struct GraphicsStateParameters {
     /// The current soft mask, specifying the mask shape or mask opacity values that shall
     /// be used in the transparent imaging model.
     ///
-    /// Although the current soft mask is sometimes referred to as a “soft clip,” altering
+    /// Although the current soft mask is sometimes referred to as a "soft clip," altering
     /// it with the gs operator completely replaces the old value with the new one, rather
     /// than intersecting the two as is done with the current clipping path parameter.
     // todo: can also be name
@@ -126,7 +126,7 @@ pub struct SoftMask {
     transparency_group: Stream,
     // todo
     backdrop_color: Option<Vec<Object>>,
-    /// A function object (see “Functions”) specifying the transfer function to be used
+    /// A function object (see "Functions") specifying the transfer function to be used
     /// in deriving the mask values. The function shall accept one input, the computed
     /// group alpha or luminosity (depending on the value of the subtype S), and shall
     /// return one output, the resulting mask value. The input shall be in the range 0.0
@@ -160,10 +160,10 @@ impl SoftMask {
 
 #[derive(Debug)]
 enum SoftMaskSubtype {
-    /// The group’s computed alpha shall be used, disregarding its colour
+    /// The group's computed alpha shall be used, disregarding its colour
     Alpha,
 
-    /// The group’s computed colour shall be converted to a single-component luminosity value
+    /// The group's computed colour shall be converted to a single-component luminosity value
     Luminosity,
 }
 

@@ -18,6 +18,7 @@ use crate::{
     date::Date,
     graphics_state_parameters::GraphicsStateParameters,
     objects::{ObjectType, TypeOrArray},
+    structure::StructTreeRoot,
     Dictionary, Lexer, Object, ParseError, PdfResult, Reference, Resolve,
 };
 
@@ -551,8 +552,6 @@ pub struct AcroForm;
 #[derive(Debug)]
 pub struct MetadataStream;
 #[derive(Debug)]
-pub struct StructTreeRoot;
-#[derive(Debug)]
 pub struct MarkInfo;
 #[derive(Debug)]
 pub struct WebCapture;
@@ -704,7 +703,7 @@ pub struct GroupAttributes {
     /// page is composited.
     ///
     /// Default value: the colour space of the parent group or page into which this transparency
-    /// group is painted. (The parent’s colour space in turn may be either explicitly specified or
+    /// group is painted. (The parent's colour space in turn may be either explicitly specified or
     /// inherited.)
     ///
     /// For a transparency group XObject used as an annotation appearance, the default colour space
@@ -714,7 +713,7 @@ pub struct GroupAttributes {
     /// A flag specifying whether the transparency group is isolated.
     ///
     /// If this flag is true, objects within the group shall be composited against a fully
-    /// transparent initial backdrop; if false, they shall be composited against the group’s
+    /// transparent initial backdrop; if false, they shall be composited against the group's
     /// backdrop.
     ///
     /// Default value: false.
@@ -730,8 +729,8 @@ pub struct GroupAttributes {
     /// A flag specifying whether the transparency group is a knockout group.
     ///
     /// If this flag is false, later objects within the group shall be composited with earlier
-    /// ones with which they overlap; if true, they shall be composited with the group’s initial
-    /// backdrop and shall overwrite (“knock out”) any earlier overlapping objects.
+    /// ones with which they overlap; if true, they shall be composited with the group's initial
+    /// backdrop and shall overwrite ("knock out") any earlier overlapping objects.
     ///
     /// Default value: false.
     is_knockout: bool,
