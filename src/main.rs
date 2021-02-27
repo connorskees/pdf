@@ -384,8 +384,6 @@ trait Lex {
             }
         }
 
-        self.skip_whitespace();
-
         Ok(())
     }
 
@@ -735,6 +733,7 @@ trait Lex {
         *self.cursor_mut() += stream_dict.len;
 
         self.expect_eol()?;
+        self.skip_whitespace();
 
         self.expect_bytes(b"endstream")?;
         self.expect_eol()?;

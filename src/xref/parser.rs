@@ -161,6 +161,7 @@ impl<'a> XrefParser<'a> {
         *self.cursor_mut() += stream_dict.stream_dict.len;
 
         self.expect_eol()?;
+        self.skip_whitespace();
 
         self.expect_bytes(b"endstream")?;
         self.expect_eol()?;
