@@ -110,7 +110,7 @@ pub struct DocumentCatalog {
 
     /// A mark information dictionary that shall contain information
     /// about the document's usage of Tagged PDF conventions
-    mark_info: Option<MarkInfo>,
+    mark_info: Option<MarkInformationDictionary>,
 
     /// A language identifier that shall specify the natural language
     /// for all text in the document except where overridden by language
@@ -197,7 +197,10 @@ impl DocumentCatalog {
             .get_dict("StructTreeRoot", lexer)?
             .map(|dict| StructTreeRoot::from_dict(dict, lexer))
             .transpose()?;
-        let mark_info = None;
+        let mark_info = dict
+            .get_dict("MarkInfo", lexer)?
+            .map(|dict| MarkInformationDictionary::from_dict(dict, lexer))
+            .transpose()?;
         let lang = dict.get_string("Lang", lexer)?;
         let spider_info = None;
         let output_intents = None;
@@ -540,8 +543,42 @@ pub struct UriDict;
 pub struct AcroForm;
 #[derive(Debug)]
 pub struct MetadataStream;
+
 #[derive(Debug)]
-pub struct MarkInfo;
+pub struct MarkInformationDictionary {
+    /// A flag indicating whether the document conforms to Tagged PDF conventions.
+    ///
+    /// Default value: false.
+    /// If Suspects is true, the document may not completely conform to Tagged PDF conventions.
+    marked: bool,
+
+    /// A flag indicating the presence of structure elements that contain user properties attributes
+    ///
+    /// Default value: false
+    user_properties: bool,
+
+    /// A flag indicating the presence of tag suspects
+    ///
+    /// Default value: false.
+    suspects: bool,
+}
+
+impl MarkInformationDictionary {
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        let marked = dict.get_bool("Marked", resolver)?.unwrap_or(false);
+        let user_properties = dict.get_bool("UserProperties", resolver)?.unwrap_or(false);
+        let suspects = dict.get_bool("Suspects", resolver)?.unwrap_or(false);
+
+        assert_empty(dict);
+
+        Ok(Self {
+            marked,
+            user_properties,
+            suspects,
+        })
+    }
+}
+
 #[derive(Debug)]
 pub struct WebCapture;
 #[derive(Debug)]
