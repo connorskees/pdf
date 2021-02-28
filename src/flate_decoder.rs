@@ -160,6 +160,8 @@ impl FlateDecoder {
         let mut buffer = Vec::new();
         decoder.read_to_end(&mut buffer).unwrap();
 
+        dbg!(buffer.len(), &params.bytes_per_row());
+
         Self { buffer, params }
     }
 
@@ -171,7 +173,7 @@ impl FlateDecoder {
                 let bytes_per_row = self.params.bytes_per_row() as usize;
                 let bpp = self.params.bytes_per_pixel();
 
-                for i in (0..(self.buffer.len() - bytes_per_row)).step_by(bytes_per_row) {
+                for i in (0..self.buffer.len()).step_by(bytes_per_row) {
                     Self::decode_sub(&mut self.buffer[i..=(i + bytes_per_row)], bpp);
                 }
 
@@ -184,8 +186,7 @@ impl FlateDecoder {
 
                 out.extend_from_slice(&self.buffer[1..bytes_per_row]);
 
-                for i in (bytes_per_row..(self.buffer.len() - bytes_per_row)).step_by(bytes_per_row)
-                {
+                for i in (bytes_per_row..self.buffer.len()).step_by(bytes_per_row) {
                     let row_above = &out[(i - bytes_per_row - (i / bytes_per_row - 1))..];
 
                     let this_row = &mut self.buffer[(i + 1)..(i + bytes_per_row)];

@@ -15,7 +15,7 @@ pub(crate) struct XrefStreamParser<'a> {
     index: Vec<(usize, usize)>,
 }
 
-fn strip_trailing_zeroes(bytes: &[u8]) -> &[u8] {
+fn strip_leading_zeroes(bytes: &[u8]) -> &[u8] {
     let mut start = 0;
 
     while bytes.get(start) == Some(&0) {
@@ -33,7 +33,7 @@ fn parse_integer(bytes: &[u8], default: Option<u64>) -> PdfResult<u64> {
         };
     }
 
-    let bytes = strip_trailing_zeroes(bytes);
+    let bytes = strip_leading_zeroes(bytes);
 
     if bytes.len() > 8 {
         todo!()
@@ -63,7 +63,7 @@ impl<'a> XrefStreamParser<'a> {
         let mut objects = HashMap::new();
 
         for (idx_offset, num_of_objects) in mem::take(&mut self.index) {
-            for idx in 0..(num_of_objects - 1) {
+            for idx in 0..num_of_objects {
                 objects.insert(idx + idx_offset, self.parse_entry()?);
             }
         }
