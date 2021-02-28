@@ -54,15 +54,23 @@ pdf_enum!(
 #[derive(Debug)]
 pub enum TransferFunction {
     Identity,
-    Function(Function),
+    Default,
+    Single(Function),
+    Colorants {
+        a: Function,
+        b: Function,
+        c: Function,
+        d: Function,
+    },
 }
 
 impl TransferFunction {
+    // todo: array, default
     pub fn from_obj(obj: Object) -> PdfResult<Self> {
         Ok(if obj.name_is("Identity") {
             TransferFunction::Identity
         } else {
-            TransferFunction::Function(Function::from_obj(obj)?)
+            TransferFunction::Single(Function::from_obj(obj)?)
         })
     }
 }

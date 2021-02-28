@@ -11,31 +11,103 @@ use crate::{
 };
 
 #[derive(Debug)]
+enum FunctionOrDefault {
+    Function(Function),
+    Default,
+}
+
+impl FunctionOrDefault {
+    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        let obj = resolver.resolve(obj)?;
+
+        if let Ok(name) = resolver.assert_name(obj.clone()) {
+            if name == "Default" {
+                return Ok(Self::Default);
+            }
+        }
+
+        Ok(Self::Function(Function::from_obj(obj)?))
+    }
+}
+
+#[derive(Debug)]
 pub struct GraphicsStateParameters {
     line_width: Option<f32>,
     line_cap_style: Option<LineCapStyle>,
     line_join_style: Option<LineJoinStyle>,
     miter_limit: Option<f32>,
+
+    /// The line dash pattern, expressed as an array of the form [dashArray dashPhase],
+    /// where dashArray shall be itself an array and dashPhase shall be an integer
     line_dash_pattern: Option<LineDashPattern>,
+
+    /// The name of the rendering intent
     rendering_intent: Option<RenderingIntent>,
+
+    /// A flag specifying whether to apply overprint. In PDF 1.2 and earlier, there is a
+    /// single overprint parameter that applies to all painting operations. Beginning with PDF
+    /// 1.3, there shall be two separate overprint parameters: one for stroking and one for
+    /// all other painting operations. Specifying an OP entry shall set both parameters unless
+    /// there is also an op entry in the same graphics state parameter dictionary, in which
+    /// case the OP entry shall set only the overprint parameter for stroking.
     should_overprint_stroking: Option<bool>,
+
+    /// A flag specifying whether to apply overprint for painting operations other than stroking.
+    ///
+    /// If this entry is absent, the OP entry, if any, shall also set this parameter.
     should_overprint: Option<bool>,
+
     overprint_mode: Option<i32>,
+    /// An array of the form [font size], where font shall be an indirect reference to a font
+    /// dictionary and size shall be a number expressed in text space units. These two objects
+    /// correspond to the operands of the Tf operator; however, the first operand shall be an
+    /// indirect object reference instead of a resource name.
     // todo
     font: Option<Object>,
+
+    /// The black-generation function, which maps the interval [0.0 1.0] to the interval [0.0 1.0]
     black_generation: Option<Function>,
-    // todo: either function or name
-    black_generation_two: Option<Function>,
+
+    /// Same as BG except that the value may also be the name Default, denoting the black-generation
+    /// function that was in effect at the start of the page. If both BG and BG2 are present in
+    /// the same graphics state parameter dictionary, BG2 shall take precedence
+    black_generation_two: Option<FunctionOrDefault>,
+
+    /// The undercolor-removal function, which maps the interval [0.0 1.0] to the interval [−1.0 1.0]
     undercolor_removal: Option<Function>,
-    // todo: function or name
-    undercolor_removal_two: Option<Function>,
-    // todo: function, array, or name
-    transfer: Option<Function>,
-    transfer_two: Option<Function>,
+
+    /// Same as UCR except that the value may also be the name Default, denoting the undercolor-removal
+    /// function that was in effect at the start of the page. If both UCR and UCR2 are present in the
+    /// same graphics state parameter dictionary, UCR2 shall take precedence
+    undercolor_removal_two: Option<FunctionOrDefault>,
+
+    /// The transfer function, which maps the interval [0.0 1.0] to the interval [0.0 1.0]. The value
+    /// shall be either a single function (which applies to all process colorants) or an array of four
+    /// functions (which apply to the process colorants individually). The name Identity may be used to
+    /// represent the identity function.
+    transfer: Option<TransferFunction>,
+
+    ///  Same as TR except that the value may also be the name Default, denoting the transfer function
+    /// that was in effect at the start of the page. If both TR and TR2 are present in the same graphics
+    /// state parameter dictionary, TR2 shall take precedence
+    transfer_two: Option<TransferFunction>,
+
+    /// The halftone dictionary or stream or the name Default, denoting the halftone that was in effect
+    /// at the start of the page.
     halftones: Option<Halftones>,
+
+    /// The flatness tolerance controls the maximum permitted distance in device pixels between the
+    /// mathematically correct path and an approximation constructed from straight line segments
     flatness_tolerance: Option<f32>,
+
+    /// The smoothness tolerance controls the quality of smooth shading (type 2 patterns and the sh
+    /// operator) and thus indirectly controls the rendering performance
     smoothness_tolerance: Option<f32>,
+
+    /// A flag specifying whether to apply automatic stroke adjustment
     should_apply_automatic_stoke: Option<bool>,
+
+    /// The current blend mode to be used in the transparent imaging model
     blend_mode: Option<BlendMode>,
 
     /// The current soft mask, specifying the mask shape or mask opacity values that shall
@@ -46,9 +118,21 @@ pub struct GraphicsStateParameters {
     /// than intersecting the two as is done with the current clipping path parameter.
     // todo: can also be name
     soft_mask: Option<SoftMask>,
+
+    ///  The current stroking alpha constant, specifying the constant shape or constant
+    /// opacity value that shall be used for stroking operations in the transparent imaging
+    /// model
     current_stroking_alpha_constant: Option<f32>,
+
+    /// Same as CA, but for nonstroking operations
     current_nonstroking_alpha_constant: Option<f32>,
+
+    /// The alpha source flag, specifying whether the current soft mask and alpha constant
+    /// shall be interpreted as shape values (true) or opacity values (false).
     alpha_is_shape: Option<bool>,
+
+    /// The text knockout flag, shall determine the behaviour of overlapping glyphs within
+    /// a text object in the transparent imaging model
     is_knockout: Option<bool>,
 
     /// Apple-specific rendering hint, whether or not to disable anti-aliasing
@@ -122,12 +206,49 @@ impl BlendMode {
 }
 
 #[derive(Debug)]
-pub struct SoftMask {
+pub enum SoftMask {
+    Dictionary(SoftMaskDictionary),
+    None,
+}
+
+impl SoftMask {
+    pub fn from_obj(obj: Object, resolver: &mut Lexer) -> PdfResult<Self> {
+        let obj = resolver.resolve(obj)?;
+
+        if obj.name_is("None") {
+            return Ok(Self::None);
+        }
+
+        Ok(Self::Dictionary(SoftMaskDictionary::from_dict(
+            resolver.assert_dict(obj)?,
+            resolver,
+        )?))
+    }
+}
+
+#[derive(Debug)]
+pub struct SoftMaskDictionary {
+    /// A subtype specifying the method to be used in deriving the mask values from the
+    /// transparency group specified by the G entry
     subtype: SoftMaskSubtype,
+
+    /// A transparency group XObject to be used as the source of alpha or colour values
+    /// for deriving the mask. If the subtype S is Luminosity, the group attributes
+    /// dictionary shall contain a CS entry defining the colour space in which the compositing
+    /// computation is to be performed
     transparency_group: Stream,
+
+    /// An array of component values specifying the colour to be used as the backdrop against
+    /// which to composite the transparency group XObject G. This entry shall be consulted only
+    /// if the subtype S is Luminosity. The array shall consist of n numbers, where n is the
+    /// number of components in the colour space specified by the CS entry in the group attributes
+    /// dictionary.
+    ///
+    /// Default value: the colour space’s initial value, representing black.
     // todo
     backdrop_color: Option<Vec<Object>>,
-    /// A function object (see "Functions") specifying the transfer function to be used
+
+    /// A function object specifying the transfer function to be used
     /// in deriving the mask values. The function shall accept one input, the computed
     /// group alpha or luminosity (depending on the value of the subtype S), and shall
     /// return one output, the resulting mask value. The input shall be in the range 0.0
@@ -136,19 +257,20 @@ pub struct SoftMask {
     /// be specified in place of a function object to designate the identity function.
     ///
     /// Default value: Identity
-    transfer_function: Option<TransferFunction>,
+    transfer_function: TransferFunction,
 }
 
-impl SoftMask {
-    pub fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
-        let subtype = SoftMaskSubtype::from_str(&dict.expect_name("S", lexer)?)?;
+impl SoftMaskDictionary {
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        let subtype = SoftMaskSubtype::from_str(&dict.expect_name("S", resolver)?)?;
 
-        let transparency_group = dict.expect_stream("G", lexer)?;
-        let backdrop_color = dict.get_arr("BC", lexer)?;
+        let transparency_group = dict.expect_stream("G", resolver)?;
+        let backdrop_color = dict.get_arr("BC", resolver)?;
         let transfer_function = dict
-            .get_object("TransferFunction", lexer)?
+            .get_object("TransferFunction", resolver)?
             .map(TransferFunction::from_obj)
-            .transpose()?;
+            .transpose()?
+            .unwrap_or(TransferFunction::Identity);
 
         Ok(Self {
             subtype,
@@ -226,7 +348,7 @@ impl GraphicsStateParameters {
             .transpose()?;
         let black_generation_two = dict
             .get_object("BG2", lexer)?
-            .map(Function::from_obj)
+            .map(|obj| FunctionOrDefault::from_obj(obj, lexer))
             .transpose()?;
         let undercolor_removal = dict
             .get_object("UCR", lexer)?
@@ -234,15 +356,15 @@ impl GraphicsStateParameters {
             .transpose()?;
         let undercolor_removal_two = dict
             .get_object("UCR2", lexer)?
-            .map(Function::from_obj)
+            .map(|obj| FunctionOrDefault::from_obj(obj, lexer))
             .transpose()?;
         let transfer = dict
             .get_object("TR", lexer)?
-            .map(Function::from_obj)
+            .map(TransferFunction::from_obj)
             .transpose()?;
         let transfer_two = dict
             .get_object("TR2", lexer)?
-            .map(Function::from_obj)
+            .map(TransferFunction::from_obj)
             .transpose()?;
         let halftones = dict
             .get_object("HT", lexer)?
@@ -259,8 +381,8 @@ impl GraphicsStateParameters {
             .transpose()?;
 
         let soft_mask = dict
-            .get_dict("SM", lexer)?
-            .map(|obj| SoftMask::from_dict(obj, lexer))
+            .get_object("SMask", lexer)?
+            .map(|obj| SoftMask::from_obj(obj, lexer))
             .transpose()?;
 
         let current_stroking_alpha_constant = dict.get_number("CA", lexer)?;
