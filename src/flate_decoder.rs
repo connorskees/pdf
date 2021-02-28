@@ -160,8 +160,6 @@ impl FlateDecoder {
         let mut buffer = Vec::new();
         decoder.read_to_end(&mut buffer).unwrap();
 
-        dbg!(buffer.len(), &params.bytes_per_row());
-
         Self { buffer, params }
     }
 

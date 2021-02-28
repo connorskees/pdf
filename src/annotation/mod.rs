@@ -439,8 +439,85 @@ struct Appearance;
 struct OptionalContent;
 #[derive(Debug)]
 struct RichTextString;
+
+/// An annotation may optionally be surrounded by a border when displayed or printed. If present, the border
+/// shall be drawn completely inside the annotation rectangle. In PDF 1.1, the characteristics of the border
+/// shall be specified by the Border entry in the annotation dictionary. Beginning with PDF 1.2, the border
+/// characteristics for some types of annotations may instead be specified in a border style dictionary designated
+/// by the annotation’s BS entry. Such dictionaries may also be used to specify the width and dash pattern
+/// for the lines drawn by line, square, circle, and ink annotations. If neither the Border nor the BS entry
+/// is present, the border shall be drawn as a solid line with a width of 1 point
 #[derive(Debug)]
-pub struct BorderStyle;
+pub struct BorderStyle {
+    /// The border width in points. If this value is 0, no border shall drawn.
+    ///
+    /// Default value: 1
+    w: u32,
+
+    /// The border style
+    s: Option<BorderStyleKind>,
+
+    /// A dash array defining a pattern of dashes and gaps that shall be used in drawing a dashed border (border
+    /// style D in the S entry). The dash array shall be specified in the same format as in the line dash pattern
+    /// parameter of the graphics state. The dash phase is not specified and shall be assumed to be 0.
+    ///
+    /// EXAMPLE: A `D` entry of [3 2] specifies a border drawn with 3-point dashes alternating with 2-point gaps.
+    ///
+    /// Default value: [3].
+    d: Option<LineDashPattern>,
+}
+
+impl BorderStyle {
+    const TYPE: &'static str = "Border";
+
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        dict.expect_type(Self::TYPE, resolver, false)?;
+
+        let w = dict.get_unsigned_integer("W", resolver)?.unwrap_or(1);
+        let s = dict.get_name("S", resolver)?.map(BorderStyleKind::from_str);
+        let d = dict
+            .get_object("D", resolver)?
+            .map(|arr| LineDashPattern::from_arr(vec![arr, Object::Integer(0)], resolver))
+            .transpose()?;
+
+        Ok(Self { w, s, d })
+    }
+}
+
+#[derive(Debug)]
+enum BorderStyleKind {
+    /// A solid rectangle surrounding the annotation
+    Solid,
+
+    /// A dashed rectangle surrounding the annotation
+    ///
+    /// The dash pattern may be specified by the D entry
+    Dashed,
+
+    /// A simulated embossed rectangle that appears to be raised above the surface of the page
+    Beveled,
+
+    /// A simulated engraved rectangle that appears to be recessedcbelow the surface of the page
+    Inset,
+
+    /// A single line along the bottom of the annotation rectangle
+    Underline,
+
+    Other(String),
+}
+
+impl BorderStyleKind {
+    pub fn from_str(s: String) -> Self {
+        match s.as_ref() {
+            "S" => Self::Solid,
+            "D" => Self::Dashed,
+            "B" => Self::Beveled,
+            "I" => Self::Inset,
+            "U" => Self::Underline,
+            _ => Self::Other(s),
+        }
+    }
+}
 
 #[derive(Debug)]
 struct Border {

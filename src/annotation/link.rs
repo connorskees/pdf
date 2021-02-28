@@ -100,7 +100,10 @@ impl LinkAnnotation {
             .map(|dict| UriAction::from_dict(dict, resolver))
             .transpose()?;
         let quad_points = None;
-        let bs = None;
+        let bs = dict
+            .get_dict("BS", resolver)?
+            .map(|dict| BorderStyle::from_dict(dict, resolver))
+            .transpose()?;
 
         Ok(Self {
             a,
