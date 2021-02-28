@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use crate::{
     actions::Actions,
     assert_empty, assert_reference,
+    data_structures::NumberTree,
     date::Date,
     graphics_state_parameters::GraphicsStateParameters,
     objects::{ObjectType, TypeOrArray},
@@ -339,9 +340,8 @@ impl Default for Trapped {
 
 #[derive(Debug)]
 pub struct Extensions;
-
 #[derive(Debug)]
-pub struct NumberTree;
+struct Language;
 #[derive(Debug)]
 pub struct NameDictionary;
 #[derive(Debug)]

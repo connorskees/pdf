@@ -5,6 +5,7 @@
 mod actions;
 mod annotation;
 mod catalog;
+mod data_structures;
 mod date;
 mod error;
 mod file_specification;
