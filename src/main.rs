@@ -816,13 +816,13 @@ impl Lexer {
         })
     }
 
-    fn lex_trailer(&mut self, offset: usize) -> PdfResult<Trailer> {
+    fn lex_trailer(&mut self, offset: usize, is_previous: bool) -> PdfResult<Trailer> {
         self.pos = offset;
         self.expect_bytes(b"trailer")?;
         self.skip_whitespace();
 
         let trailer_dict = self.lex_dict()?;
-        let trailer = Trailer::from_dict(self.assert_dict(trailer_dict)?, self)?;
+        let trailer = Trailer::from_dict(self.assert_dict(trailer_dict)?, is_previous, self)?;
 
         Ok(trailer)
     }
@@ -1107,7 +1107,7 @@ impl Parser {
 
         let trailer = match xref_and_trailer.trailer_or_offset {
             TrailerOrOffset::Offset(offset) => {
-                let trailer = lexer.lex_trailer(offset)?;
+                let trailer = lexer.lex_trailer(offset, false)?;
                 let mut xref = (*xref).clone();
 
                 let mut prev = trailer.prev;
@@ -1121,7 +1121,7 @@ impl Parser {
 
                     let prev_trailer = match xref_and_trailer.trailer_or_offset {
                         TrailerOrOffset::Trailer(trailer) => trailer,
-                        TrailerOrOffset::Offset(offset) => lexer.lex_trailer(offset)?,
+                        TrailerOrOffset::Offset(offset) => lexer.lex_trailer(offset, true)?,
                     };
 
                     prev = prev_trailer.prev;

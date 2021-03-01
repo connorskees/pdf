@@ -43,8 +43,12 @@ pub struct Trailer {
 }
 
 impl Trailer {
-    pub(crate) fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
-        let trailer = Trailer::from_dict_ref(&mut dict, false, resolver)?;
+    pub(crate) fn from_dict(
+        mut dict: Dictionary,
+        is_previous: bool,
+        resolver: &mut dyn Resolve,
+    ) -> PdfResult<Self> {
+        let trailer = Trailer::from_dict_ref(&mut dict, is_previous, resolver)?;
 
         assert_empty(dict);
 
