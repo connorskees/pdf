@@ -228,6 +228,7 @@ pub trait Resolve {
     where
         Self: Sized,
     {
+        let obj = self.resolve(obj)?;
         Ok(if let Object::Array(els) = obj {
             TypeOrArray::Array(
                 els.into_iter()
