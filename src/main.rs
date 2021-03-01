@@ -1100,12 +1100,35 @@ impl Parser {
     pub fn new(p: &'static str) -> PdfResult<Self> {
         let file = std::fs::read(p)?;
 
-        let xref_and_trailer = XrefParser::new(&file).read_xref()?;
+        let mut xref_parser = XrefParser::new(&file);
+        let xref_and_trailer = xref_parser.read_xref()?;
         let xref = Rc::new(xref_and_trailer.xref);
-        let mut lexer = Lexer::new(file, xref.clone())?;
+        let mut lexer = Lexer::new(file.clone(), xref.clone())?;
 
         let trailer = match xref_and_trailer.trailer_or_offset {
-            TrailerOrOffset::Offset(offset) => lexer.lex_trailer(offset)?,
+            TrailerOrOffset::Offset(offset) => {
+                let trailer = lexer.lex_trailer(offset)?;
+                let mut xref = (*xref).clone();
+
+                let mut prev = trailer.prev;
+                while let Some(prev_offset) = prev {
+                    let xref_and_trailer = xref_parser.parse_xref_at_offset(prev_offset)?;
+
+                    xref.merge_with_previous(xref_and_trailer.xref);
+
+                    // todo: superfluous clone(?)
+                    lexer.xref = Rc::new(xref.clone());
+
+                    let prev_trailer = match xref_and_trailer.trailer_or_offset {
+                        TrailerOrOffset::Trailer(trailer) => trailer,
+                        TrailerOrOffset::Offset(offset) => lexer.lex_trailer(offset)?,
+                    };
+
+                    prev = prev_trailer.prev;
+                }
+
+                trailer
+            }
             TrailerOrOffset::Trailer(trailer) => trailer,
         };
 
@@ -1159,6 +1182,9 @@ impl Parser {
     }
 
     pub fn run(mut self) -> PdfResult<Vec<Object>> {
+        for page in self.pages() {
+            self.page_annotations(&*page).unwrap();
+        }
         dbg!(self.info().unwrap());
         todo!()
     }

@@ -172,7 +172,7 @@ impl<'a> XrefParser<'a> {
         })
     }
 
-    fn parse_xref_at_offset(&mut self, offset: usize) -> PdfResult<XrefAndTrailer> {
+    pub fn parse_xref_at_offset(&mut self, offset: usize) -> PdfResult<XrefAndTrailer> {
         self.pos = offset;
 
         if !self.next_matches(b"xref") {

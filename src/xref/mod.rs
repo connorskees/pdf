@@ -11,7 +11,7 @@ pub mod stream;
 /// that permits random access to indirect objects
 /// within the file so that the entire file need
 /// not be read to locate any particular object
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Xref {
     // todo: map by generation AND object (reference)
     pub(crate) objects: HashMap<usize, XrefEntry>,
@@ -68,7 +68,7 @@ impl Xref {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum XrefEntry {
     InUse {
         byte_offset: usize,
