@@ -56,7 +56,7 @@ struct NumberTreeRoot {
 
     /// Shall be an array of the form
     ///
-    ///   [key1 value1 key2 value2 … keyn valuen]
+    ///   [key1 value1 key2 value2 ... keyn valuen]
     ///
     /// where each keyi is an integer and the corresponding valuei shall be the object
     /// associated with that key

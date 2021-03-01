@@ -51,7 +51,7 @@ pub struct DocumentCatalog {
     /// that occur in this document
     extensions: Option<Extensions>,
 
-    /// The page tree node that shall be the root of the document’s
+    /// The page tree node that shall be the root of the document's
     /// page tree
     pub pages: Reference,
 
@@ -65,7 +65,7 @@ pub struct DocumentCatalog {
     /// page index 0.
     page_labels: Option<NumberTree>,
 
-    /// The document’s name dictionary
+    /// The document's name dictionary
     names: Option<NameDictionary>,
 
     /// A dictionary of names and corresponding destinations
@@ -719,7 +719,7 @@ pub struct GroupAttributes {
     /// Ordinarily, the CS entry may be present only for isolated transparency groups (those
     /// for which I is true), and even then it is optional. However, this entry shall be present
     /// in the group attributes dictionary for any transparency group XObject that has no parent
-    /// group or page from which to inherit—in particular, one that is the value of the G entry
+    /// group or page from which to inherit -- in particular, one that is the value of the G entry
     /// in a soft-mask dictionary of subtype Luminosity.
     ///
     /// Additionally, the CS entry may be present in the group attributes dictionary associated

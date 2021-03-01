@@ -146,7 +146,7 @@ struct MarkupAnnotation {
     ///
     /// The specified value shall not used if the annotation has an appearance stream; in that case, the
     /// appearance stream shall specify any transparency. (However, if the compliant viewer regenerates
-    /// the annotation’s appearance stream, it may incorporate the CA value into the stream’s
+    /// the annotation's appearance stream, it may incorporate the CA value into the stream's
     /// content.) The implicit blend mode is Normal.
     ///
     /// Default value: 1.0.
@@ -174,7 +174,7 @@ struct MarkupAnnotation {
     /// Text representing a short description of the subject being addressed by the annotation.
     subj: Option<String>,
 
-    ///  A name specifying the relationship (the “reply type”) between this annotation and one specified by IRT.
+    ///  A name specifying the relationship (the "reply type") between this annotation and one specified by IRT.
     ///
     /// Valid values are:
     ///   * `R` The annotation shall be considered a reply to the annotation specified by IRT.
@@ -444,7 +444,7 @@ struct RichTextString;
 /// shall be drawn completely inside the annotation rectangle. In PDF 1.1, the characteristics of the border
 /// shall be specified by the Border entry in the annotation dictionary. Beginning with PDF 1.2, the border
 /// characteristics for some types of annotations may instead be specified in a border style dictionary designated
-/// by the annotation’s BS entry. Such dictionaries may also be used to specify the width and dash pattern
+/// by the annotation's BS entry. Such dictionaries may also be used to specify the width and dash pattern
 /// for the lines drawn by line, square, circle, and ink annotations. If neither the Border nor the BS entry
 /// is present, the border shall be drawn as a solid line with a width of 1 point
 #[derive(Debug)]

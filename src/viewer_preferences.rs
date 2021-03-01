@@ -7,40 +7,40 @@ use crate::{
 
 #[derive(Debug)]
 pub struct ViewerPreferences {
-    /// A flag specifying whether to hide the conforming reader’s tool bars when the document is active.
+    /// A flag specifying whether to hide the conforming reader's tool bars when the document is active.
     ///
     /// Default value: false
     hide_toolbar: bool,
 
-    /// A flag specifying whether to hide the conforming reader’s menu bar when the document is active.
+    /// A flag specifying whether to hide the conforming reader's menu bar when the document is active.
     ///
     /// Default value: false
     hide_menubar: bool,
 
-    /// A flag specifying whether to hide user interface elements in the document’s window (such as scroll
-    /// bars and navigation controls), leaving only the document’s contents displayed.
+    /// A flag specifying whether to hide user interface elements in the document's window (such as scroll
+    /// bars and navigation controls), leaving only the document's contents displayed.
     ///
     /// Default value: false
     hide_window_ui: bool,
 
-    /// A flag specifying whether to resize the document’s window to fit the size of the first displayed page.
+    /// A flag specifying whether to resize the document's window to fit the size of the first displayed page.
     ///
     /// Default value: false
     fit_window: bool,
 
-    /// A flag specifying whether to position the document’s window in the center of the screen.
+    /// A flag specifying whether to position the document's window in the center of the screen.
     ///
     /// Default value: false
     center_window: bool,
 
-    /// A flag specifying whether the window’s title bar should display the document title taken from the Title
+    /// A flag specifying whether the window's title bar should display the document title taken from the Title
     /// entry of the document information dictionary. If false, the title bar should instead display the name
     /// of the PDF file containing the document.
     ///
     /// Default value: false
     display_doc_title: bool,
 
-    /// The document’s page mode, specifying how to display the document on exiting full-screen mode
+    /// The document's page mode, specifying how to display the document on exiting full-screen mode
     ///
     /// This entry is meaningful only if the value of the PageMode entry in the Catalog dictionary is FullScreen;
     /// it shall be ignored otherwise. Default value: UseNone.
@@ -48,7 +48,7 @@ pub struct ViewerPreferences {
 
     /// The predominant reading order for text
     ///
-    /// This entry has no direct effect on the document’s contents or page numbering but may be used to determine
+    /// This entry has no direct effect on the document's contents or page numbering but may be used to determine
     /// the relative positioning of pages when displayed side by side or printed n-up.
     ///
     /// Default value: L2R
@@ -97,7 +97,7 @@ pub struct ViewerPreferences {
     /// The page scaling option that shall be selected when a print dialog is displayed for this document.
     /// Valid values are
     ///   * None, which indicates no page scaling
-    ///   * AppDefault, which indicates the conforming reader’s default print scaling.
+    ///   * AppDefault, which indicates the conforming reader's default print scaling.
     ///
     /// If this entry has an unrecognized value, AppDefault shall be used.
     ///

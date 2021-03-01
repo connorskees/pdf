@@ -73,7 +73,7 @@ pub struct GraphicsStateParameters {
     /// the same graphics state parameter dictionary, BG2 shall take precedence
     black_generation_two: Option<FunctionOrDefault>,
 
-    /// The undercolor-removal function, which maps the interval [0.0 1.0] to the interval [−1.0 1.0]
+    /// The undercolor-removal function, which maps the interval [0.0 1.0] to the interval [-1.0 1.0]
     undercolor_removal: Option<Function>,
 
     /// Same as UCR except that the value may also be the name Default, denoting the undercolor-removal
@@ -244,7 +244,7 @@ pub struct SoftMaskDictionary {
     /// number of components in the colour space specified by the CS entry in the group attributes
     /// dictionary.
     ///
-    /// Default value: the colour space’s initial value, representing black.
+    /// Default value: the colour space's initial value, representing black.
     // todo
     backdrop_color: Option<Vec<Object>>,
 

@@ -29,7 +29,7 @@ struct Type1Font {
     /// The last character code defined in the font's Widths array
     last_char: i32,
 
-    /// An array of (`last_char` − `first_char` + 1) widths, each element being the
+    /// An array of (`last_char` - `first_char` + 1) widths, each element being the
     /// glyph width for the character code that equals `first_char` plus the array
     /// index. For character codes outside the range `first_char` to `last_char`, the
     /// value of MissingWidth from the FontDescriptor entry for this font shall be used.
@@ -65,7 +65,7 @@ enum FontEncoding {
     /// both Type 1 and TrueType fonts.
     MacRomanEncoding,
 
-    /// An encoding for use with expert fonts—ones containing the expert character set.
+    /// An encoding for use with expert fonts-ones containing the expert character set.
     ///
     /// Conforming readers shall have a predefined encoding named MacExpertEncoding. Despite its
     /// name, it is not a platform specific encoding; however, only certain fonts have the
@@ -83,13 +83,13 @@ enum FontEncoding {
 }
 
 enum FontSubtype {
-    /// A composite font—a font composed of glyphs from a descendant CIDFont
+    /// A composite font -- a font composed of glyphs from a descendant CIDFont
     Type0,
 
     /// A font that defines glyph shapes using Type 1 font technology
     Type1,
 
-    /// A multiple master font—an extension of the Type 1 font that allows
+    /// A multiple master font -- an extension of the Type 1 font that allows
     /// the generation of a wide variety of typeface styles from a single font
     MmType1,
 

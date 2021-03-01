@@ -96,7 +96,7 @@ struct StructureElement {
     p: Reference,
 
     /// The element identifier, a byte string designating this structure element. The string
-    /// shall be unique among all elements in the document’s structure hierarchy. The IDTree
+    /// shall be unique among all elements in the document's structure hierarchy. The IDTree
     /// entry in the structure tree root defines the correspondence between element identifiers
     /// and the structure elements they denote
     // todo: byte string
@@ -153,7 +153,7 @@ struct StructureElement {
     lang: Option<String>,
 
     /// An alternate description of the structure element and its children in human-readable form,
-    /// which is useful when extracting the document’s contents in support of accessibility to users
+    /// which is useful when extracting the document's contents in support of accessibility to users
     /// with disabilities or for other purposes
     alt: Option<String>,
 
@@ -162,7 +162,7 @@ struct StructureElement {
 
     /// Text that is an exact replacement for the structure element and its children. This replacement
     /// text (which should apply to as small a piece of content as possible) is useful when extracting
-    /// the document’s contents in support of accessibility to users with disabilities or for other purposes
+    /// the document's contents in support of accessibility to users with disabilities or for other purposes
     actual_text: Option<String>,
 }
 
@@ -321,7 +321,7 @@ pdf_enum!(
         /// the structure of the main body of the document.
         TableOfContents = "TOC",
 
-        /// An individual member of a table of contents. This entry’s children may be any of
+        /// An individual member of a table of contents. This entry's children may be any of
         /// the following structure types:
         ///   * Lbl - A label
         ///   * Reference - A reference to the title and the page number

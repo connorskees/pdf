@@ -29,7 +29,7 @@ pub(crate) struct LinkAnnotation {
     /// in case the target page for the goto action is subsequently deleted.
     pa: Option<UriAction>,
 
-    /// An array of 8 × n numbers specifying the coordinates of n quadrilaterals in
+    /// An array of 8 * n numbers specifying the coordinates of n quadrilaterals in
     /// default user space that comprise the region in which the link should be
     /// activated. The coordinates for each quadrilateral are given in the order
     ///

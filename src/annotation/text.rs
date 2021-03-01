@@ -2,7 +2,7 @@ use crate::{error::PdfResult, objects::Dictionary, Resolve};
 
 use super::state::StateModel;
 
-/// A text annotation represents a “sticky note” attached to a point in the PDF document.
+/// A text annotation represents a "sticky note" attached to a point in the PDF document.
 ///
 /// When closed, the annotation shall appear as an icon; when open, it shall display a pop-up
 /// window containing the text of the note in a font and size chosen by the conforming reader.
