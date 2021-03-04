@@ -3,9 +3,10 @@ use crate::{
     catalog::Rectangle,
     date::Date,
     error::{ParseError, PdfResult},
-    graphics_state_parameters::LineDashPattern,
     objects::{Dictionary, Object, Reference},
-    pdf_enum, Resolve,
+    pdf_enum,
+    resources::graphics_state_parameters::LineDashPattern,
+    Resolve,
 };
 
 use subtype::{AnnotationSubType, AnnotationSubTypeKind};

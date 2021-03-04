@@ -12,12 +12,14 @@ mod file_specification;
 mod flate_decoder;
 mod font;
 mod function;
-mod graphics_state_parameters;
 mod halftones;
 mod macros;
 mod object_stream;
 mod objects;
 mod page;
+mod postscript;
+mod resources;
+mod shading;
 mod stream;
 mod structure;
 mod trailer;
@@ -28,11 +30,12 @@ use std::{borrow::Cow, cell::RefCell, collections::HashMap, convert::TryFrom, io
 
 use crate::{
     annotation::Annotation,
-    catalog::{DocumentCatalog, GroupAttributes, InformationDictionary, Rectangle, Resources},
+    catalog::{DocumentCatalog, GroupAttributes, InformationDictionary, Rectangle},
     error::{ParseError, PdfResult},
     object_stream::{ObjectStream, ObjectStreamDict, ObjectStreamParser},
     objects::{Dictionary, Object, ObjectType, Reference, TypeOrArray},
     page::{PageNode, PageObject, PageTree, PageTreeNode, TabOrder},
+    resources::Resources,
     stream::{decode_stream, Stream, StreamDict},
     trailer::Trailer,
     xref::{ByteOffset, TrailerOrOffset, Xref, XrefParser},
@@ -408,11 +411,15 @@ trait Lex {
             Some(b'f') => self.lex_false(),
             Some(b'n') => self.lex_null(),
             Some(b'<') => self.lex_gt(),
-            Some(b'+' | b'-' | b'0'..=b'9') => self.lex_number(),
+            Some(b'+' | b'-' | b'0'..=b'9' | b'.') => self.lex_number(),
             Some(b'(') => self.lex_string(),
             Some(b'/') => Ok(Object::Name(self.lex_name()?)),
             Some(b'[') => self.lex_array(),
-            Some(b) => todo!("{:?}", b as char),
+            Some(b) => todo!(
+                "unexpected object start {:?} at line {}",
+                b as char,
+                self.line_number()
+            ),
             None => todo!(),
         }?;
         self.skip_whitespace();

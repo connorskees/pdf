@@ -1,7 +1,6 @@
 use std::{borrow::Cow, collections::HashMap, fmt};
 
 use crate::{
-    assert_empty,
     error::PdfResult,
     file_specification::FileSpecification,
     flate_decoder::{FlateDecoder, FlateDecoderParams},
@@ -51,6 +50,7 @@ pub struct StreamDict {
     pub f_filter: Option<TypeOrArray<String>>,
     pub f_decode_parms: Option<TypeOrArray<Dictionary>>,
     pub dl: Option<usize>,
+    pub other: Dictionary,
 }
 
 impl StreamDict {
@@ -68,8 +68,6 @@ impl StreamDict {
         let f_decode_parms = dict.get_type_or_arr("FDecodeParms", lexer, Resolve::assert_dict)?;
         let dl = dict.get_integer("DL", lexer)?.map(|i| i as usize);
 
-        assert_empty(dict);
-
         Ok(StreamDict {
             len,
             filter,
@@ -78,6 +76,7 @@ impl StreamDict {
             f_filter,
             f_decode_parms,
             dl,
+            other: dict,
         })
     }
 }

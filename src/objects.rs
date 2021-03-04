@@ -1,8 +1,8 @@
 use std::{collections::HashMap, convert::TryFrom, fmt};
 
 use crate::{
-    assert_reference, catalog::Rectangle, date::Date, stream::Stream, ParseError, PdfResult,
-    Resolve,
+    assert_reference, catalog::Rectangle, date::Date, function::Function, stream::Stream,
+    ParseError, PdfResult, Resolve,
 };
 
 #[derive(Debug)]
@@ -373,5 +373,23 @@ impl Dictionary {
         resolver: &mut dyn Resolve,
     ) -> PdfResult<Date> {
         Date::from_str(&self.expect_string(key, resolver)?)
+    }
+
+    pub fn get_function(
+        &mut self,
+        key: &str,
+        resolver: &mut dyn Resolve,
+    ) -> PdfResult<Option<Function>> {
+        self.get_object(key, resolver)?
+            .map(|obj| Function::from_obj(obj, resolver))
+            .transpose()
+    }
+
+    pub fn expect_function(
+        &mut self,
+        key: &'static str,
+        resolver: &mut dyn Resolve,
+    ) -> PdfResult<Function> {
+        Function::from_obj(self.expect_object(key, resolver)?, resolver)
     }
 }

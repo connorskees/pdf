@@ -3,11 +3,12 @@ use std::{cell::RefCell, collections::HashMap, fmt, rc::Rc};
 use crate::{
     catalog::{
         AdditionalActions, BoxColorInfo, GroupAttributes, MetadataStream, NavigationNode,
-        PagePiece, Rectangle, Resources, SeparationInfo, Transitions, Viewport,
+        PagePiece, Rectangle, SeparationInfo, Transitions, Viewport,
     },
     date::Date,
     objects::TypeOrArray,
     pdf_enum,
+    resources::Resources,
     stream::Stream,
     Reference,
 };

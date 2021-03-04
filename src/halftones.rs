@@ -4,7 +4,7 @@ use crate::{
     function::{SpotFunction, TransferFunction},
     objects::{Dictionary, Object, ObjectType},
     stream::Stream,
-    Lexer,
+    Resolve,
 };
 
 #[derive(Debug)]
@@ -15,12 +15,12 @@ pub enum Halftones {
 }
 
 impl Halftones {
-    pub fn from_obj(obj: Object, lexer: &mut Lexer) -> PdfResult<Self> {
+    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         Ok(match obj {
             Object::Name(name) if name == "Default" => Halftones::Default,
             Object::Stream(stream) => Halftones::Stream(HalftoneStream::from_stream(stream)?),
             Object::Dictionary(dict) => {
-                Halftones::Dictionary(HalftoneDictionary::from_dict(dict, lexer)?)
+                Halftones::Dictionary(HalftoneDictionary::from_dict(dict, resolver)?)
             }
             found => {
                 return Err(ParseError::MismatchedObjectTypeAny {
@@ -121,14 +121,15 @@ pub struct HalftoneOne {
 }
 
 impl HalftoneOne {
-    pub fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
-        let frequency = dict.expect_number("Frequency", lexer)?;
-        let angle = dict.expect_number("Angle", lexer)?;
-        let spot_function = SpotFunction::from_obj(dict.expect_object("SpotFunction", lexer)?)?;
-        let accurate_screens = dict.get_bool("AccurateScreens", lexer)?;
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        let frequency = dict.expect_number("Frequency", resolver)?;
+        let angle = dict.expect_number("Angle", resolver)?;
+        let spot_function =
+            SpotFunction::from_obj(dict.expect_object("SpotFunction", resolver)?, resolver)?;
+        let accurate_screens = dict.get_bool("AccurateScreens", resolver)?;
         let transfer_function = dict
-            .get_object("TransferFunction", lexer)?
-            .map(TransferFunction::from_obj)
+            .get_object("TransferFunction", resolver)?
+            .map(|obj| TransferFunction::from_obj(obj, resolver))
             .transpose()?;
 
         Ok(HalftoneOne {
@@ -148,7 +149,7 @@ pub struct HalftoneFive {
 }
 
 impl HalftoneFive {
-    pub fn from_dict(mut _dict: Dictionary, _lexer: &mut Lexer) -> PdfResult<Self> {
+    pub fn from_dict(mut _dict: Dictionary, _resolver: &mut dyn Resolve) -> PdfResult<Self> {
         todo!()
     }
 }
@@ -161,12 +162,12 @@ pub struct HalftoneSix {
 }
 
 impl HalftoneSix {
-    pub fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
-        let width = dict.expect_integer("Width", lexer)?;
-        let height = dict.expect_integer("Height", lexer)?;
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        let width = dict.expect_integer("Width", resolver)?;
+        let height = dict.expect_integer("Height", resolver)?;
         let transfer_function = dict
-            .get_object("TransferFunction", lexer)?
-            .map(TransferFunction::from_obj)
+            .get_object("TransferFunction", resolver)?
+            .map(|obj| TransferFunction::from_obj(obj, resolver))
             .transpose()?;
 
         Ok(HalftoneSix {
@@ -189,12 +190,12 @@ pub struct HalftoneTen {
 }
 
 impl HalftoneTen {
-    pub fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
-        let x_square = dict.expect_integer("Xsquare", lexer)?;
-        let y_square = dict.expect_integer("Ysquare", lexer)?;
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        let x_square = dict.expect_integer("Xsquare", resolver)?;
+        let y_square = dict.expect_integer("Ysquare", resolver)?;
         let transfer_function = dict
-            .get_object("TransferFunction", lexer)?
-            .map(TransferFunction::from_obj)
+            .get_object("TransferFunction", resolver)?
+            .map(|obj| TransferFunction::from_obj(obj, resolver))
             .transpose()?;
 
         Ok(Self {
@@ -227,14 +228,14 @@ pub struct HalftoneSixteen {
 }
 
 impl HalftoneSixteen {
-    pub fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
-        let width = dict.expect_integer("Width", lexer)?;
-        let height = dict.expect_integer("Height", lexer)?;
-        let width_two = dict.get_integer("Width2", lexer)?;
-        let height_two = dict.get_integer("Height2", lexer)?;
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        let width = dict.expect_integer("Width", resolver)?;
+        let height = dict.expect_integer("Height", resolver)?;
+        let width_two = dict.get_integer("Width2", resolver)?;
+        let height_two = dict.get_integer("Height2", resolver)?;
         let transfer_function = dict
-            .get_object("TransferFunction", lexer)?
-            .map(TransferFunction::from_obj)
+            .get_object("TransferFunction", resolver)?
+            .map(|obj| TransferFunction::from_obj(obj, resolver))
             .transpose()?;
 
         Ok(Self {
@@ -248,19 +249,25 @@ impl HalftoneSixteen {
 }
 
 impl HalftoneDictionary {
-    pub fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
-        dict.expect_type("Halftone", lexer, false)?;
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        dict.expect_type("Halftone", resolver, false)?;
 
         Ok(
-            match HalftoneType::from_integer(dict.expect_integer("HalftoneType", lexer)?)? {
-                HalftoneType::One => HalftoneDictionary::One(HalftoneOne::from_dict(dict, lexer)?),
-                HalftoneType::Five => {
-                    HalftoneDictionary::Five(HalftoneFive::from_dict(dict, lexer)?)
+            match HalftoneType::from_integer(dict.expect_integer("HalftoneType", resolver)?)? {
+                HalftoneType::One => {
+                    HalftoneDictionary::One(HalftoneOne::from_dict(dict, resolver)?)
                 }
-                HalftoneType::Six => HalftoneDictionary::Six(HalftoneSix::from_dict(dict, lexer)?),
-                HalftoneType::Ten => HalftoneDictionary::Ten(HalftoneTen::from_dict(dict, lexer)?),
+                HalftoneType::Five => {
+                    HalftoneDictionary::Five(HalftoneFive::from_dict(dict, resolver)?)
+                }
+                HalftoneType::Six => {
+                    HalftoneDictionary::Six(HalftoneSix::from_dict(dict, resolver)?)
+                }
+                HalftoneType::Ten => {
+                    HalftoneDictionary::Ten(HalftoneTen::from_dict(dict, resolver)?)
+                }
                 HalftoneType::Sixteen => {
-                    HalftoneDictionary::Sixteen(HalftoneSixteen::from_dict(dict, lexer)?)
+                    HalftoneDictionary::Sixteen(HalftoneSixteen::from_dict(dict, resolver)?)
                 }
             },
         )

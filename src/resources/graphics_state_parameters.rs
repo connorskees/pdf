@@ -7,7 +7,7 @@ use crate::{
     objects::{Dictionary, Object, ObjectType},
     pdf_enum,
     stream::Stream,
-    Lexer, Resolve,
+    Resolve,
 };
 
 #[derive(Debug)]
@@ -26,7 +26,7 @@ impl FunctionOrDefault {
             }
         }
 
-        Ok(Self::Function(Function::from_obj(obj)?))
+        Ok(Self::Function(Function::from_obj(obj, resolver)?))
     }
 }
 
@@ -187,7 +187,7 @@ impl BlendMode {
         }
     }
 
-    pub fn from_obj(obj: Object, lexer: &mut Lexer) -> PdfResult<Self> {
+    pub fn from_obj(obj: Object, lexer: &mut dyn Resolve) -> PdfResult<Self> {
         Ok(match obj {
             Object::Name(name) => Self::from_str(name),
             Object::Array(objs) => Self::Array(
@@ -212,7 +212,7 @@ pub enum SoftMask {
 }
 
 impl SoftMask {
-    pub fn from_obj(obj: Object, resolver: &mut Lexer) -> PdfResult<Self> {
+    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         let obj = resolver.resolve(obj)?;
 
         if obj.name_is("None") {
@@ -268,7 +268,7 @@ impl SoftMaskDictionary {
         let backdrop_color = dict.get_arr("BC", resolver)?;
         let transfer_function = dict
             .get_object("TransferFunction", resolver)?
-            .map(TransferFunction::from_obj)
+            .map(|obj| TransferFunction::from_obj(obj, resolver))
             .transpose()?
             .unwrap_or(TransferFunction::Identity);
 
@@ -317,79 +317,73 @@ impl LineDashPattern {
 }
 
 impl GraphicsStateParameters {
-    pub fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
-        dict.expect_type("ExtGState", lexer, false)?;
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        dict.expect_type("ExtGState", resolver, false)?;
 
-        let line_width = dict.get_number("LW", lexer)?;
+        let line_width = dict.get_number("LW", resolver)?;
         let line_cap_style = dict
-            .get_integer("LC", lexer)?
+            .get_integer("LC", resolver)?
             .map(LineCapStyle::from_integer)
             .transpose()?;
         let line_join_style = dict
-            .get_integer("LJ", lexer)?
+            .get_integer("LJ", resolver)?
             .map(LineJoinStyle::from_integer)
             .transpose()?;
-        let miter_limit = dict.get_number("ML", lexer)?;
+        let miter_limit = dict.get_number("ML", resolver)?;
         let line_dash_pattern = dict
-            .get_arr("D", lexer)?
-            .map(|arr| LineDashPattern::from_arr(arr, lexer))
+            .get_arr("D", resolver)?
+            .map(|arr| LineDashPattern::from_arr(arr, resolver))
             .transpose()?;
         let rendering_intent = dict
-            .get_name("RI", lexer)?
+            .get_name("RI", resolver)?
             .map(|ref s| RenderingIntent::from_str(s))
             .transpose()?;
-        let should_overprint_stroking = dict.get_bool("OP", lexer)?;
-        let should_overprint = dict.get_bool("op", lexer)?;
-        let overprint_mode = dict.get_integer("OPM", lexer)?;
-        let font = dict.get_object("Font", lexer)?;
-        let black_generation = dict
-            .get_object("BG", lexer)?
-            .map(Function::from_obj)
-            .transpose()?;
+        let should_overprint_stroking = dict.get_bool("OP", resolver)?;
+        let should_overprint = dict.get_bool("op", resolver)?;
+        let overprint_mode = dict.get_integer("OPM", resolver)?;
+        let font = dict.get_object("Font", resolver)?;
+        let black_generation = dict.get_function("BG", resolver)?;
         let black_generation_two = dict
-            .get_object("BG2", lexer)?
-            .map(|obj| FunctionOrDefault::from_obj(obj, lexer))
+            .get_object("BG2", resolver)?
+            .map(|obj| FunctionOrDefault::from_obj(obj, resolver))
             .transpose()?;
-        let undercolor_removal = dict
-            .get_object("UCR", lexer)?
-            .map(Function::from_obj)
-            .transpose()?;
+        let undercolor_removal = dict.get_function("UCR", resolver)?;
         let undercolor_removal_two = dict
-            .get_object("UCR2", lexer)?
-            .map(|obj| FunctionOrDefault::from_obj(obj, lexer))
+            .get_object("UCR2", resolver)?
+            .map(|obj| FunctionOrDefault::from_obj(obj, resolver))
             .transpose()?;
         let transfer = dict
-            .get_object("TR", lexer)?
-            .map(TransferFunction::from_obj)
+            .get_object("TR", resolver)?
+            .map(|obj| TransferFunction::from_obj(obj, resolver))
             .transpose()?;
         let transfer_two = dict
-            .get_object("TR2", lexer)?
-            .map(TransferFunction::from_obj)
+            .get_object("TR2", resolver)?
+            .map(|obj| TransferFunction::from_obj(obj, resolver))
             .transpose()?;
         let halftones = dict
-            .get_object("HT", lexer)?
-            .map(|obj| Halftones::from_obj(obj, lexer))
+            .get_object("HT", resolver)?
+            .map(|obj| Halftones::from_obj(obj, resolver))
             .transpose()?;
 
-        let flatness_tolerance = dict.get_number("FL", lexer)?;
-        let smoothness_tolerance = dict.get_number("SM", lexer)?;
-        let should_apply_automatic_stoke = dict.get_bool("SA", lexer)?;
+        let flatness_tolerance = dict.get_number("FL", resolver)?;
+        let smoothness_tolerance = dict.get_number("SM", resolver)?;
+        let should_apply_automatic_stoke = dict.get_bool("SA", resolver)?;
 
         let blend_mode = dict
-            .get_object("BM", lexer)?
-            .map(|obj| BlendMode::from_obj(obj, lexer))
+            .get_object("BM", resolver)?
+            .map(|obj| BlendMode::from_obj(obj, resolver))
             .transpose()?;
 
         let soft_mask = dict
-            .get_object("SMask", lexer)?
-            .map(|obj| SoftMask::from_obj(obj, lexer))
+            .get_object("SMask", resolver)?
+            .map(|obj| SoftMask::from_obj(obj, resolver))
             .transpose()?;
 
-        let current_stroking_alpha_constant = dict.get_number("CA", lexer)?;
-        let current_nonstroking_alpha_constant = dict.get_number("ca", lexer)?;
-        let alpha_is_shape = dict.get_bool("AIS", lexer)?;
-        let is_knockout = dict.get_bool("TK", lexer)?;
-        let apple_antialiasing = dict.get_bool("AAPL:AA", lexer)?;
+        let current_stroking_alpha_constant = dict.get_number("CA", resolver)?;
+        let current_nonstroking_alpha_constant = dict.get_number("ca", resolver)?;
+        let alpha_is_shape = dict.get_bool("AIS", resolver)?;
+        let is_knockout = dict.get_bool("TK", resolver)?;
+        let apple_antialiasing = dict.get_bool("AAPL:AA", resolver)?;
 
         assert_empty(dict);
 

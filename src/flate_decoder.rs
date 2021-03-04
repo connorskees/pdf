@@ -3,7 +3,7 @@ use std::{borrow::Cow, cmp::min, io::Read, usize};
 use crate::{
     error::{ParseError, PdfResult},
     objects::Dictionary,
-    Resolve,
+    pdf_enum, Resolve,
 };
 
 use flate2::read::ZlibDecoder;
@@ -127,32 +127,17 @@ impl Predictor {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-enum BitsPerComponent {
-    One = 1,
-    Two = 2,
-    Four = 4,
-    Eight = 8,
-    Sixteen = 16,
-}
-
-impl BitsPerComponent {
-    pub fn from_integer(i: i32) -> PdfResult<Self> {
-        Ok(match i {
-            1 => Self::One,
-            2 => Self::Two,
-            4 => Self::Four,
-            8 => Self::Eight,
-            16 => Self::Sixteen,
-            _ => {
-                return Err(ParseError::UnrecognizedVariant {
-                    ty: "BitsPerComponent",
-                    found: i.to_string(),
-                })
-            }
-        })
+pdf_enum!(
+    int
+    #[derive(Debug, Clone, Copy)]
+    pub enum BitsPerComponent {
+        One = 1,
+        Two = 2,
+        Four = 4,
+        Eight = 8,
+        Sixteen = 16,
     }
-}
+);
 
 impl FlateDecoder {
     pub fn new(buffer: Cow<[u8]>, params: FlateDecoderParams) -> Self {

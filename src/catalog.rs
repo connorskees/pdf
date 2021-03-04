@@ -11,14 +11,11 @@ other than the first page shall be shown when the
 document is opened.
 */
 
-use std::collections::HashMap;
-
 use crate::{
     actions::Actions,
     assert_empty, assert_reference,
     data_structures::NumberTree,
     date::Date,
-    graphics_state_parameters::GraphicsStateParameters,
     objects::{ObjectType, TypeOrArray},
     pdf_enum,
     structure::StructTreeRoot,
@@ -599,75 +596,6 @@ pub struct Requirement;
 pub struct Collection;
 
 #[derive(Debug)]
-pub struct Resources {
-    /// A dictionary that maps resource names to
-    /// graphics state parameter dictionaries
-    ext_g_state: Option<HashMap<String, GraphicsStateParameters>>,
-
-    /// A dictionary that maps each resource name to
-    /// either the name of a device-dependent color
-    /// space or an array describing a color space
-    color_space: Option<Dictionary>,
-    // color_space: Option<HashMap<String, ColorSpace>>,
-    pattern: Option<Dictionary>,
-    shading: Option<Dictionary>,
-    xobject: Option<Dictionary>,
-    font: Option<Dictionary>,
-    proc_set: Option<Vec<ProcedureSet>>,
-    properties: Option<Dictionary>,
-    // pattern: Option<HashMap<String, Pattern>>,
-    // shading: Option<HashMap<String, Shading>>,
-    // xobject: Option<HashMap<String, XObject>>,
-    // font: Option<HashMap<String, Font>>,
-    // properties: Option<HashMap<String, PropertyList>>,
-}
-
-impl Resources {
-    pub(crate) fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
-        let ext_g_state = dict
-            .get_dict("ExtGState", lexer)?
-            .map(|dict| {
-                dict.entries()
-                    .map(|(key, value)| {
-                        let dict = lexer.assert_dict(value)?;
-                        let graphics = GraphicsStateParameters::from_dict(dict, lexer)?;
-
-                        Ok((key, graphics))
-                    })
-                    .collect::<PdfResult<HashMap<String, GraphicsStateParameters>>>()
-            })
-            .transpose()?;
-
-        let color_space = dict.get_dict("ColorSpace", lexer)?;
-        let pattern = dict.get_dict("Pattern", lexer)?;
-        let shading = dict.get_dict("Shading", lexer)?;
-        let xobject = dict.get_dict("XObject", lexer)?;
-        let font = dict.get_dict("Font", lexer)?;
-
-        let proc_set = dict
-            .get_arr("ProcSet", lexer)?
-            .map(|proc| {
-                proc.into_iter()
-                    .map(|proc| ProcedureSet::from_str(&lexer.assert_name(proc)?))
-                    .collect::<PdfResult<Vec<ProcedureSet>>>()
-            })
-            .transpose()?;
-        let properties = dict.get_dict("Properties", lexer)?;
-
-        Ok(Resources {
-            ext_g_state,
-            color_space,
-            pattern,
-            shading,
-            xobject,
-            font,
-            proc_set,
-            properties,
-        })
-    }
-}
-
-#[derive(Debug)]
 pub struct Rectangle {
     lower_left_x: f32,
     lower_left_y: f32,
@@ -792,8 +720,6 @@ pub struct NavigationNode;
 #[derive(Debug)]
 pub struct Viewport;
 #[derive(Debug)]
-pub struct Pattern;
-#[derive(Debug)]
 pub struct Shading;
 #[derive(Debug)]
 pub struct XObject;
@@ -801,17 +727,6 @@ pub struct XObject;
 pub struct Font;
 #[derive(Debug)]
 pub struct PropertyList;
-
-pdf_enum!(
-    #[derive(Debug)]
-    pub enum ProcedureSet {
-        Pdf = "PDF",
-        Text = "Text",
-        ImageB = "ImageB",
-        ImageC = "ImageC",
-        ImageI = "ImageI",
-    }
-);
 
 #[derive(Debug)]
 pub enum ColorSpace {
