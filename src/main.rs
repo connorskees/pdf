@@ -630,6 +630,7 @@ trait Lex {
                         Some(b'(') => string.push('('),
                         Some(b')') => string.push(')'),
                         Some(b'\\') => string.push('\\'),
+                        Some(b'0') => string.push('\0'),
                         // TODO: do we skip whitespace after `\` in multiline string?
                         Some(b'\n' | b'\r') => self.skip_whitespace(),
                         // TODO: octal escape
