@@ -29,7 +29,7 @@ fn parse_integer(bytes: &[u8], default: Option<u64>) -> PdfResult<u64> {
     if bytes.is_empty() {
         return match default {
             Some(v) => Ok(v),
-            None => todo!(),
+            None => Ok(0),
         };
     }
 
