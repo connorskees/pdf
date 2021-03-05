@@ -7,6 +7,7 @@ mod annotation;
 mod catalog;
 mod data_structures;
 mod date;
+mod destination;
 mod error;
 mod file_specification;
 mod flate_decoder;
@@ -664,20 +665,22 @@ trait Lex {
             self.next_byte();
 
             if b == b'#' {
-                let mut val;
-
-                match self.next_byte() {
-                    Some(n @ b'0'..=b'9') => val = n - b'0',
+                let mut val = match self.next_byte() {
+                    Some(n @ b'0'..=b'9') => n - b'0',
+                    Some(n @ b'a'..=b'f') => n - b'a' + 10,
+                    Some(n @ b'A'..=b'F') => n - b'A' + 10,
                     Some(..) | None => todo!(),
-                }
+                };
 
-                match self.next_byte() {
-                    Some(n @ b'0'..=b'9') => {
-                        val *= 16;
-                        val += n - b'0';
-                    }
+                let n = match self.next_byte() {
+                    Some(n @ b'0'..=b'9') => n - b'0',
+                    Some(n @ b'a'..=b'f') => n - b'a' + 10,
+                    Some(n @ b'A'..=b'F') => n - b'A' + 10,
                     Some(..) | None => todo!(),
-                }
+                };
+
+                val *= 16;
+                val += n;
 
                 name.push(val as char);
             } else {
