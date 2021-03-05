@@ -12,15 +12,10 @@ document is opened.
 */
 
 use crate::{
-    actions::Actions,
-    assert_empty, assert_reference,
-    data_structures::NumberTree,
-    date::Date,
-    objects::{ObjectType, TypeOrArray},
-    pdf_enum,
-    structure::StructTreeRoot,
-    viewer_preferences::ViewerPreferences,
-    Dictionary, Lexer, Object, ParseError, PdfResult, Reference, Resolve,
+    actions::Actions, assert_empty, data_structures::NumberTree, date::Date,
+    destination::Destination, objects::TypeOrArray, pdf_enum, structure::StructTreeRoot,
+    viewer_preferences::ViewerPreferences, Dictionary, Lexer, Object, ParseError, PdfResult,
+    Reference, Resolve,
 };
 
 /// See module level documentation
@@ -355,74 +350,6 @@ pub struct DocumentOutline;
 #[derive(Debug)]
 pub struct ThreadDictionary;
 
-#[derive(Debug)]
-enum DestinationKind {
-    /// Display the page designated by page, with the coordinates (left, top) positioned
-    /// at the upper-left corner of the window and the contents of the page magnified by
-    /// the factor zoom. A null value for any of the parameters left, top, or zoom specifies
-    /// that the current value of that parameter shall be retained unchanged. A zoom value
-    /// of 0 has the same meaning as a null value.
-    Xyz {
-        left: Option<f32>,
-        top: Option<f32>,
-        zoom: Option<f32>,
-    },
-
-    /// Display the page designated by page, with its contents magnified just enough to fit
-    /// the entire page within the window both horizontally and vertically. If the required
-    /// horizontal and vertical magnification factors are different, use the smaller of the
-    /// two, centering the page within the window in the other dimension.
-    Fit,
-
-    /// Display the page designated by page, with the vertical coordinate top positioned at
-    /// the top edge of the window and the contents of the page magnified just enough to fit
-    /// the entire width of the page within the window. A null value for top specifies that
-    /// the current value of that parameter shall be retained unchanged.
-    FitH { top: Option<f32> },
-
-    /// Display the page designated by page, with the horizontal coordinate left positioned
-    /// at the left edge of the window and the contents of the page magnified just enough to
-    /// fit the entire height of the page within the window. A null value for left specifies
-    /// that the current value of that parameter shall be retained unchanged.
-    FitV { left: Option<f32> },
-
-    /// Display the page designated by page, with its contents magnified just enough to fit
-    /// the rectangle specified by the coordinates left, bottom, right, and top entirely within
-    /// the window both horizontally and vertically. If the required horizontal and vertical
-    /// magnification factors are different, use the smaller of the two, centering the rectangle
-    /// within the window in the other dimension.
-    FitR {
-        left: Option<f32>,
-        bottom: Option<f32>,
-        right: Option<f32>,
-        top: Option<f32>,
-    },
-
-    /// Display the page designated by page, with its contents magnified just enough to fit its
-    /// bounding box entirely within the window both horizontally and vertically. If the required
-    /// horizontal and vertical magnification factors are different, use the smaller of the two,
-    /// centering the bounding box within the window in the other dimension.
-    FitB,
-
-    /// Display the page designated by page, with the vertical coordinate top positioned at the
-    /// top edge of the window and the contents of the page magnified just enough to fit the entire
-    /// width of its bounding box within the window. A null value for top specifies that the
-    /// current value of that parameter shall be retained unchanged.
-    FitBh { top: Option<f32> },
-
-    /// Display the page designated by page, with the horizontal coordinate left positioned at the
-    /// left edge of the window and the contents of the page magnified just enough to fit the entire
-    /// height of its bounding box within the window. A null value for left specifies that the
-    /// current value of that parameter shall be retained unchanged.
-    FitBv { left: Option<f32> },
-}
-
-#[derive(Debug)]
-pub struct Destination {
-    kind: DestinationKind,
-    page_ref: Reference,
-}
-
 pub fn assert_len(arr: &[Object], len: usize) -> PdfResult<()> {
     if arr.len() != len {
         return Err(ParseError::ArrayOfInvalidLength {
@@ -434,85 +361,6 @@ pub fn assert_len(arr: &[Object], len: usize) -> PdfResult<()> {
     Ok(())
 }
 
-impl Destination {
-    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut impl Resolve) -> PdfResult<Self> {
-        if arr.len() < 2 {
-            return Err(ParseError::ArrayOfInvalidLength {
-                expected: 2,
-                found: arr,
-            });
-        }
-
-        let vals = arr.split_off(2);
-
-        let dimensions = vals
-            .iter()
-            .cloned()
-            .map(|obj| resolver.assert_or_null(obj, Resolve::assert_number))
-            .collect::<PdfResult<Vec<Option<f32>>>>()?;
-
-        let kind_str = resolver.assert_name(arr.pop().unwrap())?;
-
-        let page_ref = assert_reference(arr.pop().unwrap())?;
-
-        let kind = match kind_str.as_str() {
-            "XYZ" => {
-                assert_len(&vals, 3)?;
-                DestinationKind::Xyz {
-                    left: dimensions[0],
-                    top: dimensions[1],
-                    zoom: dimensions[2],
-                }
-            }
-            "Fit" => {
-                assert_len(&vals, 0)?;
-                DestinationKind::Fit
-            }
-            "FitH" => {
-                assert_len(&vals, 1)?;
-                DestinationKind::FitH { top: dimensions[0] }
-            }
-            "FitV" => {
-                assert_len(&vals, 1)?;
-                DestinationKind::FitV {
-                    left: dimensions[0],
-                }
-            }
-            "FitR" => {
-                assert_len(&vals, 4)?;
-                DestinationKind::FitR {
-                    left: dimensions[0],
-                    bottom: dimensions[1],
-                    right: dimensions[2],
-                    top: dimensions[3],
-                }
-            }
-            "FitB" => {
-                assert_len(&vals, 0)?;
-                DestinationKind::FitB
-            }
-            "FitBH" => {
-                assert_len(&vals, 1)?;
-                DestinationKind::FitBh { top: dimensions[0] }
-            }
-            "FitBV" => {
-                assert_len(&vals, 1)?;
-                DestinationKind::FitBv {
-                    left: dimensions[0],
-                }
-            }
-            found => {
-                return Err(ParseError::UnrecognizedVariant {
-                    found: found.to_owned(),
-                    ty: "DestinationKey",
-                })
-            }
-        };
-
-        Ok(Destination { kind, page_ref })
-    }
-}
-
 #[derive(Debug)]
 pub enum OpenAction {
     Destination(Destination),
@@ -521,15 +369,10 @@ pub enum OpenAction {
 
 impl OpenAction {
     pub fn from_obj(obj: Object, lexer: &mut Lexer) -> PdfResult<Self> {
+        let obj = lexer.resolve(obj)?;
         Ok(match obj {
-            Object::Array(arr) => OpenAction::Destination(Destination::from_arr(arr, lexer)?),
             Object::Dictionary(dict) => OpenAction::Actions(Actions::from_dict(dict, lexer)?),
-            found => {
-                return Err(ParseError::MismatchedObjectTypeAny {
-                    found,
-                    expected: &[ObjectType::Array, ObjectType::Dictionary],
-                })
-            }
+            obj => OpenAction::Destination(Destination::from_obj(obj, lexer)?),
         })
     }
 }

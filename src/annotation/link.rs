@@ -1,6 +1,6 @@
 use crate::{
     actions::{Actions, UriAction},
-    catalog::Destination,
+    destination::Destination,
     error::PdfResult,
     objects::Dictionary,
     pdf_enum, Resolve,
@@ -84,8 +84,8 @@ impl LinkAnnotation {
             .transpose()?;
 
         let dest = dict
-            .get_arr("Dest", resolver)?
-            .map(|dest| Destination::from_arr(dest, resolver))
+            .get_object("Dest", resolver)?
+            .map(|dest| Destination::from_obj(dest, resolver))
             .transpose()?;
 
         let h = dict
