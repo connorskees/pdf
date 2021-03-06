@@ -234,6 +234,9 @@ impl StructureElementChild {
             Some(ObjectReferenceDictionary::TYPE) => {
                 Self::ObjectReferenceDictionary(ObjectReferenceDictionary::from_dict(dict)?)
             }
+            Some(MarkedContentReferenceDictionary::TYPE) => Self::MarkedContentReferenceDictionary(
+                MarkedContentReferenceDictionary::from_dict(dict, resolver)?,
+            ),
             Some(v) => todo!("{:?}", v),
         })
     }
@@ -262,7 +265,45 @@ impl ObjectReferenceDictionary {
 }
 
 #[derive(Debug)]
-struct MarkedContentReferenceDictionary;
+struct MarkedContentReferenceDictionary {
+    /// The page object representing the page on which the graphics objects in the marked-content
+    /// sequence shall be rendered. This entry overrides any Pg entry in the structure element
+    /// containing the marked-content reference; it shall be required if the structure element
+    /// has no such entry.
+    pg: Option<Reference>,
+
+    /// The content stream containing the marked-content sequence. This entry should be present
+    /// only if the marked-content sequence resides in a content stream other than the content
+    /// stream for the page. If this entry is absent, the marked-content sequence shall be contained
+    /// in the content stream of the page identified by Pg (either in the markedcontent reference
+    /// dictionary or in the parent structure element)
+    stm: Option<Reference>,
+
+    /// The PDF object owning the stream identified by Stems annotation to which an appearance
+    /// stream belongs.
+    stm_own: Option<Reference>,
+
+    /// The marked-content identifier of the marked-content sequence within its content stream.
+    mcid: i32,
+}
+
+impl MarkedContentReferenceDictionary {
+    const TYPE: &'static str = "MCR";
+
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        let pg = dict.get_reference("Pg")?;
+        let stm = dict.get_reference("Stm")?;
+        let stm_own = dict.get_reference("StmOwn")?;
+        let mcid = dict.expect_integer("MCID", resolver)?;
+
+        Ok(Self {
+            pg,
+            stm,
+            stm_own,
+            mcid,
+        })
+    }
+}
 
 #[derive(Debug)]
 enum StructureType {
