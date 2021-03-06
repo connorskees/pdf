@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use crate::{assert_empty, error::PdfResult, objects::Dictionary, pdf_enum, Resolve};
+use crate::{
+    assert_empty, error::PdfResult, objects::Dictionary, pdf_enum, shading::ShadingObject, Resolve,
+};
 
 use self::{graphics_state_parameters::GraphicsStateParameters, pattern::Pattern};
 
@@ -22,12 +24,13 @@ pub struct Resources {
     /// A dictionary that maps resource names to pattern objects
     pattern: Option<HashMap<String, Pattern>>,
 
-    shading: Option<Dictionary>,
+    /// A dictionary that maps resource names to shading dictionaries
+    shading: Option<HashMap<String, ShadingObject>>,
+
     xobject: Option<Dictionary>,
     font: Option<Dictionary>,
     proc_set: Option<Vec<ProcedureSet>>,
     properties: Option<Dictionary>,
-    // shading: Option<HashMap<String, Shading>>,
     // xobject: Option<HashMap<String, XObject>>,
     // font: Option<HashMap<String, Font>>,
     // properties: Option<HashMap<String, PropertyList>>,
@@ -60,7 +63,15 @@ impl Resources {
             })
             .transpose()?;
 
-        let shading = dict.get_dict("Shading", resolver)?;
+        let shading = dict
+            .get_dict("Shading", resolver)?
+            .map(|dict| {
+                dict.entries()
+                    .map(|(key, obj)| Ok((key, ShadingObject::from_obj(obj, resolver)?)))
+                    .collect::<PdfResult<HashMap<String, ShadingObject>>>()
+            })
+            .transpose()?;
+
         let xobject = dict.get_dict("XObject", resolver)?;
         let font = dict.get_dict("Font", resolver)?;
 

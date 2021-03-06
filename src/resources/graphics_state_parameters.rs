@@ -429,44 +429,22 @@ pdf_enum!(
     }
 );
 
-#[derive(Debug)]
-enum LineJoinStyle {
-    Miter,
-    Round,
-    Bevel,
-}
-
-impl LineJoinStyle {
-    pub fn from_integer(i: i32) -> PdfResult<Self> {
-        match i {
-            0 => Ok(Self::Miter),
-            1 => Ok(Self::Round),
-            2 => Ok(Self::Bevel),
-            found => Err(ParseError::UnrecognizedVariant {
-                found: found.to_string(),
-                ty: stringify!(LineJoinStyle),
-            }),
-        }
+pdf_enum!(
+    int
+    #[derive(Debug)]
+    enum LineJoinStyle {
+        Miter = 0,
+        Round = 1,
+        Bevel = 2,
     }
-}
+);
 
-#[derive(Debug)]
-enum LineCapStyle {
-    Butt,
-    Round,
-    ProjectingSquare,
-}
-
-impl LineCapStyle {
-    pub fn from_integer(i: i32) -> PdfResult<Self> {
-        match i {
-            0 => Ok(Self::Butt),
-            1 => Ok(Self::Round),
-            2 => Ok(Self::ProjectingSquare),
-            found => Err(ParseError::UnrecognizedVariant {
-                found: found.to_string(),
-                ty: stringify!(LineCapStyle),
-            }),
-        }
+pdf_enum!(
+    int
+    #[derive(Debug)]
+    enum LineCapStyle {
+        Butt = 0,
+        Round = 1,
+        ProjectingSquare = 2,
     }
-}
+);
