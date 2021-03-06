@@ -1,30 +1,12 @@
-use std::{borrow::Cow, collections::HashMap, fmt};
+use std::fmt;
 
 use crate::{
     error::PdfResult,
     file_specification::FileSpecification,
-    flate_decoder::{FlateDecoder, FlateDecoderParams},
-    objects::{Dictionary, TypeOrArray},
+    filter::FilterKind,
+    objects::{Dictionary, Object, TypeOrArray},
     Resolve,
 };
-
-pub(crate) fn decode_stream(
-    stream: &[u8],
-    stream_dict: &StreamDict,
-    resolver: &mut dyn Resolve,
-) -> PdfResult<Vec<u8>> {
-    // todo: check if actually Flate
-    let decoder_params = FlateDecoderParams::from_dict(
-        match &stream_dict.decode_parms {
-            Some(TypeOrArray::Type(t)) => t.clone(),
-            None => Dictionary::new(HashMap::new()),
-            decoder_params => todo!("{:?}", decoder_params),
-        },
-        resolver,
-    )?;
-
-    Ok(FlateDecoder::new(Cow::Borrowed(stream), decoder_params).decode())
-}
 
 #[derive(Clone)]
 pub struct Stream {
@@ -43,30 +25,93 @@ impl fmt::Debug for Stream {
 
 #[derive(Debug, Clone)]
 pub struct StreamDict {
+    /// The number of bytes from the beginning of the line following the keyword stream
+    /// to the last byte just before the keyword endstream. (There may be an additional
+    /// EOL marker, preceding endstream, that is not included in the count and is not
+    /// logically part of the stream data.)
     pub len: usize,
-    pub filter: Option<TypeOrArray<String>>,
+
+    /// The name of a filter that shall be applied in processing the stream data found
+    /// between the keywords stream and endstream, or an array of zero, one or several
+    /// names. Multiple filters shall be specified in the order in which they are to be
+    /// applied
+    pub filter: Option<Vec<FilterKind>>,
+
+    /// A parameter dictionary or an array of such dictionaries, used by the filters
+    /// specified by Filter. If there is only one filter and that filter has parameters,
+    /// DecodeParms shall be set to the filter’s parameter dictionary unless all the
+    /// filter’s parameters have their default values, in which case the DecodeParms
+    /// entry may be omitted. If there are multiple filters and any of the filters has
+    /// parameters set to nondefault values, DecodeParms shall be an array with one
+    /// entry for each filter: either the parameter dictionary for that filter, or the
+    /// null object if that filter has no parameters (or if all of its parameters have
+    /// their default values). If none of the filters have parameters, or if all their
+    /// parameters have default values, the DecodeParms entry may be omitted
     pub decode_parms: Option<TypeOrArray<Dictionary>>,
+
+    /// The file containing the stream data. If this entry is present, the bytes
+    /// between stream and endstream shall be ignored. However, the Length entry
+    /// should still specify the number of those bytes (usually, there are no bytes
+    /// and Length is 0). The filters that are applied to the file data shall be
+    /// specified by FFilter and the filter parameters shall be specified by FDecodeParms
     pub f: Option<FileSpecification>,
-    pub f_filter: Option<TypeOrArray<String>>,
+
+    /// The name of a filter to be applied in processing the data found in the stream’s
+    /// external file, or an array of zero, one or several such names. The same rules
+    /// apply as for Filter
+    pub f_filter: Option<Vec<FilterKind>>,
+
+    /// A parameter dictionary, or an array of such dictionaries, used by the filters
+    /// specified by FFilter. The same rules apply as for DecodeParms
     pub f_decode_parms: Option<TypeOrArray<Dictionary>>,
+
+    /// A non-negative integer representing the number of bytes in the decoded
+    /// (defiltered) stream. It can be used to determine, for example, whether enough
+    /// disk space is available to write a stream to a file. This value shall be
+    /// considered a hint only; for some stream filters, it may not be possible to
+    /// determine this value precisely
     pub dl: Option<usize>,
+
     pub other: Dictionary,
+}
+
+fn get_filters(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Vec<FilterKind>> {
+    let obj = resolver.resolve(obj)?;
+
+    if let Ok(arr) = resolver.assert_arr(obj.clone()) {
+        arr.into_iter()
+            .map(|obj| FilterKind::from_str(&resolver.assert_name(obj)?))
+            .collect()
+    } else {
+        Ok(vec![FilterKind::from_str(&resolver.assert_name(obj)?)?])
+    }
 }
 
 impl StreamDict {
     #[track_caller]
-    pub fn from_dict(mut dict: Dictionary, lexer: &mut impl Resolve) -> PdfResult<StreamDict> {
-        let len = dict.expect_integer("Length", lexer)? as usize;
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut impl Resolve) -> PdfResult<StreamDict> {
+        let len = dict.expect_integer("Length", resolver)? as usize;
 
-        let filter = dict.get_type_or_arr("Filter", lexer, Resolve::assert_name)?;
-        let decode_parms = dict.get_type_or_arr("DecodeParms", lexer, Resolve::assert_dict)?;
-        let f = dict
-            .get_object("F", lexer)?
-            .map(|obj| FileSpecification::from_obj(obj, lexer))
+        let filter = dict
+            .get_object("Filter", resolver)?
+            .map(|obj| get_filters(obj, resolver))
             .transpose()?;
-        let f_filter = dict.get_type_or_arr("FFilter", lexer, Resolve::assert_name)?;
-        let f_decode_parms = dict.get_type_or_arr("FDecodeParms", lexer, Resolve::assert_dict)?;
-        let dl = dict.get_integer("DL", lexer)?.map(|i| i as usize);
+        let decode_parms = dict.get_type_or_arr("DecodeParms", resolver, Resolve::assert_dict)?;
+
+        let f = dict
+            .get_object("F", resolver)?
+            .map(|obj| FileSpecification::from_obj(obj, resolver))
+            .transpose()?;
+        let f_filter = dict
+            .get_object("FFilter", resolver)?
+            .map(|obj| get_filters(obj, resolver))
+            .transpose()?;
+        let f_decode_parms =
+            dict.get_type_or_arr("FDecodeParms", resolver, Resolve::assert_dict)?;
+
+        let dl = dict
+            .get_unsigned_integer("DL", resolver)?
+            .map(|i| i as usize);
 
         Ok(StreamDict {
             len,

@@ -10,7 +10,7 @@ mod date;
 mod destination;
 mod error;
 mod file_specification;
-mod flate_decoder;
+mod filter;
 mod font;
 mod function;
 mod halftones;
@@ -33,11 +33,12 @@ use crate::{
     annotation::Annotation,
     catalog::{DocumentCatalog, GroupAttributes, InformationDictionary, Rectangle},
     error::{ParseError, PdfResult},
+    filter::decode_stream,
     object_stream::{ObjectStream, ObjectStreamDict, ObjectStreamParser},
     objects::{Dictionary, Object, ObjectType, Reference, TypeOrArray},
     page::{PageNode, PageObject, PageTree, PageTreeNode, TabOrder},
     resources::Resources,
-    stream::{decode_stream, Stream, StreamDict},
+    stream::{Stream, StreamDict},
     trailer::Trailer,
     xref::{ByteOffset, TrailerOrOffset, Xref, XrefParser},
 };
@@ -859,7 +860,7 @@ impl Lexer {
                     self,
                 )?;
 
-                let parser = ObjectStreamParser::new(decoded_stream, dict)?;
+                let parser = ObjectStreamParser::new(decoded_stream.into_owned(), dict)?;
 
                 self.cached_object_streams
                     .entry(byte_offset)

@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
-    flate_decoder::{FlateDecoder, FlateDecoderParams},
+    filter::flate::{FlateDecoder, FlateDecoderParams},
     objects::{Dictionary, Object, ObjectType},
     trailer::Trailer,
     xref::{

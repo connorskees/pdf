@@ -1,8 +1,5 @@
 use crate::{
-    error::PdfResult,
-    postscript::PostScriptLexer,
-    stream::{decode_stream, Stream},
-    Resolve,
+    error::PdfResult, filter::decode_stream, postscript::PostScriptLexer, stream::Stream, Resolve,
 };
 
 /// A type 4 function (PDF 1.3), also called a PostScript calculator function, shall be
@@ -18,7 +15,7 @@ impl PostScriptCalculatorFunction {
         let buffer = decode_stream(&stream.stream, &stream.dict, resolver)?;
 
         Ok(Self {
-            tokens: PostScriptLexer::new(buffer.into_boxed_slice()),
+            tokens: PostScriptLexer::new(buffer.into_owned().into_boxed_slice()),
         })
     }
 }

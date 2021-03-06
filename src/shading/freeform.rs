@@ -1,5 +1,5 @@
 use crate::{
-    error::PdfResult, flate_decoder::BitsPerComponent, function::Function, objects::Dictionary,
+    error::PdfResult, filter::flate::BitsPerComponent, function::Function, objects::Dictionary,
     pdf_enum, Resolve,
 };
 
