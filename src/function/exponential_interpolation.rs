@@ -15,7 +15,7 @@ pub struct ExponentialInterpolationFunction {
     c1: Vec<f32>,
 
     /// The interpolation exponent. Each input value x shall return n values, given by
-    /// yj = C0j + xN × (C1j − C0j), for 0 ≤ j < n
+    /// yj = C0j + xN * (C1j - C0j), for 0 <= j < n
     n: f32,
 }
 

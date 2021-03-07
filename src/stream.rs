@@ -39,8 +39,8 @@ pub struct StreamDict {
 
     /// A parameter dictionary or an array of such dictionaries, used by the filters
     /// specified by Filter. If there is only one filter and that filter has parameters,
-    /// DecodeParms shall be set to the filter’s parameter dictionary unless all the
-    /// filter’s parameters have their default values, in which case the DecodeParms
+    /// DecodeParms shall be set to the filter's parameter dictionary unless all the
+    /// filter's parameters have their default values, in which case the DecodeParms
     /// entry may be omitted. If there are multiple filters and any of the filters has
     /// parameters set to nondefault values, DecodeParms shall be an array with one
     /// entry for each filter: either the parameter dictionary for that filter, or the
@@ -56,7 +56,7 @@ pub struct StreamDict {
     /// specified by FFilter and the filter parameters shall be specified by FDecodeParms
     pub f: Option<FileSpecification>,
 
-    /// The name of a filter to be applied in processing the data found in the stream’s
+    /// The name of a filter to be applied in processing the data found in the stream's
     /// external file, or an array of zero, one or several such names. The same rules
     /// apply as for Filter
     pub f_filter: Option<Vec<FilterKind>>,

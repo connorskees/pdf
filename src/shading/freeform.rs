@@ -32,7 +32,7 @@ pub struct FreeformShading {
     /// similar to that used in image dictionaries. The ranges shall be specified
     /// as follows:
     ///
-    /// [xmin xmax ymin ymax c1,min c1,max … cn,min cn,max]
+    /// [xmin xmax ymin ymax c1,min c1,max ... cn,min cn,max]
     ///
     /// Only one pair of c values shall be specified if a Function entry is present
     decode: Vec<f32>,

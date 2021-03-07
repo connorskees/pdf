@@ -14,7 +14,7 @@ use super::{reference::ReferenceXObject, OpenPrepressInterface};
 pub struct FormXObject {
     /// An array of four numbers in the form coordinate system (see above), giving the
     /// coordinates of the left, bottom, right, and top edges, respectively, of the form
-    /// XObject’s bounding box. These boundaries shall be used to clip the form XObject and
+    /// XObject's bounding box. These boundaries shall be used to clip the form XObject and
     /// to determine its size for caching
     bbox: Rectangle,
 
@@ -31,7 +31,7 @@ pub struct FormXObject {
     /// XObject shall be included in the resource dictionary of each page object on which
     /// the form XObject appears, regardless of whether they also appear in the resource
     /// dictionary of the form XObject. These resources should also be specified in the
-    /// form XObject’s resource dictionary as well, to determine which resources are used
+    /// form XObject's resource dictionary as well, to determine which resources are used
     /// inside the form XObject. If a resource is included in both dictionaries, it shall
     /// have the same name in both locations.
     ///
@@ -39,8 +39,8 @@ pub struct FormXObject {
     /// streams in which they appear, and this is strongly recommended although not required.
     /// In an independent form XObject, the resource dictionary of the form XObject is required
     /// and shall contain all named resources used by the form XObject. These resources shall
-    /// not be promoted to the outer content stream’s resource dictionary, although that
-    /// stream’s resource dictionary refers to the form XObject
+    /// not be promoted to the outer content stream's resource dictionary, although that
+    /// stream's resource dictionary refers to the form XObject
     resources: Option<Resources>,
 
     /// A group attributes dictionary indicating that the contents of the form XObject shall
@@ -61,16 +61,16 @@ pub struct FormXObject {
     /// A page-piece dictionary associated with the form XObject
     piece_info: Option<PagePiece>,
 
-    /// The date and time when the form XObject’s contents were most recently modified. If a
+    /// The date and time when the form XObject's contents were most recently modified. If a
     /// page-piece dictionary (PieceInfo) is present, the modification date shall be used to
     /// ascertain which of the application data dictionaries it contains correspond to the
     /// current content of the form
     last_modified: Option<Date>,
 
-    /// The integer key of the form XObject’s entry in the structural parent tree
+    /// The integer key of the form XObject's entry in the structural parent tree
     struct_parent: Option<i32>,
 
-    /// The integer key of the form XObject’s entry in the structural parent tree
+    /// The integer key of the form XObject's entry in the structural parent tree
     ///
     /// At most one of the entries StructParent or StructParents shall be present. A form XObject
     /// shall be either a content item in its entirety or a container for marked-content sequences

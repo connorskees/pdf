@@ -44,7 +44,7 @@ pub(crate) struct LinkAnnotation {
     /// ignored if any coordinate in the array lies outside the region specified by Rect
     quad_points: Option<Vec<f32>>,
 
-    ///  A border style dictionary specifying the line width and dash pattern to be used
+    /// A border style dictionary specifying the line width and dash pattern to be used
     /// in drawing the annotation's border.
     ///
     /// The annotation dictionary's AP entry, if present, takes precedence over the BS entry

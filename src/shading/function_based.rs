@@ -20,14 +20,14 @@ pub struct FunctionBasedShading {
     domain: FunctionDomain,
 
     /// An array of six numbers specifying a transformation matrix mapping the coordinate space specified
-    /// by the Domain entry into the shading’s target coordinate space
+    /// by the Domain entry into the shading's target coordinate space
     ///
     /// EXAMPLE To map the domain rectangle [0.0 1.0 0.0 1.0] to a 1-inch square with lower-left corner at
     /// coordinates (100, 100) in default user space, the Matrix value would be [72 0 0 72 100 100]
     matrix: Option<Matrix>,
 
     /// A 2-in, n-out function or an array of n 2-in, 1-out functions (where n is the number of
-    /// colour components in the shading dictionary’s colour space). Each function’s domain shall
+    /// colour components in the shading dictionary's colour space). Each function's domain shall
     /// be a superset of that of the shading dictionary. If the value returned by the function for
     /// a given colour component is out of range, it shall be adjusted to the nearest valid value
     function: Function,

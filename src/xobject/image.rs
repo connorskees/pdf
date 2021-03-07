@@ -68,7 +68,7 @@ pub struct ImageXObject {
     mask: Option<ImageMask>,
 
     /// An array of numbers describing how to map image samples into the range of
-    /// values appropriate for the image’s colour space. If ImageMask is true, the
+    /// values appropriate for the image's colour space. If ImageMask is true, the
     /// array shall be either [0 1] or [1 0]; otherwise, its length shall be twice
     /// the number of colour components required by ColorSpace. If the image uses
     /// the JPXDecode filter and ImageMask is false, Decode shall be ignored by a
@@ -92,18 +92,18 @@ pub struct ImageXObject {
     /// interpreted as shape or opacity.
     ///
     /// If present, this entry shall override the current soft mask in the graphics state,
-    /// as well as the image’s Mask entry, if any. However, the other transparency-related
-    /// graphics state parameters—blend mode and alpha constant—shall remain in effect. If
-    /// SMask is absent, the image shall have no associated soft mask (although the current
+    /// as well as the image's Mask entry, if any. However, the other transparency-related
+    /// graphics state parameters -- blend mode and alpha constant -- shall remain in effect.
+    /// If SMask is absent, the image shall have no associated soft mask (although the current
     /// soft mask in the graphics state may still apply)
     s_mask: Option<SoftMask>,
 
     /// A code specifying how soft-mask information encoded with image samples shall be used:
     ///   0 If present, encoded soft-mask image information shall be ignored.
-    ///   1 The image’s data stream includes encoded soft-mask values. A conforming reader
+    ///   1 The image's data stream includes encoded soft-mask values. A conforming reader
     ///       may create a soft-mask image from the information to be used as a source of mask
     ///       shape or mask opacity in the transparency imaging model.
-    ///   2 The image’s data stream includes colour channels that have been preblended with a
+    ///   2 The image's data stream includes colour channels that have been preblended with a
     ///       background; the image data also includes an opacity channel. A conforming reader
     ///       may create a soft-mask image with a Matte entry from the opacity channel information
     ///       to be used as a source of mask shape or mask opacity in the transparency model.
@@ -119,10 +119,10 @@ pub struct ImageXObject {
     /// This entry is obsolescent and shall no longer be used
     name: Option<String>,
 
-    /// The integer key of the image’s entry in the structural parent tree
+    /// The integer key of the image's entry in the structural parent tree
     struct_parent: Option<i32>,
 
-    /// The digital identifier of the image’s parent Web Capture content set
+    /// The digital identifier of the image's parent Web Capture content set
     id: Option<String>,
 
     /// An OPI version dictionary for the image. If ImageMask is true, this entry shall be ignored
@@ -249,7 +249,7 @@ pub struct SoftMask {
     /// An array of component values specifying the matte colour with which the image data in
     /// the parent image shall have been preblended. The array shall consist of n numbers, where
     /// n is the number of components in the colour space specified by the ColorSpace entry in
-    /// the parent image’s image dictionary; the numbers shall be valid colour components in that
+    /// the parent image's image dictionary; the numbers shall be valid colour components in that
     /// colour space. If this entry is absent, the image data shall not be preblended
     // todo: type
     matte: Option<Vec<Object>>,

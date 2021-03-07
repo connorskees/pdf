@@ -244,7 +244,7 @@ impl StructureElementChild {
 
 #[derive(Debug)]
 struct ObjectReferenceDictionary {
-    ///  The page object of the page on which the object shall be rendered. This entry
+    /// The page object of the page on which the object shall be rendered. This entry
     /// overrides any Pg entry in the structure element containing the object reference;
     /// it shall be used if the structure element has no such entry.
     pg: Option<Reference>,

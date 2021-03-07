@@ -64,7 +64,7 @@ pub(crate) struct BaseAnnotation {
     /// and display a string in any format.
     last_modified: Option<String>,
 
-    ///  A set of flags specifying various characteristics of the annotation
+    /// A set of flags specifying various characteristics of the annotation
     ///
     /// Default value: 0
     flags: AnnotationFlags,
@@ -117,7 +117,7 @@ pub(crate) struct BaseAnnotation {
     ///  - 4 DeviceCMYK
     c: Option<Vec<f32>>,
 
-    ///  The integer key of the annotation's entry in the structural parent tree
+    /// The integer key of the annotation's entry in the structural parent tree
     struct_parent: Option<i32>,
 
     /// An optional content group or optional content membership dictionary specifying the optional
@@ -132,7 +132,7 @@ pub(crate) struct BaseAnnotation {
 
 #[derive(Debug)]
 struct MarkupAnnotation {
-    ///  The text label that shall be displayed in the title bar of the annotation's pop-up window
+    /// The text label that shall be displayed in the title bar of the annotation's pop-up window
     /// when open and active. This entry shall identify the user who added the annotation.
     t: Option<String>,
 
@@ -157,7 +157,7 @@ struct MarkupAnnotation {
     /// in this case, the effect of this entry is implementation-dependent as well.
     ca: f32,
 
-    ///  A rich text string that shall be displayed in the pop-up window when the annotation is opened.
+    /// A rich text string that shall be displayed in the pop-up window when the annotation is opened.
     rc: Option<RichTextString>,
 
     /// The date and time when the annotation was created
@@ -175,7 +175,7 @@ struct MarkupAnnotation {
     /// Text representing a short description of the subject being addressed by the annotation.
     subj: Option<String>,
 
-    ///  A name specifying the relationship (the "reply type") between this annotation and one specified by IRT.
+    /// A name specifying the relationship (the "reply type") between this annotation and one specified by IRT.
     ///
     /// Valid values are:
     ///   * `R` The annotation shall be considered a reply to the annotation specified by IRT.
@@ -196,7 +196,7 @@ struct MarkupAnnotation {
     // todo: should this be an enum
     it: Option<String>,
 
-    ///  An external data dictionary specifying data that shall be associated with the annotation
+    /// An external data dictionary specifying data that shall be associated with the annotation
     ex_data: Option<ExternalDataDictionary>,
 }
 
@@ -419,7 +419,7 @@ impl AnnotationFlags {
         self.0 & Self::TOGGLE_NO_VIEW != 0
     }
 
-    ///  If set, do not allow the contents of the annotation to be modified by the user.
+    /// If set, do not allow the contents of the annotation to be modified by the user.
     ///
     /// This flag does not restrict deletion of the annotation or changes to other annotation
     /// properties, such as position and size.

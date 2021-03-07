@@ -19,14 +19,14 @@ pub struct SampledFunction {
     /// Default value: 1
     order: InterpolationOrder,
 
-    /// An array of 2 × m numbers specifying the linear mapping of input values into the domain
-    /// of the function’s sample table.
+    /// An array of 2 * m numbers specifying the linear mapping of input values into the domain
+    /// of the function's sample table.
     ///
-    /// Default value: [0 (Size0 − 1) 0 (Size1 − 1) ...]
+    /// Default value: [0 (Size0 - 1) 0 (Size1 - 1) ...]
     encode: Vec<f32>,
 
-    /// An array of 2 × n numbers specifying the linear mapping of sample values into the range
-    /// appropriate for the function’s output values
+    /// An array of 2 * n numbers specifying the linear mapping of sample values into the range
+    /// appropriate for the function's output values
     ///
     /// Default value: same as the value of Range
     // todo: doesn't have to be Option because of default

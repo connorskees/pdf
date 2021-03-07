@@ -87,7 +87,7 @@ pub struct GraphicsStateParameters {
     /// represent the identity function.
     transfer: Option<TransferFunction>,
 
-    ///  Same as TR except that the value may also be the name Default, denoting the transfer function
+    /// Same as TR except that the value may also be the name Default, denoting the transfer function
     /// that was in effect at the start of the page. If both TR and TR2 are present in the same graphics
     /// state parameter dictionary, TR2 shall take precedence
     transfer_two: Option<TransferFunction>,
@@ -119,7 +119,7 @@ pub struct GraphicsStateParameters {
     // todo: can also be name
     soft_mask: Option<SoftMask>,
 
-    ///  The current stroking alpha constant, specifying the constant shape or constant
+    /// The current stroking alpha constant, specifying the constant shape or constant
     /// opacity value that shall be used for stroking operations in the transparent imaging
     /// model
     current_stroking_alpha_constant: Option<f32>,

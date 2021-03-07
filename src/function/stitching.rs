@@ -12,12 +12,12 @@ pub struct StitchingFunction {
     /// is present
     functions: Vec<Function>,
 
-    /// An array of k − 1 numbers that, in combination with Domain, shall define the intervals to which
+    /// An array of k - 1 numbers that, in combination with Domain, shall define the intervals to which
     /// each function from the Functions array shall apply. Bounds elements shall be in order of
     /// increasing value, and each value shall be within the domain defined by Domain
     bounds: Vec<f32>,
 
-    /// An array of 2 × k numbers that, taken in pairs, shall map each subset of the domain defined by
+    /// An array of 2 * k numbers that, taken in pairs, shall map each subset of the domain defined by
     /// Domain and the Bounds array to the domain of the corresponding function
     encode: Vec<f32>,
 }

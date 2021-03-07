@@ -126,14 +126,14 @@ pub struct BaseShadingDictionary {
     /// In the opaque imaging model, the effect is as if the painting operation were performed
     /// twice: first with the background colour and then with the shading
     ///
-    ///  The background colour is applied only when the shading is used as part of a shading
+    /// The background colour is applied only when the shading is used as part of a shading
     /// pattern, not when it is painted directly with the sh operator
     // todo: better typing based on color space
     background: Option<Vec<f32>>,
 
     /// An array of four numbers giving the left, bottom, right, and top coordinates,
-    /// respectively, of the shading’s bounding box. The coordinates shall be interpreted
-    /// in the shading’s target coordinate space. If present, this bounding box shall be
+    /// respectively, of the shading's bounding box. The coordinates shall be interpreted
+    /// in the shading's target coordinate space. If present, this bounding box shall be
     /// applied as a temporary clipping boundary when the shading is painted, in addition
     /// to the current clipping path and any other clipping boundaries in effect at that
     /// time
@@ -142,7 +142,7 @@ pub struct BaseShadingDictionary {
     /// A flag indicating whether to filter the shading function to prevent aliasing artifacts
     ///
     /// The shading operators sample shading functions at a rate determined by the resolution
-    /// of the output device. Aliasing can occur if the function is not smooth—that is, if it
+    /// of the output device. Aliasing can occur if the function is not smooth -- that is, if it
     /// has a high spatial frequency relative to the sampling rate. Anti-aliasing can be
     /// computationally expensive and is usually unnecessary, since most shading functions are
     /// smooth enough or are sampled at a high enough frequency to avoid aliasing effects.

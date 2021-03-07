@@ -51,7 +51,7 @@ struct NumberTreeRoot {
     /// Shall be an array of indirect references to the immediate children of this
     /// node. The children may be intermediate or leaf nodes.
     ///
-    ///  Present iff Nums is not present
+    /// Present iff Nums is not present
     kids: Option<Vec<Rc<NumberTreeNode>>>,
 
     /// Shall be an array of the form

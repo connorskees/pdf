@@ -15,7 +15,7 @@ use crate::{
 #[derive(Debug)]
 pub struct RadialShading {
     /// An array of six numbers [x0 y0 r0 x1 y1 r1] specifying the centres and radii of
-    /// the starting and ending circles, expressed in the shading’s target coordinate
+    /// the starting and ending circles, expressed in the shading's target coordinate
     /// space. The radii r0 and r1 shall both be greater than or equal to 0. If one
     /// radius is 0, the corresponding circle shall be treated as a point; if both are
     /// 0, nothing shall be painted
@@ -30,9 +30,9 @@ pub struct RadialShading {
     domain: [f32; 2],
 
     /// A 1-in, n-out function or an array of n 1-in, 1-out functions (where n is the
-    /// number of colour components in the shading dictionary’s colour space). The
+    /// number of colour components in the shading dictionary's colour space). The
     /// function(s) shall be called with values of the parametric variable t in the domain
-    /// defined by the shading dictionary’s Domain entry. Each function’s domain shall be
+    /// defined by the shading dictionary's Domain entry. Each function's domain shall be
     /// a superset of that of the shading dictionary. If the value returned by the function
     /// for a given colour component is out of range, it shall be adjusted to the nearest
     /// valid value.

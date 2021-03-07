@@ -16,7 +16,7 @@ use crate::{
 #[derive(Debug)]
 pub struct AxialShading {
     /// An array of four numbers [x0 y0 x1 y1] specifying the starting and ending coordinates
-    /// of the axis, expressed in the shading’s target coordinate space
+    /// of the axis, expressed in the shading's target coordinate space
     coords: Coords,
 
     /// An array of two numbers [t0 t1] specifying the limiting values of a parametric variable
@@ -28,9 +28,9 @@ pub struct AxialShading {
     domain: [f32; 2],
 
     /// A 1-in, n-out function or an array of n 1-in, 1-out functions (where n is the number of
-    /// colour components in the shading dictionary’s colour space). The function(s) shall be
+    /// colour components in the shading dictionary's colour space). The function(s) shall be
     /// called with values of the parametric variable t in the domain defined by the Domain entry.
-    /// Each function’s domain shall be a superset of that of the shading dictionary. If the value
+    /// Each function's domain shall be a superset of that of the shading dictionary. If the value
     /// returned by the function for a given colour component is out of range, it shall be adjusted
     /// to the nearest valid value
     function: Function,

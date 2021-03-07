@@ -17,7 +17,7 @@ pub(crate) struct ObjectStream<'a> {
 pub(crate) struct ObjectStreamDict {
     pub(crate) stream_dict: StreamDict,
 
-    ///  The number of indirect objects stored in the stream
+    /// The number of indirect objects stored in the stream
     pub(crate) n: usize,
 
     /// The byte offset in the decoded stream of the first compressed object

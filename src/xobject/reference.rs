@@ -19,7 +19,7 @@ pub struct ReferenceXObject {
 
     /// An array of two byte strings constituting a file identifier for
     /// the file containing the target document. The use of this entry
-    /// improves an reader’s chances of finding the intended file and
+    /// improves an reader's chances of finding the intended file and
     /// allows it to warn the user if the file has changed since the
     /// reference was created
     id: Option<FileIdentifier>,

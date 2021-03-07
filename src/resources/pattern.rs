@@ -65,7 +65,7 @@ pub struct TilingPattern {
     tiling_type: TilingType,
 
     /// An array of four numbers in the pattern coordinate system giving the coordinates of the
-    /// left, bottom, right, and top edges, respectively, of the pattern cell’s bounding box. These
+    /// left, bottom, right, and top edges, respectively, of the pattern cell's bounding box. These
     /// boundaries shall be used to clip the pattern cell
     bbox: Rectangle,
 
@@ -80,7 +80,7 @@ pub struct TilingPattern {
     /// XStep and YStep may be either positive or negative but shall not be zero
     y_step: f32,
 
-    /// A resource dictionary that shall contain all of the named resources required by the pattern’s
+    /// A resource dictionary that shall contain all of the named resources required by the pattern's
     /// content stream
     resources: Resources,
 
@@ -119,7 +119,7 @@ impl TilingPattern {
 
 #[derive(Debug)]
 pub struct ShadingPattern {
-    /// A shading object defining the shading pattern’s gradient fill
+    /// A shading object defining the shading pattern's gradient fill
     shading: ShadingObject,
 
     /// An array of six numbers specifying the pattern matrix
@@ -170,13 +170,13 @@ pdf_enum!(
     int
     #[derive(Debug)]
     enum PaintType {
-        ///  The pattern’s content stream shall specify the colours used to paint the pattern
+        /// The pattern's content stream shall specify the colours used to paint the pattern
         /// cell. When the content stream begins execution, the current colour is the one
-        /// that was initially in effect in the pattern’s parent content stream. This is
+        /// that was initially in effect in the pattern's parent content stream. This is
         /// similar to the definition of the pattern matrix
         Colored = 1,
 
-        /// The pattern’s content stream shall not specify any colour information. Instead,
+        /// The pattern's content stream shall not specify any colour information. Instead,
         /// the entire pattern cell is painted with a separately specified colour each time
         /// the pattern is used. Essentially, the content stream describes a stencil
         /// through which the current colour shall be poured. The content stream shall not
@@ -191,7 +191,7 @@ pdf_enum!(
     int
     #[derive(Debug)]
     enum TilingType {
-        /// Pattern cells shall be spaced consistently—that is, by a multiple of a device
+        /// Pattern cells shall be spaced consistently -- that is, by a multiple of a device
         /// pixel. To achieve this, the conforming reader may need to distort the pattern
         /// cell slightly by making small adjustments to XStep, YStep, and the transformation
         /// matrix. The amount of distortion shall not exceed 1 device pixel

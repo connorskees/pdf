@@ -37,19 +37,19 @@ pub struct CoonsPatchMeshShading {
     /// appropriate ranges of values. The decoding method is similar to that used in image
     /// dictionaries. The ranges shall be specified as follows:
     ///
-    /// [xmin xmax ymin ymax c1,min c1,max … cn,min cn,max]
+    /// [xmin xmax ymin ymax c1,min c1,max ... cn,min cn,max]
     ///
     /// Only one pair of c values shall be specified if a Function entry is present
     decode: Vec<f32>,
 
     /// A 1-in, n-out function or an array of n 1-in, 1-out functions (where n is
-    /// the number of colour components in the shading dictionary’s colour space).
+    /// the number of colour components in the shading dictionary's colour space).
     /// If this entry is present, the colour data for each vertex shall be specified
     /// by a single parametric variable rather than by n separate colour components.
     /// The designated function(s) shall be called with each interpolated value of
     /// the parametric variable to determine the actual colour at each point. Each
     /// input value shall be forced into the range interval specified for the corresponding
-    /// colour component in the shading dictionary’s Decode array. Each function’s
+    /// colour component in the shading dictionary's Decode array. Each function's
     /// domain shall be a superset of that interval. If the value returned by the
     /// function for a given colour component is out of range, it shall be adjusted
     /// to the nearest valid value.

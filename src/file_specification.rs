@@ -91,7 +91,7 @@ pub struct FullFileSpecification {
     /// shall be indirectly referenced.
     rf: Option<Dictionary>,
 
-    ///  Descriptive text associated with the file specification.
+    /// Descriptive text associated with the file specification.
     ///
     /// It shall be used for files in the EmbeddedFiles name tree
     description: Option<String>,

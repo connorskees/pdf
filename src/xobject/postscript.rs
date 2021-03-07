@@ -4,7 +4,7 @@ use crate::{error::PdfResult, stream::Stream, Resolve};
 pub struct PostScriptXObject {
     stream: Stream,
 
-    /// A stream whose contents shall be used in place of the PostScript XObject’s stream
+    /// A stream whose contents shall be used in place of the PostScript XObject's stream
     /// when the target PostScript interpreter is known to support only LanguageLevel 1
     level_one: Option<Stream>,
 }
