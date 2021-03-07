@@ -327,13 +327,10 @@ trait Lex {
         }
     }
 
-    fn expect_byte(&mut self, b: u8) -> PdfResult<()> {
+    fn expect_byte(&mut self, expected: u8) -> PdfResult<()> {
         match self.next_byte() {
-            Some(b2) if b == b2 => Ok(()),
-            b2 => Err(ParseError::MismatchedByte {
-                expected: b,
-                found: b2,
-            }),
+            Some(found) if expected == found => Ok(()),
+            found => Err(ParseError::MismatchedByte { expected, found }),
         }
     }
 
@@ -357,7 +354,7 @@ trait Lex {
                 return Err(ParseError::MismatchedByteMany {
                     expected: &[b'\n', b'\r'],
                     found: b,
-                })
+                });
             }
         }
 
@@ -716,7 +713,6 @@ trait Lex {
         let stream = self.get_byte_range(self.cursor(), self.cursor() + stream_dict.len);
         *self.cursor_mut() += stream_dict.len;
 
-        self.expect_eol()?;
         self.skip_whitespace();
 
         self.expect_bytes(b"endstream")?;

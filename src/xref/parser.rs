@@ -190,7 +190,7 @@ impl<'a> XrefParser<'a> {
             self.skip_whitespace();
 
             let num_of_entries = self.lex_whole_number().parse::<usize>().unwrap();
-            self.expect_eol()?;
+            self.skip_whitespace();
 
             objects.reserve(num_of_entries);
 
