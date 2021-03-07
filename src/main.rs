@@ -32,12 +32,12 @@ use std::{borrow::Cow, cell::RefCell, collections::HashMap, convert::TryFrom, io
 
 use crate::{
     annotation::Annotation,
-    catalog::{DocumentCatalog, GroupAttributes, InformationDictionary, Rectangle},
+    catalog::{DocumentCatalog, GroupAttributes, InformationDictionary},
     error::{ParseError, PdfResult},
     filter::decode_stream,
     object_stream::{ObjectStream, ObjectStreamDict, ObjectStreamParser},
     objects::{Dictionary, Object, ObjectType, Reference, TypeOrArray},
-    page::{PageNode, PageObject, PageTree, PageTreeNode, TabOrder},
+    page::{InheritablePageFields, PageNode, PageObject, PageTree, PageTreeNode, TabOrder},
     resources::Resources,
     stream::{Stream, StreamDict},
     trailer::Trailer,
@@ -878,12 +878,14 @@ impl Lexer {
                 kids: Vec::new(),
                 pages: HashMap::new(),
                 count: 0,
+                inheritable_page_fields: InheritablePageFields::new(),
             }))));
         };
 
         let mut root_dict = self.assert_dict(Object::Reference(root_reference))?;
         let count = root_dict.expect_integer("Count", self)? as usize;
         let raw_kids = root_dict.expect_arr("Kids", self)?;
+        let inheritable_page_fields = InheritablePageFields::from_dict(&mut root_dict, self)?;
 
         root_dict.expect_type("Pages", self, true)?;
 
@@ -891,6 +893,7 @@ impl Lexer {
 
         let root = PageNode::Root(Rc::new(RefCell::new(PageTree {
             count,
+            inheritable_page_fields,
             pages: HashMap::new(),
             kids: Vec::new(),
         })));
@@ -939,27 +942,18 @@ impl Lexer {
     ) -> PdfResult<()> {
         let parent = dict.expect_reference("Parent")?;
         let last_modified = None;
-        let resources = Resources::from_dict(dict.expect_dict("Resources", self)?, self)?;
-        let media_box = Rectangle::from_arr(dict.expect_arr("MediaBox", self)?, self)?;
-        let crop_box = dict
-            .get_arr("CropBox", self)?
-            .map(|objs| Rectangle::from_arr(objs, self))
+        let resources = dict
+            .get_dict("Resources", self)?
+            .map(|dict| Resources::from_dict(dict, self))
             .transpose()?;
-        let bleed_box = dict
-            .get_arr("BleedBox", self)?
-            .map(|objs| Rectangle::from_arr(objs, self))
-            .transpose()?;
-        let trim_box = dict
-            .get_arr("TrimBox", self)?
-            .map(|objs| Rectangle::from_arr(objs, self))
-            .transpose()?;
-        let art_box = dict
-            .get_arr("ArtBox", self)?
-            .map(|objs| Rectangle::from_arr(objs, self))
-            .transpose()?;
+        let media_box = dict.get_rectangle("MediaBox", self)?;
+        let crop_box = dict.get_rectangle("CropBox", self)?;
+        let bleed_box = dict.get_rectangle("BleedBox", self)?;
+        let trim_box = dict.get_rectangle("TrimBox", self)?;
+        let art_box = dict.get_rectangle("ArtBox", self)?;
         let box_color_info = None;
         let contents = dict.get_type_or_arr("Contents", self, Lexer::assert_stream)?;
-        let rotate = dict.get_integer("Rotate", self)?.unwrap_or(0);
+        let rotate = dict.get_integer("Rotate", self)?;
         let group = dict
             .get_dict("Group", self)?
             .map(|dict| GroupAttributes::from_dict(dict, self))
@@ -1051,13 +1045,15 @@ impl Lexer {
         let kids = dict.expect_arr("Kids", self)?;
         let parent = dict.expect_reference("Parent")?;
         let count = dict.expect_integer("Count", self)? as usize;
+        let inheritable_page_fields = InheritablePageFields::from_dict(&mut dict, self)?;
 
         let parent = pages.get(&parent).unwrap().clone();
 
         let this_node = PageNode::Node(Rc::new(RefCell::new(PageTreeNode {
+            count,
+            inheritable_page_fields,
             kids: Vec::new(),
             parent: parent.clone(),
-            count,
         })));
 
         match parent {

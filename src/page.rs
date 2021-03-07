@@ -6,17 +6,21 @@ use crate::{
         PagePiece, Rectangle, SeparationInfo, Transitions, Viewport,
     },
     date::Date,
-    objects::TypeOrArray,
+    error::PdfResult,
+    objects::{Dictionary, TypeOrArray},
     pdf_enum,
     resources::Resources,
     stream::Stream,
-    Reference,
+    Reference, Resolve,
 };
 
 pub struct PageTree {
     pub kids: Vec<PageNode>,
     pub pages: HashMap<Reference, PageNode>,
     pub count: usize,
+
+    /// Fields inheritable by child nodes
+    pub(crate) inheritable_page_fields: InheritablePageFields,
 }
 
 #[derive(Clone)]
@@ -77,6 +81,9 @@ pub struct PageTreeNode {
     /// The number of leaf nodes (page objects) that are descendants
     /// of this node within the page tree
     pub count: usize,
+
+    /// Fields inheritable by child nodes
+    pub(crate) inheritable_page_fields: InheritablePageFields,
 }
 
 impl PageTreeNode {
@@ -110,12 +117,16 @@ pub struct PageObject {
     /// page requires no resources, the value of this entry shall be an
     /// empty dictionary. Omitting the entry entirely indicates that the
     /// resources shall be inherited from an ancestor node in the page tree.
-    pub resources: Resources,
+    ///
+    /// Inheritable
+    pub resources: Option<Resources>,
 
     /// A rectangle, expressed in default user space units, that shall define
     /// the boundaries of the physical medium on which the page shall be displayed
     /// or printed.
-    pub media_box: Rectangle,
+    ///
+    /// Inheritable
+    pub media_box: Option<Rectangle>,
 
     /// A rectangle, expressed in default user space units, that shall
     /// define the visible region of default user space. When the page
@@ -124,6 +135,8 @@ pub struct PageObject {
     /// in some implementation-defined manner.
     ///
     /// Default value: the value of `media_box`.
+    ///
+    /// Inheritable
     pub crop_box: Option<Rectangle>,
 
     /// A rectangle, expressed in default user space units, that shall
@@ -177,7 +190,9 @@ pub struct PageObject {
     /// when displayed or printed. The value shall be a multiple of 90.
     ///
     /// Default value: 0.
-    pub rotate: i32,
+    ///
+    /// Inheritable
+    pub rotate: Option<i32>,
 
     /// A group attributes dictionary that shall specify the attributes of
     /// the page's page group for use in the transparent imaging model
@@ -280,3 +295,41 @@ pdf_enum!(
         Structure = "S",
     }
 );
+
+#[derive(Debug)]
+pub(crate) struct InheritablePageFields {
+    resources: Option<Resources>,
+    media_box: Option<Rectangle>,
+    crop_box: Option<Rectangle>,
+    rotate: Option<i32>,
+}
+
+impl InheritablePageFields {
+    pub fn new() -> Self {
+        Self {
+            resources: None,
+            media_box: None,
+            crop_box: None,
+            rotate: None,
+        }
+    }
+
+    pub fn from_dict(dict: &mut Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        let resources = dict
+            .get_dict("Resources", resolver)?
+            .map(|dict| Resources::from_dict(dict, resolver))
+            .transpose()?;
+
+        let media_box = dict.get_rectangle("MediaBox", resolver)?;
+        let crop_box = dict.get_rectangle("CropBox", resolver)?;
+
+        let rotate = dict.get_integer("Rotate", resolver)?;
+
+        Ok(Self {
+            resources,
+            media_box,
+            crop_box,
+            rotate,
+        })
+    }
+}
