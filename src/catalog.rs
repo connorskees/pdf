@@ -13,7 +13,7 @@ document is opened.
 
 use crate::{
     actions::Actions, assert_empty, data_structures::NumberTree, date::Date,
-    destination::Destination, objects::TypeOrArray, pdf_enum, structure::StructTreeRoot,
+    destination::Destination, pdf_enum, stream::Stream, structure::StructTreeRoot,
     viewer_preferences::ViewerPreferences, Dictionary, Lexer, Object, ParseError, PdfResult,
     Reference, Resolve,
 };
@@ -386,6 +386,12 @@ pub struct AcroForm;
 #[derive(Debug)]
 pub struct MetadataStream;
 
+impl MetadataStream {
+    pub fn from_stream(_stream: Stream, _resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        todo!()
+    }
+}
+
 #[derive(Debug)]
 pub struct MarkInformationDictionary {
     /// A flag indicating whether the document conforms to Tagged PDF conventions.
@@ -427,8 +433,29 @@ pub struct WebCapture;
 pub struct OutputIntent;
 #[derive(Debug)]
 pub struct PagePiece;
+
+impl PagePiece {
+    pub fn from_dict(_dict: Dictionary, _resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        todo!()
+    }
+}
+
+#[derive(Debug)]
+pub struct OptionalContent;
+impl OptionalContent {
+    pub fn from_dict(_dict: Dictionary, _resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        todo!()
+    }
+}
+
 #[derive(Debug)]
 pub struct OptionalContentProperties;
+
+impl OptionalContentProperties {
+    pub fn from_dict(_dict: Dictionary, _resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        todo!()
+    }
+}
 #[derive(Debug)]
 pub struct Permissions;
 #[derive(Debug)]
@@ -507,7 +534,8 @@ pub struct GroupAttributes {
     ///
     /// For a transparency group XObject used as an annotation appearance, the default colour space
     /// shall be inherited from the page on which the annotation appears
-    cs: Option<TypeOrArray<Object>>,
+    // todo: type
+    cs: Option<Object>,
 
     /// A flag specifying whether the transparency group is isolated.
     ///
@@ -536,15 +564,15 @@ pub struct GroupAttributes {
 }
 
 impl GroupAttributes {
-    pub fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
-        let s = dict.expect_name("S", lexer)?;
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        let s = dict.expect_name("S", resolver)?;
         if s != "Transparency" {
             todo!()
         }
 
-        let cs = dict.get_type_or_arr("CS", lexer, |_, obj| Ok(obj))?;
-        let is_isolated = dict.get_bool("I", lexer)?.unwrap_or(false);
-        let is_knockout = dict.get_bool("K", lexer)?.unwrap_or(false);
+        let cs = dict.get_object("CS", resolver)?;
+        let is_isolated = dict.get_bool("I", resolver)?.unwrap_or(false);
+        let is_knockout = dict.get_bool("K", resolver)?.unwrap_or(false);
 
         Ok(GroupAttributes {
             cs,
@@ -564,8 +592,6 @@ pub struct NavigationNode;
 pub struct Viewport;
 #[derive(Debug)]
 pub struct Shading;
-#[derive(Debug)]
-pub struct XObject;
 #[derive(Debug)]
 pub struct Font;
 #[derive(Debug)]

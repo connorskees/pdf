@@ -25,6 +25,7 @@ mod stream;
 mod structure;
 mod trailer;
 mod viewer_preferences;
+mod xobject;
 mod xref;
 
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, convert::TryFrom, io, rc::Rc};

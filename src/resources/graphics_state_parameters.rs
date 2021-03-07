@@ -421,7 +421,7 @@ impl GraphicsStateParameters {
 
 pdf_enum!(
     #[derive(Debug)]
-    enum RenderingIntent {
+    pub enum RenderingIntent {
         AbsoluteColorimetric = "AbsoluteColorimetric",
         RelativeColorimetric = "RelativeColorimetric",
         Saturation = "Saturation",
