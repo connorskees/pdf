@@ -3,8 +3,9 @@ use std::{cell::RefCell, collections::HashMap, fmt, rc::Rc};
 use crate::{
     catalog::{
         AdditionalActions, BoxColorInfo, GroupAttributes, MetadataStream, NavigationNode,
-        PagePiece, Rectangle, SeparationInfo, Transitions, Viewport,
+        PagePiece, SeparationInfo, Transitions, Viewport,
     },
+    data_structures::Rectangle,
     date::Date,
     error::PdfResult,
     objects::{Dictionary, TypeOrArray},

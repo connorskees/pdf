@@ -1,6 +1,6 @@
 use crate::{
-    catalog::{GroupAttributes, MetadataStream, OptionalContent, PagePiece, Rectangle},
-    data_structures::Matrix,
+    catalog::{GroupAttributes, MetadataStream, OptionalContent, PagePiece},
+    data_structures::{Matrix, Rectangle},
     date::Date,
     error::PdfResult,
     resources::Resources,

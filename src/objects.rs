@@ -1,7 +1,7 @@
 use std::{collections::HashMap, convert::TryFrom, fmt};
 
 use crate::{
-    assert_reference, catalog::Rectangle, date::Date, function::Function, stream::Stream,
+    assert_reference, data_structures::Rectangle, date::Date, function::Function, stream::Stream,
     ParseError, PdfResult, Resolve,
 };
 

@@ -5,6 +5,7 @@
 mod actions;
 mod annotation;
 mod catalog;
+mod content;
 mod data_structures;
 mod date;
 mod destination;
@@ -33,6 +34,7 @@ use std::{borrow::Cow, cell::RefCell, collections::HashMap, convert::TryFrom, io
 use crate::{
     annotation::Annotation,
     catalog::{DocumentCatalog, GroupAttributes, InformationDictionary},
+    content::{ContentLexer, ContentToken},
     error::{ParseError, PdfResult},
     filter::decode_stream,
     object_stream::{ObjectStream, ObjectStreamDict, ObjectStreamParser},
@@ -249,7 +251,7 @@ pub trait Resolve {
 }
 
 trait Lex {
-    fn buffer(&self) -> &[u8];
+    fn buffer<'a>(&'a self) -> &'a [u8];
     fn cursor(&self) -> usize;
     fn cursor_mut(&mut self) -> &mut usize;
 
@@ -1186,6 +1188,17 @@ impl Parser {
         }
 
         Ok(None)
+    }
+
+    pub fn page_contents<'a>(&mut self, page: &'a PageObject) -> PdfResult<ContentLexer<'a>> {
+        Ok(match &page.contents {
+            Some(TypeOrArray::Type(stream)) => ContentLexer::new(decode_stream(
+                &stream.stream,
+                &stream.dict,
+                &mut self.lexer,
+            )?),
+            _ => todo!(),
+        })
     }
 
     pub fn run(mut self) -> PdfResult<Vec<Object>> {

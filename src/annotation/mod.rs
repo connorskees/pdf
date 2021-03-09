@@ -1,6 +1,6 @@
 use crate::{
     assert_empty,
-    catalog::Rectangle,
+    data_structures::Rectangle,
     date::Date,
     error::{ParseError, PdfResult},
     objects::{Dictionary, Object, Reference},

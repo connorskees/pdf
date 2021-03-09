@@ -1,6 +1,5 @@
 use crate::{
-    catalog::Rectangle,
-    data_structures::Matrix,
+    data_structures::{Matrix, Rectangle},
     error::PdfResult,
     objects::{Dictionary, Object},
     pdf_enum,

@@ -1,6 +1,6 @@
 use crate::{
     assert_empty,
-    catalog::Rectangle,
+    data_structures::Rectangle,
     error::PdfResult,
     objects::{Dictionary, Object},
     pdf_enum, Resolve,
