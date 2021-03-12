@@ -384,11 +384,29 @@ pub struct UriDict;
 #[derive(Debug)]
 pub struct AcroForm;
 #[derive(Debug)]
-pub struct MetadataStream;
+pub struct MetadataStream {
+    stream: Stream,
+    subtype: MetadataStreamSubtype,
+}
+
+pdf_enum!(
+    #[derive(Debug)]
+    enum MetadataStreamSubtype {
+        Xml = "XML",
+    }
+);
 
 impl MetadataStream {
-    pub fn from_stream(_stream: Stream, _resolver: &mut dyn Resolve) -> PdfResult<Self> {
-        todo!()
+    const TYPE: &'static str = "Metadata";
+
+    pub fn from_stream(mut stream: Stream, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        let dict = &mut stream.dict.other;
+
+        dict.expect_type(Self::TYPE, resolver, true)?;
+
+        let subtype = MetadataStreamSubtype::from_str(&dict.expect_name("Subtype", resolver)?)?;
+
+        Ok(Self { stream, subtype })
     }
 }
 
