@@ -99,10 +99,8 @@ impl TilingPattern {
         let y_step = dict.expect_number("YStep", resolver)?;
         let resources = Resources::from_dict(dict.expect_dict("Resources", resolver)?, resolver)?;
         let matrix = dict
-            .get_arr("Matrix", resolver)?
-            .map(|matrix| Matrix::from_arr(matrix, resolver))
-            .transpose()?
-            .unwrap_or_else(|| Matrix::identity());
+            .get_matrix("Matrix", resolver)?
+            .unwrap_or_else(Matrix::identity);
 
         Ok(Self {
             paint_type,
@@ -138,10 +136,8 @@ impl ShadingPattern {
         let shading = ShadingObject::from_obj(dict.expect_object("Shading", resolver)?, resolver)?;
 
         let matrix = dict
-            .get_arr("Matrix", resolver)?
-            .map(|arr| Matrix::from_arr(arr, resolver))
-            .transpose()?
-            .unwrap_or_else(|| Matrix::identity());
+            .get_matrix("Matrix", resolver)?
+            .unwrap_or_else(Matrix::identity);
 
         let ext_g_state = dict
             .get_dict("ExtGState", resolver)?

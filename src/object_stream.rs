@@ -2,9 +2,10 @@ use std::{borrow::Cow, collections::HashMap, convert::TryFrom};
 
 use crate::{
     error::PdfResult,
+    lex::{LexBase, LexObject},
     objects::{Dictionary, Object, Reference},
     stream::StreamDict,
-    Lex, Resolve,
+    Resolve,
 };
 
 #[derive(Debug)]
@@ -105,7 +106,7 @@ impl ObjectStreamParser {
     }
 }
 
-impl Lex for ObjectStreamParser {
+impl LexBase for ObjectStreamParser {
     fn cursor(&self) -> usize {
         self.cursor
     }
@@ -117,7 +118,9 @@ impl Lex for ObjectStreamParser {
     fn buffer(&self) -> &[u8] {
         &self.decoded_stream
     }
+}
 
+impl LexObject for ObjectStreamParser {
     fn lex_dict(&mut self) -> PdfResult<Object> {
         let dict = self.lex_dict_ignore_stream()?;
 

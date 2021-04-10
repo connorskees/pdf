@@ -1,6 +1,10 @@
 use std::borrow::{Borrow, Cow};
 
-use crate::{error::PdfResult, objects::Object, Lex};
+use crate::{
+    error::PdfResult,
+    lex::{LexBase, LexObject},
+    objects::Object,
+};
 
 use operator::Operator;
 
@@ -123,7 +127,7 @@ impl<'a> ContentLexer<'a> {
     }
 }
 
-impl Lex for ContentLexer<'_> {
+impl LexBase for ContentLexer<'_> {
     fn buffer<'a>(&'a self) -> &'a [u8] {
         self.buffer.borrow()
     }
@@ -135,7 +139,9 @@ impl Lex for ContentLexer<'_> {
     fn cursor_mut(&mut self) -> &mut usize {
         &mut self.cursor
     }
+}
 
+impl LexObject for ContentLexer<'_> {
     fn lex_dict(&mut self) -> PdfResult<Object> {
         Ok(Object::Dictionary(self.lex_dict_ignore_stream()?))
     }

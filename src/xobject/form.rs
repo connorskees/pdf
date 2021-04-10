@@ -99,9 +99,7 @@ impl FormXObject {
 
         let bbox = dict.expect_rectangle("BBox", resolver)?;
         let matrix = dict
-            .get_arr("Matrix", resolver)?
-            .map(|arr| Matrix::from_arr(arr, resolver))
-            .transpose()?
+            .get_matrix("Matrix", resolver)?
             .unwrap_or_else(Matrix::identity);
 
         let resources = dict
