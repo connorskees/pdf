@@ -1,5 +1,5 @@
 [package]
-name = "pdf"
+name = "pdf_parser"
 version = "0.1.0"
 authors = ["Connor Skees <connor1skees@gmail.com>"]
 edition = "2018"
