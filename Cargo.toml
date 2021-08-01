@@ -3,6 +3,10 @@ name = "pdf_parser"
 version = "0.1.0"
 authors = ["Connor Skees <connor1skees@gmail.com>"]
 edition = "2018"
+documentation = "https://docs.rs/pdf_parser"
+readme = "README.md"
+repository = "https://github.com/connorskees/pdf/"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
