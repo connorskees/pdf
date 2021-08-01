@@ -1,7 +1,11 @@
 use std::{collections::HashMap, convert::TryFrom, fmt};
 
 use crate::{
-    assert_reference, data_structures::Rectangle, date::Date, function::Function, stream::Stream,
+    assert_reference,
+    data_structures::{Matrix, Rectangle},
+    date::Date,
+    function::Function,
+    stream::Stream,
     ParseError, PdfResult, Resolve,
 };
 
@@ -391,5 +395,23 @@ impl Dictionary {
         resolver: &mut dyn Resolve,
     ) -> PdfResult<Function> {
         Function::from_obj(self.expect_object(key, resolver)?, resolver)
+    }
+
+    pub fn get_matrix(
+        &mut self,
+        key: &str,
+        resolver: &mut dyn Resolve,
+    ) -> PdfResult<Option<Matrix>> {
+        self.get_arr(key, resolver)?
+            .map(|obj| Matrix::from_arr(obj, resolver))
+            .transpose()
+    }
+
+    pub fn expect_matrix(
+        &mut self,
+        key: &'static str,
+        resolver: &mut dyn Resolve,
+    ) -> PdfResult<Matrix> {
+        Matrix::from_arr(self.expect_arr(key, resolver)?, resolver)
     }
 }

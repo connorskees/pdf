@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use crate::{
-    assert_empty, error::PdfResult, objects::Dictionary, pdf_enum, shading::ShadingObject,
-    xobject::XObject, Resolve,
+    assert_empty, error::PdfResult, font::Font, objects::Dictionary, pdf_enum,
+    shading::ShadingObject, xobject::XObject, Resolve,
 };
 
 use self::{graphics_state_parameters::GraphicsStateParameters, pattern::Pattern};
@@ -31,13 +31,13 @@ pub struct Resources {
     /// A dictionary that maps resource names to external objects
     xobject: Option<HashMap<String, XObject>>,
 
-    font: Option<Dictionary>,
+    /// A dictionary that maps resource names to font dictionaries
+    font: Option<HashMap<String, Font>>,
 
     /// An array of predefined procedure set names
     proc_set: Option<Vec<ProcedureSet>>,
 
     properties: Option<Dictionary>,
-    // font: Option<HashMap<String, Font>>,
     // properties: Option<HashMap<String, PropertyList>>,
 }
 
@@ -90,7 +90,17 @@ impl Resources {
                     .collect::<PdfResult<HashMap<String, XObject>>>()
             })
             .transpose()?;
-        let font = dict.get_dict("Font", resolver)?;
+
+        let font = dict
+            .get_dict("Font", resolver)?
+            .map(|dict| {
+                dict.entries()
+                    .map(|(key, obj)| {
+                        Ok((key, Font::from_dict(resolver.assert_dict(obj)?, resolver)?))
+                    })
+                    .collect::<PdfResult<HashMap<String, Font>>>()
+            })
+            .transpose()?;
 
         let proc_set = dict
             .get_arr("ProcSet", resolver)?

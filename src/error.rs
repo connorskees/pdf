@@ -3,7 +3,10 @@ use std::{
     num::{ParseIntError, TryFromIntError},
 };
 
-use crate::objects::{Object, ObjectType};
+use crate::{
+    objects::{Object, ObjectType},
+    postscript::PostScriptError,
+};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -46,6 +49,7 @@ pub enum ParseError {
     },
     IntegerConversionError(TryFromIntError),
     ParseIntegerError(ParseIntError),
+    PostScriptError(PostScriptError),
 }
 
 impl From<io::Error> for ParseError {

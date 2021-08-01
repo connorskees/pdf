@@ -41,10 +41,7 @@ impl FunctionBasedShading {
             .transpose()?
             .unwrap_or_default();
 
-        let matrix = dict
-            .get_arr("Matrix", resolver)?
-            .map(|arr| Matrix::from_arr(arr, resolver))
-            .transpose()?;
+        let matrix = dict.get_matrix("Matrix", resolver)?;
 
         let function = dict.expect_function("Function", resolver)?;
 

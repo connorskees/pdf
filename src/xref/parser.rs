@@ -2,13 +2,14 @@ use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
     filter::flate::{FlateDecoder, FlateDecoderParams},
+    lex::{LexBase, LexObject},
     objects::{Dictionary, Object, ObjectType},
     trailer::Trailer,
     xref::{
         stream::{XrefStream, XrefStreamDict},
         Xref,
     },
-    Lex, ParseError, PdfResult, Reference, Resolve, TypeOrArray,
+    ParseError, PdfResult, Reference, Resolve, TypeOrArray,
 };
 
 use super::{stream::parser::XrefStreamParser, XrefEntry};
@@ -22,7 +23,7 @@ pub(crate) struct XrefParser<'a> {
     pos: usize,
 }
 
-impl Lex for XrefParser<'_> {
+impl LexBase for XrefParser<'_> {
     fn buffer(&self) -> &[u8] {
         &self.file
     }
@@ -34,7 +35,9 @@ impl Lex for XrefParser<'_> {
     fn cursor_mut(&mut self) -> &mut usize {
         &mut self.pos
     }
+}
 
+impl LexObject for XrefParser<'_> {
     fn lex_dict(&mut self) -> PdfResult<Object> {
         Ok(Object::Dictionary(self.lex_dict_ignore_stream()?))
     }

@@ -484,8 +484,6 @@ pub struct Requirement;
 pub struct Collection;
 #[derive(Debug)]
 pub struct BoxColorInfo;
-#[derive(Debug)]
-pub struct ContentStream;
 
 #[derive(Debug)]
 pub struct GroupAttributes {
@@ -581,10 +579,6 @@ pub struct SeparationInfo;
 pub struct NavigationNode;
 #[derive(Debug)]
 pub struct Viewport;
-#[derive(Debug)]
-pub struct Shading;
-#[derive(Debug)]
-pub struct Font;
 #[derive(Debug)]
 pub struct PropertyList;
 
