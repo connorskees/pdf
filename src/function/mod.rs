@@ -17,7 +17,7 @@ mod postscript_calculator;
 mod sampled;
 mod stitching;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Function {
     /// An array of 2 * m numbers, where m shall be the number of input values.
     /// For each i from 0 to m - 1, Domain2i shall be less than or equal to Domain2i+1,
@@ -98,7 +98,7 @@ impl Function {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum FunctionSubtype {
     Sampled(SampledFunction),
     ExponentialInterpolation(ExponentialInterpolationFunction),
@@ -146,7 +146,7 @@ pdf_enum!(
     }
 );
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SpotFunction {
     Predefined(PredefinedSpotFunction),
     Function(Function),
@@ -163,7 +163,7 @@ impl SpotFunction {
 }
 
 pdf_enum!(
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy)]
     pub enum PredefinedSpotFunction {
         SimpleDot = "SimpleDot",
         InvertedSimpleDot = "InvertedSimpleDot",
@@ -188,7 +188,7 @@ pdf_enum!(
     }
 );
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TransferFunction {
     Identity,
     Default,

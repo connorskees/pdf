@@ -5,7 +5,7 @@ use super::Function;
 /// Type 3 functions (PDF 1.3) define a stitching of the subdomains of several 1-input functions to
 /// produce a single new 1-input function. Since the resulting stitching function is a 1-input function,
 /// the domain is given by a twoelement array, [Domain0 Domain1].
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StitchingFunction {
     /// An array of k 1-input functions that shall make up the stitching function. The output
     /// dimensionality of all functions shall be the same, and compatible with the value of Range if Range

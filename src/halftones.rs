@@ -7,7 +7,7 @@ use crate::{
     Resolve,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Halftones {
     Default,
     Dictionary(HalftoneDictionary),
@@ -32,7 +32,7 @@ impl Halftones {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HalftoneStream {}
 
 impl HalftoneStream {
@@ -41,7 +41,7 @@ impl HalftoneStream {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum HalftoneDictionary {
     One(HalftoneOne),
     Five(HalftoneFive),
@@ -90,7 +90,7 @@ impl HalftoneType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HalftoneOne {
     /// The screen frequency, measured in halftone cells per inch in device space
     frequency: f32,
@@ -142,7 +142,7 @@ impl HalftoneOne {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HalftoneFive {
     colorant: ColorSpace,
     default: Box<Halftones>,
@@ -154,7 +154,7 @@ impl HalftoneFive {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HalftoneSix {
     width: i32,
     height: i32,
@@ -178,7 +178,7 @@ impl HalftoneSix {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HalftoneTen {
     /// The side of square X, in device pixels
     x_square: i32,
@@ -206,7 +206,7 @@ impl HalftoneTen {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HalftoneSixteen {
     /// The width of the first (or only) rectangle in the threshold array, in device pixels.
     width: i32,

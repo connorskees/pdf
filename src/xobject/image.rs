@@ -18,6 +18,8 @@ pub struct ImageXObject {
     /// The height of the image, in samples
     height: u32,
 
+    stream: Stream,
+
     /// The colour space in which image samples shall be specified; it can be
     /// any type of colour space except Pattern.
     ///
@@ -205,6 +207,7 @@ impl ImageXObject {
         Ok(Self {
             width,
             height,
+            stream,
             color_space,
             bits_per_component,
             intent,

@@ -6,7 +6,7 @@ use crate::{
     objects::Object,
 };
 
-use operator::Operator;
+pub(crate) use operator::PdfGraphicsOperator;
 
 mod operator;
 
@@ -24,7 +24,7 @@ pub struct ContentLexer<'a> {
 #[derive(Debug)]
 pub enum ContentToken {
     Object(Object),
-    Operator(Operator),
+    Operator(PdfGraphicsOperator),
 }
 
 #[derive(Debug)]
@@ -105,7 +105,7 @@ impl<'a> ContentLexer<'a> {
             )));
         }
 
-        Ok(if let Ok(op) = Operator::from_str(s) {
+        Ok(if let Ok(op) = PdfGraphicsOperator::from_str(s) {
             ContentTokenOrUnknownOperator::Token(ContentToken::Operator(op))
         } else {
             ContentTokenOrUnknownOperator::UnknownOperator(s.to_owned())

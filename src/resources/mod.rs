@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     assert_empty, error::PdfResult, font::Font, objects::Dictionary, pdf_enum,
@@ -14,30 +14,30 @@ pub mod pattern;
 pub struct Resources {
     /// A dictionary that maps resource names to
     /// graphics state parameter dictionaries
-    ext_g_state: Option<HashMap<String, GraphicsStateParameters>>,
+    pub ext_g_state: Option<HashMap<String, GraphicsStateParameters>>,
 
     /// A dictionary that maps each resource name to
     /// either the name of a device-dependent color
     /// space or an array describing a color space
     // color_space: Option<HashMap<String, ColorSpace>>,
-    color_space: Option<Dictionary>,
+    pub color_space: Option<Dictionary>,
 
     /// A dictionary that maps resource names to pattern objects
-    pattern: Option<HashMap<String, Pattern>>,
+    pub pattern: Option<HashMap<String, Pattern>>,
 
     /// A dictionary that maps resource names to shading dictionaries
-    shading: Option<HashMap<String, ShadingObject>>,
+    pub shading: Option<HashMap<String, ShadingObject>>,
 
     /// A dictionary that maps resource names to external objects
-    xobject: Option<HashMap<String, XObject>>,
+    pub xobject: Option<HashMap<String, XObject>>,
 
     /// A dictionary that maps resource names to font dictionaries
-    font: Option<HashMap<String, Font>>,
+    pub font: Option<HashMap<String, Rc<Font>>>,
 
     /// An array of predefined procedure set names
-    proc_set: Option<Vec<ProcedureSet>>,
+    pub proc_set: Option<Vec<ProcedureSet>>,
 
-    properties: Option<Dictionary>,
+    pub properties: Option<Dictionary>,
     // properties: Option<HashMap<String, PropertyList>>,
 }
 
@@ -96,9 +96,12 @@ impl Resources {
             .map(|dict| {
                 dict.entries()
                     .map(|(key, obj)| {
-                        Ok((key, Font::from_dict(resolver.assert_dict(obj)?, resolver)?))
+                        Ok((
+                            key,
+                            Rc::new(Font::from_dict(resolver.assert_dict(obj)?, resolver)?),
+                        ))
                     })
-                    .collect::<PdfResult<HashMap<String, Font>>>()
+                    .collect::<PdfResult<HashMap<String, Rc<Font>>>>()
             })
             .transpose()?;
 

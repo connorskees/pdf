@@ -2,7 +2,7 @@ use crate::{error::PdfResult, objects::Dictionary, Resolve};
 
 /// Type 2 functions (PDF 1.3) include a set of parameters that define an exponential
 /// interpolation of one input value and n output values
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExponentialInterpolationFunction {
     /// An array of n numbers that shall define the function result when x = 0.0.
     ///

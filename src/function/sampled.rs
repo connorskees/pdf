@@ -3,7 +3,7 @@ use crate::{error::PdfResult, pdf_enum, stream::Stream, Resolve};
 /// Type 0 functions use a sequence of sample values (contained in a stream) to provide an
 /// approximation for functions whose domains and ranges are bounded. The samples are organized
 /// as an m-dimensional table in which each entry has n components.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SampledFunction {
     /// An array of m positive integers that shall specify the number of samples in each
     /// input dimension of the sample table
@@ -82,7 +82,7 @@ impl SampledFunction {
 
 pdf_enum!(
     int
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy)]
     enum InterpolationOrder {
         Linear = 1,
         Cubic = 3,
@@ -109,5 +109,3 @@ pdf_enum!(
         ThirtyTwo = 32,
     }
 );
-
-//1, 2, 4, 8, 12, 16, 24, and 32

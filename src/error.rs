@@ -6,6 +6,7 @@ use std::{
 use crate::{
     objects::{Object, ObjectType},
     postscript::PostScriptError,
+    render::error::PdfRenderError,
 };
 
 #[derive(Debug)]
@@ -50,11 +51,18 @@ pub enum ParseError {
     IntegerConversionError(TryFromIntError),
     ParseIntegerError(ParseIntError),
     PostScriptError(PostScriptError),
+    RenderError(PdfRenderError),
 }
 
 impl From<io::Error> for ParseError {
     fn from(err: io::Error) -> Self {
         Self::IoError(err)
+    }
+}
+
+impl From<PdfRenderError> for ParseError {
+    fn from(err: PdfRenderError) -> Self {
+        Self::RenderError(err)
     }
 }
 

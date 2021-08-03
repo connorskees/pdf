@@ -1,6 +1,6 @@
 use crate::{error::PdfResult, objects::Dictionary, pdf_enum, stream::Stream, Resolve};
 
-use self::{form::FormXObject, image::ImageXObject, postscript::PostScriptXObject};
+pub use self::{form::FormXObject, image::ImageXObject, postscript::PostScriptXObject};
 
 mod form;
 mod image;

@@ -1,6 +1,6 @@
 use crate::{catalog::assert_len, error::PdfResult, objects::Object, Resolve};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Rectangle {
     lower_left_x: f32,
     lower_left_y: f32,

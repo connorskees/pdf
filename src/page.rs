@@ -47,6 +47,18 @@ impl PageNode {
 
         leaves
     }
+
+    pub fn crop_box(&self) -> Option<Rectangle> {
+        match self {
+            Self::Root(tree) => tree.borrow().inheritable_page_fields.crop_box,
+            Self::Node(node) => node
+                .borrow()
+                .inheritable_page_fields
+                .crop_box
+                .or_else(|| node.borrow().parent.crop_box()),
+            Self::Leaf(leaf) => leaf.crop_box(),
+        }
+    }
 }
 
 impl fmt::Debug for PageNode {
@@ -270,6 +282,14 @@ pub struct PageObject {
     /// An array of viewport dictionaries that shall specify rectangular
     /// regions of the page.
     pub vp: Option<Viewport>,
+}
+
+impl PageObject {
+    pub fn crop_box(&self) -> Option<Rectangle> {
+        self.crop_box
+            .or_else(|| self.parent.crop_box())
+            .or(self.media_box)
+    }
 }
 
 impl fmt::Debug for PageObject {

@@ -4,7 +4,7 @@ use crate::pdf_enum;
 
 use crate::postscript::{PostScriptError, PostScriptResult};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct PostScriptFunctionLexer {
     buffer: Box<[u8]>,
     cursor: usize,

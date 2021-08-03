@@ -20,6 +20,7 @@ mod object_stream;
 mod objects;
 mod page;
 mod postscript;
+mod render;
 mod resolve;
 mod resources;
 mod shading;
@@ -502,24 +503,20 @@ impl Parser {
             _ => todo!(),
         })
     }
-
-    pub fn run(self) -> PdfResult<Vec<Object>> {
-        // for page in self.pages() {
-        //     let mut content = self.page_contents(&*page).unwrap();
-
-        //     let renderer = renderer::Renderer::new(&mut content, &mut self.lexer);
-
-        //     renderer.render().unwrap();
-        // }
-        // dbg!(self.info().unwrap());
-        todo!()
-    }
 }
 
 fn main() -> PdfResult<()> {
-    let parser = Parser::new("connor-skees.pdf")?;
+    // dbg!(&parser.page_tree);
 
-    dbg!(parser.run().unwrap());
+    for page in parser.pages() {
+        let mut content = parser.page_contents(&*page).unwrap();
+
+        let renderer = render::Renderer::new(&mut content, &mut parser.lexer, Rc::clone(&page));
+
+        renderer.render().unwrap();
+    }
+
+    // dbg!(parser.run().unwrap());
 
     Ok(())
 }

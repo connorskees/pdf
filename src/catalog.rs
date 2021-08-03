@@ -582,7 +582,7 @@ pub struct Viewport;
 #[derive(Debug)]
 pub struct PropertyList;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ColorSpace {
     // Device
     DeviceGray(f32),
