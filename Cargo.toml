@@ -14,3 +14,5 @@ description = "PDF parser"
 [dependencies]
 fast-float = "0.2.0"
 flate2 = "1.0.20"
+jpeg-decoder = "0.1.22"
+minifb = "0.19.3"
