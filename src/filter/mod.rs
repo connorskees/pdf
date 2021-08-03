@@ -2,6 +2,7 @@ use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
     error::PdfResult,
+    filter::dct::DctDecoder,
     objects::{Dictionary, TypeOrArray},
     pdf_enum,
     stream::StreamDict,
@@ -11,6 +12,7 @@ use crate::{
 use flate::{FlateDecoder, FlateDecoderParams};
 
 pub mod ascii;
+pub mod dct;
 pub mod flate;
 
 pub(crate) fn decode_stream<'a>(
@@ -49,7 +51,7 @@ pub(crate) fn decode_stream<'a>(
                 FilterKind::RunLength => todo!(),
                 FilterKind::CcittFax => todo!(),
                 FilterKind::Jbig2 => todo!(),
-                FilterKind::Dct => todo!(),
+                FilterKind::Dct => stream = DctDecoder::new(Cow::Owned(stream)).decode(),
                 FilterKind::Jpx => todo!(),
                 FilterKind::Crypt => todo!(),
             }

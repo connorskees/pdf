@@ -506,8 +506,6 @@ impl Parser {
 }
 
 fn main() -> PdfResult<()> {
-    // dbg!(&parser.page_tree);
-
     for page in parser.pages() {
         let mut content = parser.page_contents(&*page).unwrap();
 

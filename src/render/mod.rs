@@ -67,7 +67,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
         Self {
             content,
             resolver,
-            canvas: Canvas::new(1000, 1000),
+            canvas: Canvas::new(2500, 2500),
             graphics_state_stack: Vec::new(),
             operand_stack: Vec::new(),
             graphics_state: GraphicsState::default(),
@@ -81,7 +81,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
 
             match token {
                 ContentToken::Object(obj) => self.operand_stack.push(obj),
-                ContentToken::Operator(op) => match op {
+                ContentToken::Operator(op) => match dbg!(op) {
                     PdfGraphicsOperator::G => self.set_stroking_gray()?,
                     PdfGraphicsOperator::g => self.set_nonstroking_gray()?,
                     PdfGraphicsOperator::BT => self.begin_text()?,
@@ -89,6 +89,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
                     PdfGraphicsOperator::Td => self.move_text_position()?,
                     PdfGraphicsOperator::TJ => self.draw_text_adjusted()?,
                     PdfGraphicsOperator::q => self.save_graphics_state()?,
+                    PdfGraphicsOperator::Q => self.restore_graphics_state()?,
                     PdfGraphicsOperator::cm => self.transform_ctm()?,
                     PdfGraphicsOperator::Do => self.draw_xobject_by_name()?,
                     _ => todo!("unimplemented operator: {:?}", op),
@@ -215,6 +216,14 @@ impl<'a, 'b> Renderer<'a, 'b> {
         Ok(())
     }
 
+    fn restore_graphics_state(&mut self) -> PdfResult<()> {
+        if let Some(state) = self.graphics_state_stack.pop() {
+            self.graphics_state = state;
+        }
+
+        Ok(())
+    }
+
     /// Modify the current transformation matrix (CTM) by concatenating the
     /// specified matrix. Although the operands specify a matrix, they shall be
     /// written as six separate numbers, not as an array.
@@ -250,7 +259,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
                 .and_then(|xobject| xobject.get(&name));
 
             match xobject {
-                Some(XObject::Image(image)) => self.canvas.draw_image(image),
+                Some(XObject::Image(image)) => self.canvas.draw_image(image, self.resolver)?,
                 _ => todo!("unimplemented xobject"),
             }
         }

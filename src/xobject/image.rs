@@ -13,12 +13,12 @@ use super::OpenPrepressInterface;
 #[derive(Debug)]
 pub struct ImageXObject {
     /// The width of the image, in samples
-    width: u32,
+    pub width: u32,
 
     /// The height of the image, in samples
-    height: u32,
+    pub height: u32,
 
-    stream: Stream,
+    pub stream: Stream,
 
     /// The colour space in which image samples shall be specified; it can be
     /// any type of colour space except Pattern.
