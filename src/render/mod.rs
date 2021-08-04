@@ -29,6 +29,7 @@ pub struct Renderer<'a, 'b> {
     operand_stack: Vec<Object>,
     graphics_state: GraphicsState,
     page: Rc<PageObject>,
+    current_path: Path,
 }
 
 impl<'a, 'b> Renderer<'a, 'b> {
@@ -72,6 +73,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
             operand_stack: Vec::new(),
             graphics_state: GraphicsState::default(),
             page,
+            current_path: Path::empty(),
         }
     }
 
@@ -91,7 +93,13 @@ impl<'a, 'b> Renderer<'a, 'b> {
                     PdfGraphicsOperator::q => self.save_graphics_state()?,
                     PdfGraphicsOperator::Q => self.restore_graphics_state()?,
                     PdfGraphicsOperator::cm => self.transform_ctm()?,
-                    PdfGraphicsOperator::Do => self.draw_xobject_by_name()?,
+                    PdfGraphicsOperator::Do => self.draw_xobject()?,
+                    PdfGraphicsOperator::w => self.set_line_width()?,
+                    PdfGraphicsOperator::re => self.create_rectangle()?,
+                    PdfGraphicsOperator::W_star => self.set_clipping_path_even_odd()?,
+                    PdfGraphicsOperator::n => self.draw_path_nop()?,
+                    PdfGraphicsOperator::RG => self.set_stroking_rgb()?,
+                    PdfGraphicsOperator::rg => self.set_nonstroking_rgb()?,
                     _ => todo!("unimplemented operator: {:?}", op),
                 },
             }
@@ -119,6 +127,35 @@ impl<'a, 'b> Renderer<'a, 'b> {
             .device_independent
             .color_space
             .nonstroking = ColorSpace::DeviceGray(gray);
+
+        Ok(())
+    }
+
+    /// Set the stroking colour space to DeviceRGB (or the DefaultRGB colour
+    /// space and set the colour to use for stroking operations. Each operand
+    /// shall be a number between 0.0 (minimum intensity) and 1.0 (maximum
+    /// intensity).
+    fn set_stroking_rgb(&mut self) -> PdfResult<()> {
+        let blue = self.pop_number()?;
+        let green = self.pop_number()?;
+        let red = self.pop_number()?;
+
+        self.graphics_state.device_independent.color_space.stroking =
+            ColorSpace::DeviceRGB { red, green, blue };
+
+        Ok(())
+    }
+
+    /// Same as [Renderer::set_stroking_rgb] but used for nonstroking operations.
+    fn set_nonstroking_rgb(&mut self) -> PdfResult<()> {
+        let blue = self.pop_number()?;
+        let green = self.pop_number()?;
+        let red = self.pop_number()?;
+
+        self.graphics_state
+            .device_independent
+            .color_space
+            .nonstroking = ColorSpace::DeviceRGB { red, green, blue };
 
         Ok(())
     }
@@ -249,7 +286,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
     /// associated value shall be a stream whose Type entry, if present, is XObject.
     ///
     /// The effect of `Do` depends on the value of the XObject’s Subtype entry
-    fn draw_xobject_by_name(&mut self) -> PdfResult<()> {
+    fn draw_xobject(&mut self) -> PdfResult<()> {
         let name = self.pop_name()?;
 
         if let Some(resources) = &self.page.resources {
@@ -263,6 +300,51 @@ impl<'a, 'b> Renderer<'a, 'b> {
                 _ => todo!("unimplemented xobject"),
             }
         }
+
+        Ok(())
+    }
+
+    /// Set the line width in the graphics state
+    fn set_line_width(&mut self) -> PdfResult<()> {
+        let line_width = self.pop_number()?;
+
+        self.graphics_state.device_independent.line_width = line_width;
+
+        Ok(())
+    }
+
+    /// Append a rectangle to the current path as a complete subpath, with
+    /// lower-left corner (x, y) and dimensions width and height in user space.
+    fn create_rectangle(&mut self) -> PdfResult<()> {
+        let height = self.pop_number()?;
+        let width = self.pop_number()?;
+        let y = self.pop_number()?;
+        let x = self.pop_number()?;
+
+        self.current_path.subpaths.push(Subpath::Rectangle {
+            x,
+            y,
+            width,
+            height,
+        });
+
+        Ok(())
+    }
+
+    /// Modify the current clipping path by intersecting it with the current
+    /// path, using the even-odd rule to determine which regions lie inside the
+    /// clipping path.
+    fn set_clipping_path_even_odd(&mut self) -> PdfResult<()> {
+        dbg!("unimplemented clipping path operator");
+
+        Ok(())
+    }
+
+    /// End the path object without filling or stroking it. This operator shall
+    /// be a path-painting no-op, used primarily for the side effect of changing
+    /// the current clipping path
+    fn draw_path_nop(&mut self) -> PdfResult<()> {
+        self.current_path = Path::empty();
 
         Ok(())
     }
@@ -284,3 +366,30 @@ pdf_enum!(
         NonZero = 1,
     }
 );
+
+#[derive(Debug, Clone)]
+struct Path {
+    subpaths: Vec<Subpath>,
+}
+
+impl Path {
+    pub fn empty() -> Self {
+        Self {
+            subpaths: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Subpath {
+    Rectangle {
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+    },
+    Point {
+        x: f32,
+        y: f32,
+    },
+}
