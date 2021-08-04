@@ -414,7 +414,7 @@ impl Parser {
 
         let mut xref_parser = XrefParser::new(&file);
         let xref_and_trailer = xref_parser.read_xref()?;
-        let xref = Rc::new(xref_and_trailer.xref);
+        let mut xref = Rc::new(xref_and_trailer.xref);
         let mut lexer = Lexer::new(file.clone(), xref.clone())?;
 
         let trailer = match xref_and_trailer.trailer_or_offset {
@@ -443,6 +443,8 @@ impl Parser {
             }
             TrailerOrOffset::Trailer(trailer) => trailer,
         };
+
+        xref = Rc::clone(&lexer.xref);
 
         let catalog = DocumentCatalog::from_dict(
             lexer.assert_dict(Object::Reference(trailer.root))?,
