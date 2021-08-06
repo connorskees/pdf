@@ -43,7 +43,11 @@ impl MulAssign<Matrix> for Matrix {
 }
 
 impl Matrix {
-    pub fn identity() -> Self {
+    pub const fn new(a: f32, b: f32, c: f32, d: f32, e: f32, f: f32) -> Self {
+        Self { a, b, c, d, e, f }
+    }
+
+    pub const fn identity() -> Self {
         Matrix {
             a: 1.0,
             b: 0.0,
@@ -54,11 +58,7 @@ impl Matrix {
         }
     }
 
-    pub fn new(a: f32, b: f32, c: f32, d: f32, e: f32, f: f32) -> Self {
-        Self { a, b, c, d, e, f }
-    }
-
-    pub fn new_transform(x: f32, y: f32) -> Self {
+    pub const fn new_transform(x: f32, y: f32) -> Self {
         let mut identity = Self::identity();
 
         identity.e = x;
