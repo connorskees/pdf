@@ -55,18 +55,53 @@ pub struct TextState {
     /// of text rise shall move the baseline up. Text rise shall apply to the
     /// vertical coordinate in text space, regardless of the writing mode.
     pub rise: f32,
-    pub knockout: f32,
+
+    /// The text knockout parameter, T_k, shall be a boolean value that determines
+    /// what text elements shall be considered elementary objects for purposes
+    /// of colour compositing in the transparent imaging model. Unlike other text
+    /// state parameters, there is no specific operator for setting this parameter;
+    /// it may be set only through the TK entry in a graphics state parameter
+    /// dictionary by using the gs operator. The text knockout parameter shall
+    /// apply only to entire text objects; it shall not be set between the BT and
+    /// ET operators delimiting a text object.
+    ///
+    /// Its initial value shall be true.
+    ///
+    /// If the parameter is false, each glyph in a text object shall be treated
+    /// as a separate elementary object; when glyphs overlap, they shall composite
+    /// with one another.
+    ///
+    /// If the parameter is true, all glyphs in the text object shall be treated
+    /// together as a single elementary object; when glyphs overlap, later glyphs
+    /// shall overwrite (“knock out”) earlier ones in the area of overlap. This
+    /// behaviour is equivalent to treating the entire text object as if it were
+    /// a non-isolated knockout transparency group. Transparency parameters shall
+    /// be applied to the glyphs individually rather than to the implicit
+    /// transparency group as a whole:
+    ///
+    ///     • Graphics state parameters, including transparency parameters, shall
+    ///       be inherited from the context in which the text object appears. They
+    ///       shall not be saved and restored. The transparency parameters shall
+    ///       not be reset at the beginning of the transparency group (as they
+    ///       are when a transparency group XObject is explicitly invoked). Changes
+    ///       made to graphics state parameters within the text object shall persist
+    ///       beyond the end of the text object.
+    ///
+    ///     • After the implicit transparency group for the text object has been
+    ///       completely evaluated, the group results shall be composited with
+    ///       the backdrop, using the Normal blend mode and alpha and soft mask
+    ///       values of 1.0.
+    ///
+    pub knockout: bool,
 
     pub text_matrix: Matrix,
     pub text_line_matrix: Matrix,
-    pub text_rendering_matrix: Matrix,
 }
 
 impl TextState {
     pub fn reinit(&mut self) {
         self.text_matrix = Matrix::identity();
         self.text_line_matrix = Matrix::identity();
-        self.text_rendering_matrix = Matrix::identity();
     }
 }
 
@@ -81,10 +116,9 @@ impl Default for TextState {
             font_size: 0.0,
             rendering_mode: TextRenderingMode::Fill,
             rise: 0.0,
-            knockout: 0.0,
+            knockout: true,
             text_matrix: Matrix::identity(),
             text_line_matrix: Matrix::identity(),
-            text_rendering_matrix: Matrix::identity(),
         }
     }
 }
