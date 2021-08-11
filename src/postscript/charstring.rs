@@ -258,6 +258,10 @@ impl CharStrings {
                     .get(&PostScriptString::from_bytes(b".notdef".to_vec()))
             })
     }
+
+    pub(crate) fn is_codepoint_defined(&self, c: u8) -> bool {
+        self.0.contains_key(&PostScriptString::from_bytes(vec![c]))
+    }
 }
 
 pub(crate) struct CharStringPainter<'a> {
@@ -273,11 +277,7 @@ pub(crate) struct CharStringPainter<'a> {
 }
 
 impl<'a> CharStringPainter<'a> {
-    pub fn new(
-        // subroutines: &'a [CharString],
-        // other_subroutines: &'a [Procedure],
-        font: &'a Type1PostscriptFont,
-    ) -> Self {
+    pub fn new(font: &'a Type1PostscriptFont) -> Self {
         Self {
             outline: Outline::empty(),
             width_vector: Point::new(0.0, 0.0),
@@ -571,10 +571,11 @@ impl<'a> CharStringPainter<'a> {
     }
 
     fn close_path(&mut self) {
+        let current_point = self.current_path.current_point;
         self.current_path.close_path();
 
         self.outline.paths.push(self.current_path.clone());
-        self.current_path = Path::new(self.current_path.current_point);
+        self.current_path = Path::new(current_point);
     }
 
     fn relative_move_to(&mut self, dx: f32, dy: f32) {
