@@ -9,7 +9,7 @@ mod data;
 /// that enables high-quality rendering even at small sizes and low resolutions
 #[derive(Debug)]
 pub struct Type1Font {
-    base: BaseFontDict,
+    pub base: BaseFontDict,
 
     /// The PostScript name of the font. For Type 1 fonts, this is
     /// always the value of the FontName entry in the font program; for more

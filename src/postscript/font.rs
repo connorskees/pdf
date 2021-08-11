@@ -1,13 +1,11 @@
-use std::{collections::HashMap, convert::TryInto};
-
-use crate::postscript::object::ArrayIndex;
+use crate::{data_structures::Matrix, postscript::object::ArrayIndex};
 
 use super::{
-    decode::decrypt_charstring,
+    charstring::{CharString, CharStrings},
     object::{
         PostScriptArray, PostScriptDictionary, PostScriptObject, PostScriptString, Procedure,
     },
-    GraphicsOperator, PostScriptError, PostScriptResult, PostscriptInterpreter,
+    PostScriptError, PostScriptResult, PostscriptInterpreter,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -64,27 +62,26 @@ impl LanguageGroup {
 }
 
 #[derive(Debug)]
-pub(super) struct Type1PostscriptFont {
+pub(crate) struct Type1PostscriptFont {
     font_info: FontInfo,
     font_name: PostScriptString,
     encoding: PostScriptArray,
     paint_type: PaintType,
     font_type: FontType,
-    // todo: font_matrix: Matrix,
-    font_matrix: PostScriptArray,
-    // todo: font_bounding_box: Rectangle,
+    pub font_matrix: Matrix,
+    // todo: font_bounding_box: BoundingBox,
     font_bounding_box: Procedure,
     unique_id: Option<i32>,
     metrics: Option<Metrics>,
     stroke_width: Option<f32>,
-    private: Private,
-    char_strings: CharStrings,
+    pub(super) private: Private,
+    pub char_strings: CharStrings,
     // todo: fid: Option<FontId>,
     fid: Option<PostScriptObject>,
 }
 
 impl Type1PostscriptFont {
-    pub fn from_dict(
+    pub(super) fn from_dict(
         dict: PostScriptDictionary,
         interpreter: &mut PostscriptInterpreter,
     ) -> PostScriptResult<Self> {
@@ -110,7 +107,7 @@ impl Type1PostscriptFont {
 
         let font_matrix = interpreter
             .get_arr(dict.expect_array(b"FontMatrix", PostScriptError::InvalidFont)?)
-            .clone();
+            .as_matrix()?;
         let font_bounding_box = dict.expect_procedure(b"FontBBox", PostScriptError::InvalidFont)?;
         let unique_id = dict.get_integer(b"UniqueID")?;
 
@@ -255,16 +252,16 @@ impl Metrics {
 
 // todo: a lot more depth to the array entries here
 #[derive(Debug)]
-struct Private {
+pub(super) struct Private {
     /// Charstring subroutines
     ///
     /// Required if OtherSubrs are used
-    subroutines: Option<ArrayIndex>,
+    pub(super) subroutines: Option<Vec<CharString>>,
 
     /// Flex, hint replacement, and future extensions
     ///
     /// Required if Flex or hint replacement are used
-    other_subroutines: Option<ArrayIndex>,
+    pub(super) other_subroutines: Option<Vec<Procedure>>,
 
     /// Number unique to each Type 1 font program
     ///
@@ -345,12 +342,40 @@ struct Private {
 }
 
 impl Private {
-    pub fn from_dict(
+    pub(super) fn from_dict(
         dict: PostScriptDictionary,
-        _interpreter: &mut PostscriptInterpreter,
+        interpreter: &mut PostscriptInterpreter,
     ) -> PostScriptResult<Self> {
-        let subroutines = dict.get_array(b"Subrs")?;
-        let other_subroutines = dict.get_array(b"OtherSubrs")?;
+        let subroutines = dict
+            .get_array(b"Subrs")?
+            .map(|a| interpreter.get_arr(a).clone())
+            .map(|arr| {
+                arr.into_inner()
+                    .into_iter()
+                    .map(|obj| match obj {
+                        PostScriptObject::String(s) => {
+                            CharString::parse(interpreter.get_str(s).as_bytes())
+                        }
+                        _ => Err(PostScriptError::TypeCheck),
+                    })
+                    .collect::<PostScriptResult<Vec<CharString>>>()
+            })
+            .transpose()?;
+
+        let other_subroutines = dict
+            .get_array(b"OtherSubrs")?
+            .map(|a| interpreter.get_arr(a).clone())
+            .map(|arr| {
+                arr.into_inner()
+                    .into_iter()
+                    .map(|obj| match obj {
+                        PostScriptObject::Procedure(p) => Ok(p),
+                        _ => Err(PostScriptError::TypeCheck),
+                    })
+                    .collect::<PostScriptResult<Vec<Procedure>>>()
+            })
+            .transpose()?;
+
         let unique_id = dict.get_integer(b"UniqueID")?;
         let blue_values = dict.expect_array(b"BlueValues", PostScriptError::InvalidFont)?;
         let other_blues = dict.get_array(b"OtherBlues")?;
@@ -399,202 +424,6 @@ impl Private {
         })
     }
 }
-
-#[derive(Debug)]
-struct CharStrings(HashMap<PostScriptString, CharString>);
-
-impl CharStrings {
-    pub fn from_dict(
-        dict: PostScriptDictionary,
-        interpreter: &mut PostscriptInterpreter,
-    ) -> PostScriptResult<Self> {
-        let mut char_strings = HashMap::new();
-
-        for (key, value) in dict.into_iter() {
-            let char_string = match value {
-                PostScriptObject::String(s) => {
-                    CharString::parse(interpreter.get_str(s).clone().as_bytes())?
-                }
-                _ => return Err(PostScriptError::TypeCheck),
-            };
-
-            char_strings.insert(key, char_string);
-        }
-
-        Ok(Self(char_strings))
-    }
-}
-
-#[derive(Debug)]
-enum CharStringStackObject {
-    Integer(i32),
-    Operator(GraphicsOperator),
-}
-
-#[derive(Debug)]
-struct CharString(Vec<CharStringStackObject>);
-
-#[derive(Debug)]
-struct CharStringStack {
-    stack: [i32; 24],
-    end: u8,
-}
-
-impl CharString {
-    pub fn parse(b: &[u8]) -> PostScriptResult<Self> {
-        let b = decrypt_charstring(b);
-
-        let mut i = 0;
-
-        let mut objs = Vec::new();
-
-        while i < b.len() {
-            let byte = b[i];
-
-            i += 1;
-
-            match byte {
-                v @ 0..=31 => match v {
-                    1 => objs.push(CharStringStackObject::Operator(
-                        GraphicsOperator::HorizontalStem,
-                    )),
-                    3 => objs.push(CharStringStackObject::Operator(
-                        GraphicsOperator::VerticalStem,
-                    )),
-                    4 => objs.push(CharStringStackObject::Operator(
-                        GraphicsOperator::VerticalMoveTo,
-                    )),
-                    5 => objs.push(CharStringStackObject::Operator(
-                        GraphicsOperator::RelativeLineTo,
-                    )),
-                    6 => objs.push(CharStringStackObject::Operator(
-                        GraphicsOperator::HorizontalLineTo,
-                    )),
-                    7 => objs.push(CharStringStackObject::Operator(
-                        GraphicsOperator::VerticalLineTo,
-                    )),
-                    8 => objs.push(CharStringStackObject::Operator(
-                        GraphicsOperator::RelativeRelativeCurveTo,
-                    )),
-                    9 => objs.push(CharStringStackObject::Operator(GraphicsOperator::ClosePath)),
-                    10 => objs.push(CharStringStackObject::Operator(
-                        GraphicsOperator::CallSubroutine,
-                    )),
-                    11 => objs.push(CharStringStackObject::Operator(GraphicsOperator::Return)),
-                    12 => {
-                        match b[i] {
-                            0 => objs.push(CharStringStackObject::Operator(
-                                GraphicsOperator::DotSection,
-                            )),
-                            1 => objs.push(CharStringStackObject::Operator(
-                                GraphicsOperator::VerticalStem3,
-                            )),
-                            2 => objs.push(CharStringStackObject::Operator(
-                                GraphicsOperator::HorizontalStem3,
-                            )),
-                            6 => objs.push(CharStringStackObject::Operator(
-                                GraphicsOperator::StandardEncodingAccentedCharacter,
-                            )),
-                            7 => objs.push(CharStringStackObject::Operator(
-                                GraphicsOperator::SideBearingWidth,
-                            )),
-                            12 => objs.push(CharStringStackObject::Operator(GraphicsOperator::Div)),
-                            16 => objs.push(CharStringStackObject::Operator(
-                                GraphicsOperator::CallOtherSubroutine,
-                            )),
-                            17 => objs.push(CharStringStackObject::Operator(GraphicsOperator::Pop)),
-                            33 => objs.push(CharStringStackObject::Operator(
-                                GraphicsOperator::SetCurrentPoint,
-                            )),
-                            v => todo!("INVALID OP CODE: 12 {}", v),
-                        }
-
-                        i += 1;
-                    }
-                    13 => objs.push(CharStringStackObject::Operator(
-                        GraphicsOperator::HorizontalSideBearingWidth,
-                    )),
-                    14 => objs.push(CharStringStackObject::Operator(GraphicsOperator::EndChar)),
-                    21 => objs.push(CharStringStackObject::Operator(
-                        GraphicsOperator::RelativeMoveTo,
-                    )),
-                    22 => objs.push(CharStringStackObject::Operator(
-                        GraphicsOperator::HorizontalMoveTo,
-                    )),
-                    30 => objs.push(CharStringStackObject::Operator(
-                        GraphicsOperator::VerticalHorizontalCurveTo,
-                    )),
-                    31 => objs.push(CharStringStackObject::Operator(
-                        GraphicsOperator::HorizontalVerticalCurveTo,
-                    )),
-                    v => todo!("INVALID OP CODE: {}", v),
-                },
-
-                // A charstring byte containing a value, v, between 32 and
-                // 246 inclusive, indicates the integer v − 139. Thus, the
-                // integer values from −107 through 107 inclusive may be
-                // encoded in a single byte
-                v @ 32..=246 => objs.push(CharStringStackObject::Integer(v as i32 - 139)),
-
-                // A charstring byte containing a value, v, between 247 and
-                // 250 inclusive, indicates an integer involving the next byte,
-                // w, according to the formula:
-                //
-                //   [(v − 247) × 256] + w + 108
-                //
-                // Thus, the integer values between 108 and 1131 inclusive
-                // can be encoded in 2 bytes in this manner
-                v @ 247..=250 => {
-                    let w = b[i] as i32;
-                    let int = ((v as i32 - 247) * 256) + w + 108;
-
-                    i += 1;
-
-                    objs.push(CharStringStackObject::Integer(int));
-                }
-
-                // A charstring byte containing a value, v, between 251 and
-                // 254 inclusive, indicates an integer involving the next
-                // byte, w, according to the formula:
-                //
-                // − [(v − 251) × 256] − w − 108
-                //
-                // Thus, the integer values between −1131 and −108 inclusive
-                // can be encoded in 2 bytes in this manner
-                v @ 251..=254 => {
-                    let w = b[i] as i32;
-                    let int = -((v as i32 - 251) * 256) - w - 108;
-
-                    i += 1;
-
-                    objs.push(CharStringStackObject::Integer(int));
-                }
-
-                // Finally, if the charstring byte contains the value 255,
-                // the next four bytes indicate a two’s complement signed integer.
-                // The first of these four bytes contains the highest order
-                // bits, the second byte contains the next higher order bits
-                // and the fourth byte contains the lowest order bits. Thus,
-                // any 32-bit signed integer may be encoded in 5 bytes in this
-                // manner (the 255 byte plus 4 more bytes)
-                255 => {
-                    let bytes = &b[i..(i + 4)];
-
-                    i += 5;
-
-                    let int = i32::from_be_bytes(bytes.try_into().unwrap());
-
-                    objs.push(CharStringStackObject::Integer(int));
-                }
-            }
-        }
-
-        Ok(Self(objs))
-    }
-}
-
-#[derive(Debug)]
-struct Subroutine;
 
 #[derive(Debug)]
 struct BlueValues;

@@ -383,14 +383,14 @@ pub struct AdditionalActions;
 pub struct UriDict;
 #[derive(Debug)]
 pub struct AcroForm;
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MetadataStream {
     stream: Stream,
     subtype: MetadataStreamSubtype,
 }
 
 pdf_enum!(
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy)]
     enum MetadataStreamSubtype {
         Xml = "XML",
     }
@@ -609,6 +609,15 @@ pub enum ColorSpace {
     Pattern,
     Separation,
     DeviceN,
+}
+
+impl ColorSpace {
+    pub fn as_u32(&self) -> u32 {
+        match self {
+            Self::DeviceGray(n) => *n as u32,
+            _ => todo!("unimplemented color space"),
+        }
+    }
 }
 
 pdf_enum!(

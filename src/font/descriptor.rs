@@ -90,10 +90,10 @@ pub struct FontDescriptor {
     /// actual widths are the same as the value of the MissingWidth entry
     ///
     /// Default value: 0
-    missing_width: f32,
+    pub missing_width: f32,
 
     /// A stream containing a Type 1 font program
-    font_file: Option<Type1FontFile>,
+    pub font_file: Option<Type1FontFile>,
 
     /// A stream containing a TrueType font program
     font_file_two: Option<TrueTypeFontFile>,

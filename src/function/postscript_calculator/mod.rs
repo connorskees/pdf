@@ -4,7 +4,7 @@ use self::lexer::PostScriptFunctionLexer;
 
 mod lexer;
 
-/// A type 4 function (PDF 1.3), also called a PostScript calculator function, shall be
+/// A type 4 function, also called a PostScript calculator function, shall be
 /// represented as a stream containing code written in a small subset of the PostScript language
 #[derive(Debug, Clone)]
 pub struct PostScriptCalculatorFunction {

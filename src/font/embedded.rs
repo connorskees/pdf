@@ -3,7 +3,7 @@ use crate::{
     Resolve,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct EmbeddedFontDictionary {
     /// The length in bytes of the clear-text portion of the Type 1 font program, or the entire
     /// TrueType font program, after it has been decoded using the filters specified by the stream’s
@@ -46,10 +46,10 @@ impl EmbeddedFontDictionary {
 /// Type 1 font program, in the original (noncompact) format described in Adobe Type 1
 /// Font Format. This entry may appear in the font descriptor for a Type1 or MMType1 font
 /// dictionary
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Type1FontFile {
     dict: EmbeddedFontDictionary,
-    stream: Stream,
+    pub stream: Stream,
 }
 
 impl Type1FontFile {

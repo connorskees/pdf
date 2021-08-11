@@ -5,6 +5,8 @@ use std::{
     hash::{Hash, Hasher},
 };
 
+use crate::data_structures::Matrix;
+
 use super::{PostScriptError, PostScriptResult, PostscriptOperator};
 
 pub(super) type Name = PostScriptString;
@@ -67,14 +69,14 @@ impl Procedure {
         }
     }
 
-    pub fn from_toks(toks: Vec<PostScriptObject>) -> Self {
+    pub(super) fn from_toks(toks: Vec<PostScriptObject>) -> Self {
         Self {
             inner: toks,
             access: Access::default(),
         }
     }
 
-    pub fn set_access(&mut self, access: Access) {
+    pub(super) fn set_access(&mut self, access: Access) {
         self.access = access;
     }
 }
@@ -386,6 +388,40 @@ impl PostScriptArray {
 
     pub(super) fn set_access(&mut self, access: Access) {
         self.access = access;
+    }
+
+    pub(super) fn into_inner(self) -> Vec<PostScriptObject> {
+        self.inner
+    }
+
+    fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    pub(super) fn as_matrix(&self) -> PostScriptResult<Matrix> {
+        fn expect_number(obj: &PostScriptObject) -> PostScriptResult<f32> {
+            match obj {
+                PostScriptObject::Float(n) => Ok(*n),
+                PostScriptObject::Int(n) => Ok(*n as f32),
+                _ => Err(PostScriptError::TypeCheck),
+            }
+        }
+
+        if self.len() != 6 {
+            println!("Invalid PostScript matrix");
+            return Err(PostScriptError::InvalidFont);
+        }
+
+        // todo: LIKELY BUG, this should be indexed in opposite order?
+
+        let a = expect_number(&self.inner[5])?;
+        let b = expect_number(&self.inner[4])?;
+        let c = expect_number(&self.inner[3])?;
+        let d = expect_number(&self.inner[2])?;
+        let e = expect_number(&self.inner[1])?;
+        let f = expect_number(&self.inner[0])?;
+
+        Ok(Matrix::new(a, b, c, d, e, f))
     }
 }
 

@@ -1,6 +1,26 @@
-use crate::{error::PdfResult, filter::decode_stream, resolve::Resolve, xobject::ImageXObject};
+use crate::{
+    error::PdfResult,
+    filter::decode_stream,
+    geometry::{CubicBezierCurve, Line, Outline, Path, Point, Subpath},
+    resolve::Resolve,
+    xobject::ImageXObject,
+};
 
 use minifb::{Key, Window, WindowOptions};
+
+fn fuzzy_eq(a: f32, b: f32) -> bool {
+    let a = a.abs();
+    let b = b.abs();
+    let diff = (a - b).abs();
+
+    if a == b {
+        true
+    } else if a == 0.0 || b == 0.0 || diff < f32::MIN {
+        diff < (f32::EPSILON * f32::MIN)
+    } else {
+        diff / (a + b) < f32::EPSILON
+    }
+}
 
 pub(super) struct Canvas {
     width: usize,
@@ -18,8 +38,89 @@ impl Canvas {
         Self {
             width,
             height,
-            buffer: vec![0; width * height],
+            buffer: vec![u32::MAX; width * height],
             window,
+        }
+    }
+
+    pub fn stroke_outline(&mut self, outline: &Outline, color: u32) {
+        for path in &outline.paths {
+            self.stroke_path(path, color);
+        }
+    }
+
+    pub fn stroke_path(&mut self, path: &Path, color: u32) {
+        for &subpath in &path.subpaths {
+            match subpath {
+                Subpath::Line(line) => self.draw_line(line, color),
+                Subpath::Cubic(curve) => self.draw_cubic_bezier_curve(curve, color),
+            }
+        }
+    }
+
+    pub fn draw_line(&mut self, line: Line, color: u32) {
+        let mut start = (line.start.x as i32, line.start.y as i32);
+        let end = (line.end.x as i32, line.end.y as i32);
+
+        let dx = (end.0 - start.0).abs() as i32;
+        let dy = -(end.1 - start.1).abs() as i32;
+
+        let x_step = if start.0 < end.0 { 1 } else { -1 };
+        let y_step = if start.1 < end.1 { 1 } else { -1 };
+
+        let mut err = dx + dy;
+
+        loop {
+            self.paint_point(Point::new(start.0 as f32, start.1 as f32), color);
+
+            if err * 2 >= dy {
+                if start.0 == end.0 {
+                    break;
+                }
+
+                err += dy;
+                start.0 += x_step;
+            }
+
+            if err * 2 <= dx {
+                if start.1 == end.1 {
+                    break;
+                }
+
+                err += dx;
+                start.1 += y_step;
+            }
+        }
+    }
+
+    fn paint_point(&mut self, point: Point, color: u32) {
+        if point.x >= self.width as f32 || point.y >= self.height as f32 {
+            return;
+        }
+
+        assert!(
+            (point.x as usize) < self.width,
+            "{} < {}",
+            point.x,
+            self.width
+        );
+        assert!((point.y as usize) < self.height);
+
+        let end = self.width * self.height - 1;
+        let idx = point.x as usize + (end - self.width) - point.y as usize * self.height;
+
+        self.buffer[(idx as usize).min(self.width * self.height - 1)] = color;
+    }
+
+    pub fn draw_cubic_bezier_curve(&mut self, curve: CubicBezierCurve, color: u32) {
+        let mut t = 0.0_f32;
+
+        while t < 1.0 {
+            let p = curve.basis(t);
+
+            self.paint_point(p, color);
+
+            t += 0.0001;
         }
     }
 
@@ -63,9 +164,13 @@ impl Canvas {
 
     pub fn draw(&mut self) {
         while self.window.is_open() && !self.window.is_key_down(Key::Escape) {
-            self.window
-                .update_with_buffer(&self.buffer, self.width, self.height)
-                .unwrap();
+            self.refresh();
         }
+    }
+
+    pub fn refresh(&mut self) {
+        self.window
+            .update_with_buffer(&self.buffer, self.width, self.height)
+            .unwrap();
     }
 }

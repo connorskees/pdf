@@ -8,8 +8,6 @@ use crate::{
     },
 };
 
-use super::text_state::TextState;
-
 #[derive(Debug, Default, Clone)]
 pub(super) struct GraphicsState {
     pub device_independent: DeviceIndependentGraphicsState,
@@ -65,11 +63,6 @@ pub struct DeviceIndependentGraphicsState {
     ///
     /// Initial value: black.
     pub color_space: GraphicsStateColorSpace,
-
-    /// A set of nine graphics state parameters that pertain only to the
-    /// painting of text. These include parameters that select the font, scale
-    /// the glyphs to an appropriate size, and accomplish other effects.
-    pub text_state: TextState,
 
     /// The thickness, in user space units, of paths to be stroked
     ///
@@ -157,7 +150,6 @@ impl Default for DeviceIndependentGraphicsState {
             current_transformation_matrix: Matrix::identity(),
             clipping_path: ClippingPath,
             color_space: GraphicsStateColorSpace::default(),
-            text_state: TextState::default(),
             line_width: 1.0,
             line_cap: LineCapStyle::Butt,
             line_join: LineJoinStyle::Miter,
