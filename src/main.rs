@@ -481,7 +481,7 @@ impl Parser {
     pub fn page_annotations(&mut self, page: &PageObject) -> PdfResult<Option<Vec<Annotation>>> {
         if let Some(annots) = &page.annots {
             let annotations = annots
-                .into_iter()
+                .iter()
                 .map(|&annot| {
                     let obj = self.lexer.lex_object_from_reference(annot)?;
                     let dict = self.lexer.assert_dict(obj)?;

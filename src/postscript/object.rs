@@ -134,9 +134,9 @@ impl PostScriptDictionary {
 
     pub fn get_dict(&self, key: &'static [u8]) -> PostScriptResult<Option<DictionaryIndex>> {
         match self.inner.get(&Name::from_bytes(key.to_vec())) {
-            Some(PostScriptObject::Dictionary(dict)) => return Ok(Some(*dict)),
-            Some(..) => return Err(PostScriptError::TypeCheck),
-            None => return Ok(None),
+            Some(PostScriptObject::Dictionary(dict)) => Ok(Some(*dict)),
+            Some(..) => Err(PostScriptError::TypeCheck),
+            None => Ok(None),
         }
     }
 
@@ -150,9 +150,9 @@ impl PostScriptDictionary {
 
     pub fn get_name(&self, key: &'static [u8]) -> PostScriptResult<Option<PostScriptString>> {
         match self.inner.get(&Name::from_bytes(key.to_vec())) {
-            Some(PostScriptObject::Name(s)) => return Ok(Some(s.clone())),
-            Some(..) => return Err(PostScriptError::TypeCheck),
-            None => return Ok(None),
+            Some(PostScriptObject::Name(s)) => Ok(Some(s.clone())),
+            Some(..) => Err(PostScriptError::TypeCheck),
+            None => Ok(None),
         }
     }
 
@@ -166,9 +166,9 @@ impl PostScriptDictionary {
 
     pub fn get_str(&self, key: &'static [u8]) -> PostScriptResult<Option<StringIndex>> {
         match self.inner.get(&Name::from_bytes(key.to_vec())) {
-            Some(PostScriptObject::String(s)) => return Ok(Some(*s)),
-            Some(..) => return Err(PostScriptError::TypeCheck),
-            None => return Ok(None),
+            Some(PostScriptObject::String(s)) => Ok(Some(*s)),
+            Some(..) => Err(PostScriptError::TypeCheck),
+            None => Ok(None),
         }
     }
 
@@ -182,9 +182,9 @@ impl PostScriptDictionary {
 
     pub fn get_array(&self, key: &'static [u8]) -> PostScriptResult<Option<ArrayIndex>> {
         match self.inner.get(&Name::from_bytes(key.to_vec())) {
-            Some(PostScriptObject::Array(a)) => return Ok(Some(*a)),
-            Some(..) => return Err(PostScriptError::TypeCheck),
-            None => return Ok(None),
+            Some(PostScriptObject::Array(a)) => Ok(Some(*a)),
+            Some(..) => Err(PostScriptError::TypeCheck),
+            None => Ok(None),
         }
     }
 
@@ -198,10 +198,10 @@ impl PostScriptDictionary {
 
     pub fn get_number(&self, key: &'static [u8]) -> PostScriptResult<Option<f32>> {
         match self.inner.get(&Name::from_bytes(key.to_vec())) {
-            Some(PostScriptObject::Float(n)) => return Ok(Some(*n)),
-            Some(PostScriptObject::Int(n)) => return Ok(Some(*n as f32)),
-            Some(..) => return Err(PostScriptError::TypeCheck),
-            None => return Ok(None),
+            Some(PostScriptObject::Float(n)) => Ok(Some(*n)),
+            Some(PostScriptObject::Int(n)) => Ok(Some(*n as f32)),
+            Some(..) => Err(PostScriptError::TypeCheck),
+            None => Ok(None),
         }
     }
 
@@ -215,9 +215,9 @@ impl PostScriptDictionary {
 
     pub fn get_integer(&self, key: &'static [u8]) -> PostScriptResult<Option<i32>> {
         match self.inner.get(&Name::from_bytes(key.to_vec())) {
-            Some(PostScriptObject::Int(n)) => return Ok(Some(*n)),
-            Some(..) => return Err(PostScriptError::TypeCheck),
-            None => return Ok(None),
+            Some(PostScriptObject::Int(n)) => Ok(Some(*n)),
+            Some(..) => Err(PostScriptError::TypeCheck),
+            None => Ok(None),
         }
     }
 
@@ -231,9 +231,9 @@ impl PostScriptDictionary {
 
     pub fn get_procedure(&self, key: &'static [u8]) -> PostScriptResult<Option<Procedure>> {
         match self.inner.get(&Name::from_bytes(key.to_vec())) {
-            Some(PostScriptObject::Procedure(n)) => return Ok(Some(n.clone())),
-            Some(..) => return Err(PostScriptError::TypeCheck),
-            None => return Ok(None),
+            Some(PostScriptObject::Procedure(n)) => Ok(Some(n.clone())),
+            Some(..) => Err(PostScriptError::TypeCheck),
+            None => Ok(None),
         }
     }
 
@@ -247,9 +247,9 @@ impl PostScriptDictionary {
 
     pub fn get_bool(&self, key: &'static [u8]) -> PostScriptResult<Option<bool>> {
         match self.inner.get(&Name::from_bytes(key.to_vec())) {
-            Some(PostScriptObject::Bool(b)) => return Ok(Some(*b)),
-            Some(..) => return Err(PostScriptError::TypeCheck),
-            None => return Ok(None),
+            Some(PostScriptObject::Bool(b)) => Ok(Some(*b)),
+            Some(..) => Err(PostScriptError::TypeCheck),
+            None => Ok(None),
         }
     }
 }

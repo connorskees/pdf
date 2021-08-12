@@ -172,12 +172,12 @@ impl DocumentCatalog {
             .get_name("PageLayout", lexer)?
             .as_deref()
             .map(PageLayout::from_str)
-            .unwrap_or(Ok(PageLayout::default()))?;
+            .unwrap_or_else(|| Ok(PageLayout::default()))?;
         let page_mode = dict
             .get_name("PageMode", lexer)?
             .as_deref()
             .map(PageMode::from_str)
-            .unwrap_or(Ok(PageMode::default()))?;
+            .unwrap_or_else(|| Ok(PageMode::default()))?;
 
         let outlines = dict.get_reference("Outlines")?;
         let threads = dict.get_reference("Threads")?;

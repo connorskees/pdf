@@ -83,7 +83,7 @@ impl XrefStreamDict {
                     .collect::<PdfResult<Vec<(usize, usize)>>>()
             })
             .transpose()?
-            .unwrap_or(vec![(0, trailer.size)]);
+            .unwrap_or_else(|| vec![(0, trailer.size)]);
 
         let w = XrefStreamFieldWidths::from_arr(dict.expect_arr("W", resolver)?, resolver)?;
 

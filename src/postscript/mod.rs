@@ -197,7 +197,7 @@ static STANDARD_ENCODING: &[Option<&str>] = &[
 fn gen_standard_encoding_vector(interpreter: &mut PostscriptInterpreter) -> PostScriptArray {
     PostScriptArray::from_objects(
         STANDARD_ENCODING
-            .into_iter()
+            .iter()
             .map(|name| match name {
                 &Some(s) => interpreter
                     .intern_string(PostScriptString::from_bytes(s.to_owned().into_bytes())),
@@ -490,7 +490,7 @@ impl<'a> PostscriptInterpreter<'a> {
                     _ => return Err(PostScriptError::TypeCheck.into()),
                 })?;
 
-                let ch = u8::try_from(match value.clone() {
+                let ch = u8::try_from(match value {
                     PostScriptObject::Int(i) => i,
                     _ => return Err(PostScriptError::TypeCheck.into()),
                 })?;
@@ -503,7 +503,7 @@ impl<'a> PostscriptInterpreter<'a> {
                     _ => return Err(PostScriptError::TypeCheck.into()),
                 };
 
-                self.get_dict_mut(&dict).insert(key, value.clone());
+                self.get_dict_mut(&dict).insert(key, value);
             }
             PostScriptObject::Array(arr) => {
                 let idx = usize::try_from(match key_or_idx {
@@ -584,7 +584,7 @@ impl<'a> PostscriptInterpreter<'a> {
     fn current_dict(&mut self) -> PdfResult<()> {
         let current_dict = self.pop_dict_stack()?;
 
-        self.push(PostScriptObject::Dictionary(current_dict.clone()));
+        self.push(PostScriptObject::Dictionary(current_dict));
         self.push_dict_stack(current_dict);
 
         Ok(())

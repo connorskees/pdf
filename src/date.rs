@@ -88,7 +88,7 @@ impl Date {
             Some(b'\'') => {
                 chars.next();
 
-                if !chars.peek().is_none() {
+                if chars.peek().is_some() {
                     return Err(ParseError::MismatchedByte {
                         expected: b'\'',
                         found: chars.next(),

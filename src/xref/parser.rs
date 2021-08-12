@@ -25,7 +25,7 @@ pub(crate) struct XrefParser<'a> {
 
 impl LexBase for XrefParser<'_> {
     fn buffer(&self) -> &[u8] {
-        &self.file
+        self.file
     }
 
     fn cursor(&self) -> usize {
