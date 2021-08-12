@@ -1,10 +1,10 @@
+use std::borrow::Cow;
+
 use crate::{data_structures::Matrix, postscript::object::ArrayIndex};
 
 use super::{
     charstring::{CharString, CharStrings},
-    object::{
-        PostScriptArray, PostScriptDictionary, PostScriptObject, PostScriptString, Procedure,
-    },
+    object::{PostScriptDictionary, PostScriptObject, PostScriptString, Procedure},
     PostScriptError, PostScriptResult, PostscriptInterpreter,
 };
 
@@ -65,7 +65,7 @@ impl LanguageGroup {
 pub(crate) struct Type1PostscriptFont {
     font_info: FontInfo,
     font_name: PostScriptString,
-    encoding: PostScriptArray,
+    pub(super) encoding: Encoding,
     paint_type: PaintType,
     font_type: FontType,
     pub font_matrix: Matrix,
@@ -78,6 +78,44 @@ pub(crate) struct Type1PostscriptFont {
     pub char_strings: CharStrings,
     // todo: fid: Option<FontId>,
     fid: Option<PostScriptObject>,
+}
+
+#[derive(Debug)]
+pub(super) struct Encoding {
+    codepoint_map: Vec<Option<PostScriptString>>,
+}
+
+impl Encoding {
+    pub fn from_array(
+        arr: &[PostScriptObject],
+        interpreter: &mut PostscriptInterpreter,
+    ) -> PostScriptResult<Self> {
+        let codepoint_map = arr
+            .iter()
+            .map(|obj| match obj {
+                PostScriptObject::Null => Ok(None),
+                &PostScriptObject::String(s) => Ok(Some(interpreter.get_str(s).clone())),
+                _ => Err(PostScriptError::TypeCheck),
+            })
+            .collect::<PostScriptResult<Vec<Option<PostScriptString>>>>()?;
+
+        Ok(Self { codepoint_map })
+    }
+
+    pub fn new(codepoint_map: Vec<Option<PostScriptString>>) -> Self {
+        Self { codepoint_map }
+    }
+
+    fn not_def() -> PostScriptString {
+        PostScriptString::from_bytes(b".notdef".to_vec())
+    }
+
+    pub fn get(&self, codepoint: u32) -> Cow<PostScriptString> {
+        match self.codepoint_map.get(codepoint as usize) {
+            Some(Some(s)) => Cow::Borrowed(s),
+            Some(None) | None => Cow::Owned(Self::not_def()),
+        }
+    }
 }
 
 impl Type1PostscriptFont {
@@ -97,6 +135,8 @@ impl Type1PostscriptFont {
         let encoding = interpreter
             .get_arr(dict.expect_array(b"Encoding", PostScriptError::InvalidFont)?)
             .clone();
+
+        let encoding = Encoding::from_array(encoding.as_inner(), interpreter)?;
 
         let paint_type = PaintType::from_integer(
             dict.expect_integer(b"PaintType", PostScriptError::InvalidFont)?,

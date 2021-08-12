@@ -140,6 +140,73 @@ fn gen_system_dict() -> PostScriptDictionary {
     system_dict
 }
 
+#[rustfmt::skip]
+static STANDARD_ENCODING: &[Option<&str>] = &[
+    /*\00x*/ None, None, None, None, None, None, None, None,
+    /*\01x*/ None, None, None, None, None, None, None, None,
+    /*\02x*/ None, None, None, None, None, None, None, None,
+    /*\03x*/ None, None, None, None, None, None, None, None,
+    /*\04x*/ Some("space"), Some("exclam"), Some("quotedbl"), Some("numbersign"),
+             Some("dollar"), Some("percent"), Some("ampersand"), Some("quoteright"),
+    /*\05x*/ Some("parenleft"), Some("parenright"), Some("asterisk"), Some("plus"),
+             Some("comma"), Some("hyphen"), Some("period"), Some("slash"),
+    /*\06x*/ Some("zero"), Some("one"), Some("two"), Some("three"),
+             Some("four"), Some("five"), Some("six"), Some("seven"),
+    /*\07x*/ Some("eight"), Some("nine"), Some("colon"), Some("semicolon"),
+             Some("less"), Some("equal"), Some("greater"), Some("question"),
+    /*\10x*/ Some("at"), Some("A"), Some("B"), Some("C"),
+             Some("D"), Some("E"), Some("F"), Some("G"),
+    /*\11x*/ Some("H"), Some("I"), Some("J"), Some("K"),
+             Some("L"), Some("M"), Some("N"), Some("O"),
+    /*\12x*/ Some("P"), Some("Q"), Some("R"), Some("S"),
+             Some("T"), Some("U"), Some("V"), Some("W"),
+    /*\13x*/ Some("X"), Some("Y"), Some("Z"), Some("bracketleft"),
+             Some("backslash"), Some("bracketright"), Some("asciicircum"), Some("underscore"),
+    /*\14x*/ Some("quoteleft"), Some("a"), Some("b"), Some("c"),
+             Some("d"), Some("e"), Some("f"), Some("g"),
+    /*\15x*/ Some("h"), Some("i"), Some("j"), Some("k"),
+             Some("l"), Some("m"), Some("n"), Some("o"),
+    /*\16x*/ Some("p"), Some("q"), Some("r"), Some("s"),
+             Some("t"), Some("u"), Some("v"), Some("w"),
+    /*\17x*/ Some("x"), Some("y"), Some("z"), Some("braceleft"),
+             Some("bar"), Some("braceright"), Some("asciitilde"), None,
+    /*\20x*/ None, None, None, None, None, None, None, None,
+    /*\21x*/ None, None, None, None, None, None, None, None,
+    /*\22x*/ None, None, None, None, None, None, None, None,
+    /*\23x*/ None, None, None, None, None, None, None, None,
+    /*\24x*/ None, Some("exclamdown"), Some("cent"), Some("sterling"),
+             Some("fraction"), Some("yen"), Some("florin"), Some("section"),
+    /*\25x*/ Some("currency"), Some("quotesingle"), Some("quotedblleft"), Some("guillemotleft"),
+             Some("guilsinglleft"), Some("guilsinglright"), Some("fi"), Some("fl"),
+    /*\26x*/ None, Some("endash"), Some("dagger"), Some("daggerdbl"),
+             Some("periodcentered"), None, Some("paragraph"), Some("bullet"),
+    /*\27x*/ Some("quotesinglbase"), Some("quotedblbase"), Some("quotedblright"), Some("guillemotright"),
+             Some("ellipsis"), Some("perthousand"), None, Some("questiondown"),
+    /*\30x*/ None, Some("grave"), Some("acute"), Some("circumflex"),
+             Some("tilde"), Some("macron2"), Some("breve"), Some("dotaccent"),
+    /*\31x*/ Some("dieresis"), None, Some("ring"), Some("cedilla"),
+             None, Some("hungarumlaut"), Some("ogonek"), Some("caron"),
+    /*\32x*/ Some("emdash"), None, None, None, None, None, None, None,
+    /*\33x*/ None, None, None, None, None, None, None, None,
+    /*\34x*/ None, Some("AE"), None, Some("ordfeminine"), None, None, None, None,
+    /*\35x*/ Some("Lslash"), Some("Oslash"), Some("oe"), Some("ordmasculine"), None, None, None, None,
+    /*\36x*/ None, Some("ae"), None, None, None, Some("dotlessi"), None, None,
+    /*\37x*/ Some("lslash"), Some("oslash"), Some("OE"), Some("germandbls"), None, None, None, None,
+];
+
+fn gen_standard_encoding_vector(interpreter: &mut PostscriptInterpreter) -> PostScriptArray {
+    PostScriptArray::from_objects(
+        STANDARD_ENCODING
+            .into_iter()
+            .map(|name| match name {
+                &Some(s) => interpreter
+                    .intern_string(PostScriptString::from_bytes(s.to_owned().into_bytes())),
+                None => PostScriptObject::Null,
+            })
+            .collect(),
+    )
+}
+
 impl<'a> PostscriptInterpreter<'a> {
     pub fn new(buffer: &'a [u8]) -> Self {
         let mut interpreter = Self {
@@ -157,9 +224,11 @@ impl<'a> PostscriptInterpreter<'a> {
         let user_dict = {
             let mut dict = PostScriptDictionary::new();
 
+            let standard_encoding = gen_standard_encoding_vector(&mut interpreter);
+
             dict.insert(
                 PostScriptString::from_bytes(b"StandardEncoding".to_vec()),
-                PostScriptObject::Array(interpreter.arrays.insert(PostScriptArray::new())),
+                PostScriptObject::Array(interpreter.arrays.insert(standard_encoding)),
             );
 
             dict.insert(
@@ -698,6 +767,13 @@ impl PostscriptInterpreter<'_> {
 
         let idx = self.lexer.strings.insert(str);
         self.operand_stack.push(PostScriptObject::String(idx));
+    }
+
+    fn intern_string(&mut self, str: PostScriptString) -> PostScriptObject {
+        assert!(!str.is_empty(), "implies a bug. TODO: remove");
+
+        let idx = self.lexer.strings.insert(str);
+        PostScriptObject::String(idx)
     }
 
     fn get_str(&self, k: StringIndex) -> &PostScriptString {

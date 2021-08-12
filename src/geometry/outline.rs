@@ -8,7 +8,7 @@ pub struct Outline {
 }
 
 impl Outline {
-    pub fn empty() -> Self {
+    pub const fn empty() -> Self {
         Self { paths: Vec::new() }
     }
 

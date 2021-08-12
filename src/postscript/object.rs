@@ -394,6 +394,10 @@ impl PostScriptArray {
         self.inner
     }
 
+    pub(super) fn as_inner(&self) -> &[PostScriptObject] {
+        &self.inner
+    }
+
     fn len(&self) -> usize {
         self.inner.len()
     }

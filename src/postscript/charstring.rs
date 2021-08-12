@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::TryInto};
+use std::{borrow::Borrow, collections::HashMap, convert::TryInto};
 
 use crate::{
     font::Glyph,
@@ -8,7 +8,7 @@ use crate::{
 
 use super::{
     decode::decrypt_charstring,
-    font::Type1PostscriptFont,
+    font::{Encoding, Type1PostscriptFont},
     object::{PostScriptDictionary, PostScriptObject, PostScriptString, Procedure},
     PostScriptError, PostScriptResult, PostscriptInterpreter,
 };
@@ -250,13 +250,11 @@ impl CharStrings {
         Ok(Self(char_strings))
     }
 
-    pub(crate) fn by_char(&self, c: u8) -> Option<&CharString> {
-        self.0
-            .get(&PostScriptString::from_bytes(vec![c]))
-            .or_else(|| {
-                self.0
-                    .get(&PostScriptString::from_bytes(b".notdef".to_vec()))
-            })
+    pub(crate) fn from_string(&self, s: &PostScriptString) -> Option<&CharString> {
+        self.0.get(s).or_else(|| {
+            self.0
+                .get(&PostScriptString::from_bytes(b".notdef".to_vec()))
+        })
     }
 
     pub(crate) fn is_codepoint_defined(&self, c: u8) -> bool {
@@ -274,6 +272,8 @@ pub(crate) struct CharStringPainter<'a> {
     other_subroutines: &'a [Procedure],
     operand_stack: CharStringStack,
     interpreter: PostscriptInterpreter<'a>,
+    encoding: &'a Encoding,
+    char_strings: &'a CharStrings,
 }
 
 impl<'a> CharStringPainter<'a> {
@@ -286,6 +286,8 @@ impl<'a> CharStringPainter<'a> {
             bounding_box: BoundingBox::new(),
             subroutines: font.private.subroutines.as_deref().unwrap_or(&[]),
             other_subroutines: font.private.other_subroutines.as_deref().unwrap_or(&[]),
+            encoding: &font.encoding,
+            char_strings: &font.char_strings,
             operand_stack: CharStringStack::new(),
             interpreter: PostscriptInterpreter::new(&[]),
         }
@@ -298,10 +300,16 @@ impl<'a> CharStringPainter<'a> {
         self.width_vector = Point::new(0.0, 0.0);
     }
 
-    pub fn evaluate(&mut self, c: &CharString) -> PostScriptResult<Glyph> {
+    pub fn evaluate(&mut self, char_code: u32) -> PostScriptResult<Glyph> {
         self.reinit();
 
-        self.evaluate_as_subroutine(c)
+        let charstring_name = self.encoding.get(char_code);
+
+        if let Some(charstring) = self.char_strings.from_string(charstring_name.borrow()) {
+            self.evaluate_as_subroutine(charstring)
+        } else {
+            Ok(Glyph::empty())
+        }
     }
 
     fn evaluate_as_subroutine(&mut self, c: &CharString) -> PostScriptResult<Glyph> {

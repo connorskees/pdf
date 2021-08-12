@@ -32,7 +32,7 @@ pub struct Path {
 }
 
 impl Path {
-    pub fn new(start: Point) -> Self {
+    pub const fn new(start: Point) -> Self {
         Self {
             subpaths: Vec::new(),
             current_point: start,

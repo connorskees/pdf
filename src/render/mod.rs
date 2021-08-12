@@ -93,7 +93,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
 
             match token {
                 ContentToken::Object(obj) => self.operand_stack.push(obj),
-                ContentToken::Operator(op) => match dbg!(op) {
+                ContentToken::Operator(op) => match op {
                     PdfGraphicsOperator::G => self.set_stroking_gray()?,
                     PdfGraphicsOperator::g => self.set_nonstroking_gray()?,
                     PdfGraphicsOperator::BT => self.begin_text()?,
@@ -306,8 +306,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
                         .device_independent
                         .current_transformation_matrix;
 
-                let mut glyph =
-                    painter.evaluate(font.char_strings.by_char(c as u8).unwrap().clone())?;
+                let mut glyph = painter.evaluate(c as u32)?;
 
                 glyph.outline.apply_transform(trm);
 
@@ -319,6 +318,8 @@ impl<'a, 'b> Renderer<'a, 'b> {
                         .stroking
                         .as_u32(),
                 );
+
+                self.canvas.refresh();
 
                 let mut x_transform = widths.get(c as u32) * self.text_state.font_size
                     + self.text_state.character_spacing;
