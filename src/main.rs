@@ -44,7 +44,7 @@ use crate::{
     filter::decode_stream,
     lex::{LexBase, LexObject},
     object_stream::{ObjectStream, ObjectStreamDict, ObjectStreamParser},
-    objects::{Dictionary, Object, ObjectType, Reference, TypeOrArray},
+    objects::{Dictionary, Object, ObjectType, Reference},
     page::{InheritablePageFields, PageNode, PageObject, PageTree, PageTreeNode, TabOrder},
     resources::Resources,
     stream::StreamDict,

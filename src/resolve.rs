@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 
 use crate::{
     error::{ParseError, PdfResult},
-    objects::{Dictionary, Object, ObjectType, Reference, TypeOrArray},
+    objects::{Dictionary, Object, ObjectType, Reference},
     stream::Stream,
 };
 
@@ -165,25 +165,5 @@ pub trait Resolve {
             Object::Null => Ok(None),
             obj => Some(convert(self, obj)).transpose(),
         }
-    }
-
-    fn get_type_or_arr<T>(
-        &mut self,
-        obj: Object,
-        convert: impl Fn(&mut Self, Object) -> PdfResult<T>,
-    ) -> PdfResult<TypeOrArray<T>>
-    where
-        Self: Sized,
-    {
-        let obj = self.resolve(obj)?;
-        Ok(if let Object::Array(els) = obj {
-            TypeOrArray::Array(
-                els.into_iter()
-                    .map(|el| convert(self, el))
-                    .collect::<PdfResult<Vec<T>>>()?,
-            )
-        } else {
-            TypeOrArray::Type(convert(self, obj)?)
-        })
     }
 }

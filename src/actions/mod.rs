@@ -1,4 +1,8 @@
-use crate::{error::PdfResult, objects::Dictionary, pdf_enum, Resolve, TypeOrArray};
+use crate::{
+    error::{ParseError, PdfResult},
+    objects::{Dictionary, Object, ObjectType},
+    pdf_enum, Resolve,
+};
 
 use self::goto::GoToRemoteAction;
 pub use self::{goto::GoToAction, uri::UriAction};
@@ -28,17 +32,29 @@ enum Action {
 impl Actions {
     const TYPE: &'static str = "Action";
 
+    pub fn from_obj(obj: Object, resolver: &mut impl Resolve) -> PdfResult<Vec<Self>> {
+        Ok(match resolver.resolve(obj)? {
+            Object::Array(arr) => arr
+                .into_iter()
+                .map(|obj| Actions::from_dict(resolver.assert_dict(obj)?, resolver))
+                .collect::<PdfResult<Vec<Actions>>>()?,
+            Object::Dictionary(dict) => vec![Actions::from_dict(dict, resolver)?],
+            found => {
+                return Err(ParseError::MismatchedObjectTypeAny {
+                    expected: &[ObjectType::Array, ObjectType::Dictionary],
+                    found,
+                })
+            }
+        })
+    }
+
     pub fn from_dict(mut dict: Dictionary, resolver: &mut impl Resolve) -> PdfResult<Self> {
         let action_type = ActionType::from_str(&dict.expect_name("S", resolver)?)?;
 
         let next = dict
-            .get_type_or_arr("Next", resolver, |resolver, obj| {
-                Actions::from_dict(resolver.assert_dict(obj)?, resolver)
-            })?
-            .map(|type_or_array| match type_or_array {
-                TypeOrArray::Type(t) => vec![t],
-                TypeOrArray::Array(arr) => arr,
-            });
+            .get_object("Next", resolver)?
+            .map(|obj| Actions::from_obj(obj, resolver))
+            .transpose()?;
 
         let action = match action_type {
             ActionType::GoTo => Action::GoTo(GoToAction::from_dict(dict, resolver)?),

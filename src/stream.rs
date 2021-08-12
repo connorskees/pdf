@@ -4,7 +4,7 @@ use crate::{
     error::{ParseError, PdfResult},
     file_specification::FileSpecification,
     filter::FilterKind,
-    objects::{Dictionary, Object, ObjectType, TypeOrArray},
+    objects::{Dictionary, Object, ObjectType},
     Resolve,
 };
 
@@ -92,7 +92,7 @@ pub struct StreamDict {
 
     /// A parameter dictionary, or an array of such dictionaries, used by the filters
     /// specified by FFilter. The same rules apply as for DecodeParms
-    pub f_decode_parms: Option<TypeOrArray<Dictionary>>,
+    pub(crate) f_decode_parms: Option<DecodeParams>,
 
     /// A non-negative integer representing the number of bytes in the decoded
     /// (defiltered) stream. It can be used to determine, for example, whether enough
@@ -137,9 +137,10 @@ impl StreamDict {
             .get_object("FFilter", resolver)?
             .map(|obj| get_filters(obj, resolver))
             .transpose()?;
-        let f_decode_parms =
-            dict.get_type_or_arr("FDecodeParms", resolver, Resolve::assert_dict)?;
-
+        let f_decode_parms = dict
+            .get_object("FDecodeParms", resolver)?
+            .map(|obj| DecodeParams::from_obj(obj, resolver))
+            .transpose()?;
         let dl = dict
             .get_unsigned_integer("DL", resolver)?
             .map(|i| i as usize);

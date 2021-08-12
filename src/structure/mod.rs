@@ -1,8 +1,8 @@
 use crate::{
     assert_empty,
     data_structures::{NameTree, NumberTree},
-    error::PdfResult,
-    objects::{Dictionary, Object, Reference, TypeOrArray},
+    error::{ParseError, PdfResult},
+    objects::{Dictionary, Object, ObjectType, Reference},
     pdf_enum, Resolve,
 };
 
@@ -12,7 +12,7 @@ pub struct StructTreeRoot {
     /// the structure hierarchy. The value may be either a dictionary
     /// representing a single structure element or an array of such
     /// dictionaries.
-    k: Option<TypeOrArray<StructureElement>>,
+    k: Option<Vec<StructureElement>>,
 
     /// A name tree that maps element identifiers to the structure elements
     /// they denote.
@@ -57,9 +57,10 @@ impl StructTreeRoot {
     pub fn from_dict(mut dict: Dictionary, resolver: &mut impl Resolve) -> PdfResult<Self> {
         dict.expect_type(Self::TYPE, resolver, true)?;
 
-        let k = dict.get_type_or_arr("K", resolver, |resolver, obj| {
-            StructureElement::from_dict(resolver.assert_dict(obj)?, resolver)
-        })?;
+        let k = dict
+            .get_object("K", resolver)?
+            .map(|obj| StructureElement::from_obj(obj, resolver))
+            .transpose()?;
 
         let id_tree = dict
             .get_dict("IdTree", resolver)?
@@ -117,7 +118,7 @@ struct StructureElement {
     /// Each of these objects other than the first (structure element dictionary) shall be considered
     /// to be a content item. If the value of K is a dictionary containing no Type entry, it shall be
     /// assumed to be a structure element dictionary.
-    k: Option<TypeOrArray<StructureElementChild>>,
+    k: Option<Vec<StructureElementChild>>,
 
     /// A single attribute object or array of attribute objects associated with this structure
     /// element. Each attribute object shall be either a dictionary or a stream. If the value of
@@ -169,6 +170,22 @@ struct StructureElement {
 impl StructureElement {
     const TYPE: &'static str = "StructElem";
 
+    pub fn from_obj(obj: Object, resolver: &mut impl Resolve) -> PdfResult<Vec<Self>> {
+        Ok(match resolver.resolve(obj)? {
+            Object::Array(arr) => arr
+                .into_iter()
+                .map(|obj| StructureElement::from_dict(resolver.assert_dict(obj)?, resolver))
+                .collect::<PdfResult<Vec<StructureElement>>>()?,
+            Object::Dictionary(dict) => vec![StructureElement::from_dict(dict, resolver)?],
+            found => {
+                return Err(ParseError::MismatchedObjectTypeAny {
+                    expected: &[ObjectType::Array, ObjectType::Dictionary],
+                    found,
+                })
+            }
+        })
+    }
+
     pub fn from_dict(mut dict: Dictionary, resolver: &mut impl Resolve) -> PdfResult<Self> {
         dict.expect_type(Self::TYPE, resolver, false)?;
 
@@ -177,15 +194,10 @@ impl StructureElement {
         let id = dict.get_string("ID", resolver)?;
         let pg = dict.get_reference("Pg")?;
 
-        let k = dict.get_type_or_arr("K", resolver, |resolver, obj| {
-            let obj = resolver.resolve(obj)?;
-
-            if let Ok(identifier) = resolver.assert_integer(obj.clone()) {
-                return Ok(StructureElementChild::MarkedContentIdentifier(identifier));
-            }
-
-            StructureElementChild::from_dict(resolver.assert_dict(obj)?, resolver)
-        })?;
+        let k = dict
+            .get_object("K", resolver)?
+            .map(|obj| StructureElementChild::from_obj(obj, resolver))
+            .transpose()?;
 
         let a = None;
         let c = None;
@@ -226,6 +238,33 @@ enum StructureElementChild {
 }
 
 impl StructureElementChild {
+    pub fn from_obj(obj: Object, resolver: &mut impl Resolve) -> PdfResult<Vec<Self>> {
+        Ok(match resolver.resolve(obj)? {
+            Object::Integer(identifier) => {
+                vec![StructureElementChild::MarkedContentIdentifier(identifier)]
+            }
+            Object::Dictionary(dict) => vec![Self::from_dict(dict, resolver)?],
+            Object::Array(arr) => arr
+                .into_iter()
+                .map(|obj| Self::from_obj(obj, resolver))
+                .try_fold(Vec::new(), |mut init, next| -> PdfResult<Vec<Self>> {
+                    init.append(&mut next?);
+
+                    Ok(init)
+                })?,
+            found => {
+                return Err(ParseError::MismatchedObjectTypeAny {
+                    expected: &[
+                        ObjectType::Array,
+                        ObjectType::Dictionary,
+                        ObjectType::Integer,
+                    ],
+                    found,
+                })
+            }
+        })
+    }
+
     pub fn from_dict(mut dict: Dictionary, resolver: &mut impl Resolve) -> PdfResult<Self> {
         let ty = dict.get_name("Type", resolver)?;
 

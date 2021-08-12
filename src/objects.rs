@@ -59,12 +59,6 @@ pub struct Reference {
     pub generation: usize,
 }
 
-#[derive(Debug, Clone)]
-pub enum TypeOrArray<T> {
-    Type(T),
-    Array(Vec<T>),
-}
-
 #[derive(Clone)]
 pub struct Dictionary {
     dict: HashMap<String, Object>,
@@ -167,18 +161,6 @@ impl Dictionary {
         required: bool,
     ) -> PdfResult<()> {
         self.expect_name_is_value("Type", ty, required, resolver)
-    }
-
-    pub fn get_type_or_arr<T: fmt::Debug, S: Resolve + Sized>(
-        &mut self,
-        key: &'static str,
-        resolver: &mut S,
-        convert: impl Fn(&mut S, Object) -> PdfResult<T>,
-    ) -> PdfResult<Option<TypeOrArray<T>>> {
-        self.dict
-            .remove(key)
-            .map(|obj| resolver.get_type_or_arr(obj, convert))
-            .transpose()
     }
 
     pub fn get_integer(&mut self, key: &str, resolver: &mut dyn Resolve) -> PdfResult<Option<i32>> {
