@@ -5,13 +5,13 @@ use crate::{
         AdditionalActions, BoxColorInfo, GroupAttributes, MetadataStream, NavigationNode,
         PagePiece, SeparationInfo, Transitions, Viewport,
     },
+    content::ContentStream,
     data_structures::Rectangle,
     date::Date,
     error::PdfResult,
-    objects::{Dictionary, TypeOrArray},
+    objects::Dictionary,
     pdf_enum,
     resources::Resources,
-    stream::Stream,
     Reference, Resolve,
 };
 
@@ -197,7 +197,7 @@ pub struct PageObject {
     /// not preserve the existing structure of the Contents array.
     ///
     /// Conforming writers shall not create a Contents array containing no elements.
-    pub contents: Option<TypeOrArray<Stream>>,
+    pub(crate) contents: Option<ContentStream>,
 
     /// The number of degrees by which the page shall be rotated clockwise
     /// when displayed or printed. The value shall be a multiple of 90.

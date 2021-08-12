@@ -39,7 +39,7 @@ pub(crate) use crate::resolve::Resolve;
 use crate::{
     annotation::Annotation,
     catalog::{DocumentCatalog, GroupAttributes, InformationDictionary},
-    content::ContentLexer,
+    content::{ContentLexer, ContentStream},
     error::{ParseError, PdfResult},
     filter::decode_stream,
     lex::{LexBase, LexObject},
@@ -254,7 +254,10 @@ impl Lexer {
         let trim_box = dict.get_rectangle("TrimBox", self)?;
         let art_box = dict.get_rectangle("ArtBox", self)?;
         let box_color_info = None;
-        let contents = dict.get_type_or_arr("Contents", self, Lexer::assert_stream)?;
+        let contents = dict
+            .get_object("Contents", self)?
+            .map(|obj| ContentStream::from_obj(obj, self))
+            .transpose()?;
         let rotate = dict.get_integer("Rotate", self)?;
         let group = dict
             .get_dict("Group", self)?
@@ -498,11 +501,7 @@ impl Parser {
 
     pub fn page_contents<'a>(&mut self, page: &'a PageObject) -> PdfResult<ContentLexer<'a>> {
         Ok(match &page.contents {
-            Some(TypeOrArray::Type(stream)) => ContentLexer::new(decode_stream(
-                &stream.stream,
-                &stream.dict,
-                &mut self.lexer,
-            )?),
+            Some(stream) => ContentLexer::new(Cow::Borrowed(&stream.combined_buffer)),
             _ => todo!(),
         })
     }

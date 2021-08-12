@@ -7,8 +7,10 @@ use crate::{
 };
 
 pub(crate) use operator::PdfGraphicsOperator;
+pub(crate) use stream::ContentStream;
 
 mod operator;
+mod stream;
 
 pub struct ContentLexer<'a> {
     buffer: Cow<'a, [u8]>,
