@@ -87,6 +87,12 @@ impl Dictionary {
         Self { dict }
     }
 
+    pub fn empty() -> Self {
+        Self {
+            dict: HashMap::new(),
+        }
+    }
+
     pub fn entries(self) -> impl Iterator<Item = (String, Object)> {
         self.dict.into_iter()
     }

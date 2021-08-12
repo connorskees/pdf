@@ -1,15 +1,15 @@
-use std::{borrow::Cow, collections::HashMap};
+use std::collections::HashMap;
 
 use crate::{
-    filter::flate::{FlateDecoder, FlateDecoderParams},
+    filter::decode_stream,
     lex::{LexBase, LexObject},
-    objects::{Dictionary, Object, ObjectType},
+    objects::{Object, ObjectType},
     trailer::Trailer,
     xref::{
         stream::{XrefStream, XrefStreamDict},
         Xref,
     },
-    ParseError, PdfResult, Reference, Resolve, TypeOrArray,
+    ParseError, PdfResult, Reference, Resolve,
 };
 
 use super::{stream::parser::XrefStreamParser, XrefEntry};
@@ -113,17 +113,7 @@ impl<'a> XrefParser<'a> {
         };
 
         let stream = self.lex_stream(xref_stream_dict)?;
-
-        let params = FlateDecoderParams::from_dict(
-            match stream.dict.stream_dict.decode_parms {
-                Some(TypeOrArray::Type(t)) => t,
-                None => Dictionary::new(HashMap::new()),
-                params => todo!("{:?}", params),
-            },
-            self,
-        )?;
-
-        let decoded_stream = FlateDecoder::new(Cow::Owned(stream.stream), params).decode();
+        let decoded_stream = decode_stream(&stream.stream, &stream.dict.stream_dict, self)?;
 
         let mut xref =
             XrefStreamParser::new(&decoded_stream, stream.dict.w, stream.dict.index).parse()?;

@@ -1,10 +1,10 @@
 use std::fmt;
 
 use crate::{
-    error::PdfResult,
+    error::{ParseError, PdfResult},
     file_specification::FileSpecification,
     filter::FilterKind,
-    objects::{Dictionary, Object, TypeOrArray},
+    objects::{Dictionary, Object, ObjectType, TypeOrArray},
     Resolve,
 };
 
@@ -20,6 +20,35 @@ impl fmt::Debug for Stream {
             .field("dict", &self.dict)
             .field("stream", &format!("[ {} bytes ]", self.stream.len()))
             .finish()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct DecodeParams {
+    params: Vec<Dictionary>,
+}
+
+impl DecodeParams {
+    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        let params = match resolver.resolve(obj)? {
+            Object::Array(arr) => arr
+                .into_iter()
+                .map(|obj| resolver.assert_dict(obj))
+                .collect::<PdfResult<Vec<Dictionary>>>()?,
+            Object::Dictionary(dict) => vec![dict],
+            found => {
+                return Err(ParseError::MismatchedObjectTypeAny {
+                    expected: &[ObjectType::Array, ObjectType::Dictionary],
+                    found,
+                })
+            }
+        };
+
+        Ok(Self { params })
+    }
+
+    pub fn get(&self, idx: usize) -> Option<&Dictionary> {
+        self.params.get(idx)
     }
 }
 
@@ -47,7 +76,7 @@ pub struct StreamDict {
     /// null object if that filter has no parameters (or if all of its parameters have
     /// their default values). If none of the filters have parameters, or if all their
     /// parameters have default values, the DecodeParms entry may be omitted
-    pub decode_parms: Option<TypeOrArray<Dictionary>>,
+    pub(crate) decode_parms: Option<DecodeParams>,
 
     /// The file containing the stream data. If this entry is present, the bytes
     /// between stream and endstream shall be ignored. However, the Length entry
@@ -96,8 +125,10 @@ impl StreamDict {
             .get_object("Filter", resolver)?
             .map(|obj| get_filters(obj, resolver))
             .transpose()?;
-        let decode_parms = dict.get_type_or_arr("DecodeParms", resolver, Resolve::assert_dict)?;
-
+        let decode_parms = dict
+            .get_object("DecodeParms", resolver)?
+            .map(|obj| DecodeParams::from_obj(obj, resolver))
+            .transpose()?;
         let f = dict
             .get_object("F", resolver)?
             .map(|obj| FileSpecification::from_obj(obj, resolver))

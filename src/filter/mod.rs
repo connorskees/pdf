@@ -1,11 +1,7 @@
-use std::{borrow::Cow, collections::HashMap};
+use std::borrow::Cow;
 
 use crate::{
-    error::PdfResult,
-    filter::dct::DctDecoder,
-    objects::{Dictionary, TypeOrArray},
-    pdf_enum,
-    stream::StreamDict,
+    error::PdfResult, filter::dct::DctDecoder, objects::Dictionary, pdf_enum, stream::StreamDict,
     Resolve,
 };
 
@@ -27,7 +23,13 @@ pub(crate) fn decode_stream<'a>(
 
         let mut stream = stream.to_vec();
 
-        for filter in filters {
+        for (idx, filter) in filters.into_iter().enumerate() {
+            let decode_params = stream_dict
+                .decode_parms
+                .clone()
+                .and_then(|params| params.get(idx).cloned())
+                .unwrap_or_else(Dictionary::empty);
+
             match filter {
                 FilterKind::AsciiHex => {
                     stream = ascii::decode_ascii_hex(&stream);
@@ -37,14 +39,7 @@ pub(crate) fn decode_stream<'a>(
                 }
                 FilterKind::Lzw => todo!(),
                 FilterKind::Flate => {
-                    let decoder_params = FlateDecoderParams::from_dict(
-                        match &stream_dict.decode_parms {
-                            Some(TypeOrArray::Type(t)) => t.clone(),
-                            None => Dictionary::new(HashMap::new()),
-                            decoder_params => todo!("{:?}", decoder_params),
-                        },
-                        resolver,
-                    )?;
+                    let decoder_params = FlateDecoderParams::from_dict(decode_params, resolver)?;
 
                     stream = FlateDecoder::new(Cow::Owned(stream), decoder_params).decode();
                 }
