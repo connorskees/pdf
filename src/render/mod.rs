@@ -61,6 +61,12 @@ impl<'a, 'b> Renderer<'a, 'b> {
         self.resolver.assert_name(obj)
     }
 
+    fn pop_string(&mut self) -> PdfResult<String> {
+        let obj = self.pop()?;
+
+        self.resolver.assert_string(obj)
+    }
+
     fn pop_arr(&mut self) -> PdfResult<Vec<Object>> {
         let obj = self.pop()?;
 
@@ -111,6 +117,9 @@ impl<'a, 'b> Renderer<'a, 'b> {
                     PdfGraphicsOperator::RG => self.set_stroking_rgb()?,
                     PdfGraphicsOperator::rg => self.set_nonstroking_rgb()?,
                     PdfGraphicsOperator::ET => self.end_text()?,
+                    PdfGraphicsOperator::BDC => self.begin_marked_content_sequence()?,
+                    PdfGraphicsOperator::Tm => self.set_text_matrix()?,
+                    PdfGraphicsOperator::Tj => self.draw_text()?,
                     _ => todo!("unimplemented operator: {:?}", op),
                 },
             }
@@ -253,7 +262,8 @@ impl<'a, 'b> Renderer<'a, 'b> {
                 base.font_descriptor.font_file.clone().unwrap(),
                 &base.widths,
             ),
-            _ => todo!(),
+            Some(font) => todo!("unimplement font type: {:#?}", font),
+            None => todo!("no font selected in text state"),
         };
 
         let stream = decode_stream(
@@ -335,6 +345,12 @@ impl<'a, 'b> Renderer<'a, 'b> {
         }
 
         Ok(())
+    }
+
+    fn draw_text(&mut self) -> PdfResult<()> {
+        let _str = self.pop_string()?;
+
+        todo!("unimplemented operator: draw text unadjusted")
     }
 
     /// Save the current graphics state on the graphics state stack
@@ -419,7 +435,9 @@ impl<'a, 'b> Renderer<'a, 'b> {
         let y = self.pop_number()?;
         let x = self.pop_number()?;
 
-        let path = self.current_path.as_mut().unwrap();
+        let path = self
+            .current_path
+            .get_or_insert_with(|| Path::new(Point::new(0.0, 0.0)));
 
         path.move_to(Point::new(x, y));
         path.line_to(Point::new(x + width, y));
@@ -444,6 +462,40 @@ impl<'a, 'b> Renderer<'a, 'b> {
     /// the current clipping path
     fn draw_path_nop(&mut self) -> PdfResult<()> {
         self.current_path = None;
+
+        Ok(())
+    }
+
+    /// Begin a marked-content sequence with an associated property list,
+    /// terminated by a balancing EMC operator. tag shall be a name object
+    /// indicating the role or significance of the sequence. properties shall be
+    /// either an inline dictionary containing the property list or a name object
+    /// associated with it in the Properties subdictionary of the current
+    /// resource dictionary
+    fn begin_marked_content_sequence(&mut self) -> PdfResult<()> {
+        let _properties = self.pop()?;
+        let _tag = self.pop_name()?;
+
+        dbg!("todo: unimplemented marked content operator");
+
+        Ok(())
+    }
+
+    /// Set the text matrix, Tm, and the text line matrix, Tlm:
+    ///
+    /// T_m = T_lm = [a b 0, c d 0, e f 1]
+    fn set_text_matrix(&mut self) -> PdfResult<()> {
+        let f = self.pop_number()?;
+        let e = self.pop_number()?;
+        let d = self.pop_number()?;
+        let c = self.pop_number()?;
+        let b = self.pop_number()?;
+        let a = self.pop_number()?;
+
+        let matrix = Matrix::new(a, b, c, d, e, f);
+
+        self.text_state.text_matrix = matrix;
+        self.text_state.text_line_matrix = matrix;
 
         Ok(())
     }
