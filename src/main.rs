@@ -530,8 +530,8 @@ fn main() -> PdfResult<()> {
     //     Parser::new("corpus/Miecznikowski-Hendren2002_Chapter_DecompilingJavaBytecodeProblem.pdf")?;
     // let mut parser = Parser::new("corpus/Dandy Clear Aligners - Launch Overview.pdf")?;
     // let mut parser = Parser::new("corpus/Meeting Room Reservation SOP.pdf")?;
-    let mut parser = Parser::new("corpus/diploma.pdf")?;
-    // let mut parser = Parser::new("/home/connor/Downloads/connor_skees (1).pdf")?;
+    // let mut parser = Parser::new("corpus/diploma.pdf")?;
+    let mut parser = Parser::new("/home/connor/Downloads/connor_skees (1).pdf")?;
     // let mut parser = Parser::new("corpus/connor-skees.pdf")?;
 
     // dbg!(&parser.page_tree);

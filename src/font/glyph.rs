@@ -1,5 +1,6 @@
 use crate::geometry::{Outline, Point};
 
+#[derive(Debug, Clone)]
 pub struct Glyph {
     pub(crate) outline: Outline,
     pub(crate) width_vector: Point,

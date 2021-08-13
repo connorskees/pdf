@@ -1,8 +1,12 @@
-use std::{borrow::Borrow, collections::HashMap, convert::TryInto};
+use std::{
+    borrow::Borrow,
+    collections::{BTreeMap, HashMap},
+    convert::TryInto,
+};
 
 use crate::{
     font::Glyph,
-    geometry::{BoundingBox, Outline, Path, Point},
+    geometry::{Outline, Path, Point},
     postscript::GraphicsOperator,
 };
 
@@ -267,13 +271,13 @@ pub(crate) struct CharStringPainter<'a> {
     width_vector: Point,
     current_path: Path,
     has_current_point: bool,
-    bounding_box: BoundingBox,
     subroutines: &'a [CharString],
     other_subroutines: &'a [Procedure],
     operand_stack: CharStringStack,
     interpreter: PostscriptInterpreter<'a>,
     encoding: &'a Encoding,
     char_strings: &'a CharStrings,
+    gylph_cache: BTreeMap<u32, Glyph>,
 }
 
 impl<'a> CharStringPainter<'a> {
@@ -283,30 +287,37 @@ impl<'a> CharStringPainter<'a> {
             width_vector: Point::new(0.0, 0.0),
             current_path: Path::new(Point::new(0.0, 0.0)),
             has_current_point: false,
-            bounding_box: BoundingBox::new(),
             subroutines: font.private.subroutines.as_deref().unwrap_or(&[]),
             other_subroutines: font.private.other_subroutines.as_deref().unwrap_or(&[]),
             encoding: &font.encoding,
             char_strings: &font.char_strings,
             operand_stack: CharStringStack::new(),
             interpreter: PostscriptInterpreter::new(&[]),
+            gylph_cache: BTreeMap::new(),
         }
     }
 
     fn reinit(&mut self) {
         self.current_path = Path::new(Point::new(0.0, 0.0));
-        self.bounding_box = BoundingBox::new();
         self.outline = Outline::empty();
         self.width_vector = Point::new(0.0, 0.0);
     }
 
     pub fn evaluate(&mut self, char_code: u32) -> PostScriptResult<Glyph> {
+        if let Some(glyph) = self.gylph_cache.get(&char_code) {
+            return Ok(glyph.clone());
+        }
+
         self.reinit();
 
         let charstring_name = self.encoding.get(char_code);
 
         if let Some(charstring) = self.char_strings.from_string(charstring_name.borrow()) {
-            self.evaluate_as_subroutine(charstring)
+            let glyph = self.evaluate_as_subroutine(charstring)?;
+
+            self.gylph_cache.insert(char_code, glyph.clone());
+
+            Ok(glyph)
         } else {
             Ok(Glyph::empty())
         }
