@@ -508,29 +508,30 @@ impl Parser {
 }
 
 fn main() -> PdfResult<()> {
-    // let parser = Parser::new("test2.pdf")?;
-    // let parser = Parser::new("EnrollmentForm.pdf")?;
-    // let parser = Parser::new("tnc280.pdf")?;
-    // let parser = Parser::new("download.pdf")?;
-    // let parser = Parser::new("ISLR Seventh Printing.pdf")?;
-    // let parser = Parser::new("crown_tattoos_11_27_18.pdf")?;
+    // let mut parser = Parser::new("corpus/test2.pdf")?;
+    // let mut parser = Parser::new("corpus/EnrollmentForm.pdf")?;
+    // let mut parser = Parser::new("corpus/tnc280.pdf")?;
+    // let mut parser = Parser::new("corpus/download.pdf")?;
+    // let mut parser = Parser::new("corpus/ISLR Seventh Printing.pdf")?;
+    // let mut parser = Parser::new("corpus/crown_tattoos_11_27_18.pdf")?;
     // let mut parser = Parser::new("corpus/Kelly_Jack_New_Hire_Letter.pdf")?;
-    // let parser = Parser::new("DigitalGatewayAPIRefV1.pdf")?;
+    // let mut parser = Parser::new("corpus/DigitalGatewayAPIRefV1.pdf")?;
     // let mut parser = Parser::new("corpus/Kenn Jam.pdf")?;
     // let mut parser = Parser::new("corpus/Christopher Smith Resume.pdf")?;
-    // let parser = Parser::new("doe-fy2021-budget-volume-2.pdf")?;
-    // let parser = Parser::new("Transaction Receipt 1.pdf")?;
-    // let parser = Parser::new("Await_Syntax_Write_Up.pdf")?;
-    // let parser = Parser::new("Mayaan Albert Resume.pdf")?;
-    // let parser = Parser::new("78024cf5cc2195b9c819834e4452e2a2.pdf")?;
-    // let parser = Parser::new("R-intro.pdf")?;
-    // let parser = Parser::new("3D Computer Graphics - A Mathematical Introduction with OpenGL.pdf")?;
-    // let parser =
-    //     Parser::new("Miecznikowski-Hendren2002_Chapter_DecompilingJavaBytecodeProblem.pdf")?;
+    // let mut parser = Parser::new("corpus/doe-fy2021-budget-volume-2.pdf")?;
+    // let mut parser = Parser::new("Transaction Receipt 1.pdf")?;
+    // let mut parser = Parser::new("Await_Syntax_Write_Up.pdf")?;
+    // let mut parser = Parser::new("corpus/Mayaan Albert Resume.pdf")?;
+    // let mut parser = Parser::new("corpus/78024cf5cc2195b9c819834e4452e2a2.pdf")?;
+    // let mut parser = Parser::new("corpus/R-intro.pdf")?;
+    // let mut parser =
+    //     Parser::new("corpus/3D Computer Graphics - A Mathematical Introduction with OpenGL.pdf")?;
+    // let mut parser =
+    //     Parser::new("corpus/Miecznikowski-Hendren2002_Chapter_DecompilingJavaBytecodeProblem.pdf")?;
     // let mut parser = Parser::new("corpus/Dandy Clear Aligners - Launch Overview.pdf")?;
     // let mut parser = Parser::new("corpus/Meeting Room Reservation SOP.pdf")?;
-    // let mut parser = Parser::new("corpus/diploma.pdf")?;
-    let mut parser = Parser::new("/home/connor/Downloads/connor_skees (1).pdf")?;
+    let mut parser = Parser::new("corpus/diploma.pdf")?;
+    // let mut parser = Parser::new("/home/connor/Downloads/connor_skees (1).pdf")?;
     // let mut parser = Parser::new("corpus/connor-skees.pdf")?;
 
     // dbg!(&parser.page_tree);

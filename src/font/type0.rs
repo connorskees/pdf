@@ -1,6 +1,31 @@
-use crate::{catalog::assert_len, error::PdfResult, objects::Dictionary, stream::Stream, Resolve};
+use crate::{
+    catalog::assert_len,
+    error::{ParseError, PdfResult},
+    objects::{Dictionary, Object, ObjectType},
+    stream::Stream,
+    Resolve,
+};
 
-use super::{cid::CidFontDictionary, encoding::FontEncoding};
+use super::{cid::CidFontDictionary, cjk::PredefinedCjkCmapName};
+
+#[derive(Debug)]
+enum Type0FontEncoding {
+    Predefined(PredefinedCjkCmapName),
+    Stream(Stream),
+}
+
+impl Type0FontEncoding {
+    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        match resolver.resolve(obj)? {
+            Object::Name(name) => Ok(Self::Predefined(PredefinedCjkCmapName::from_str(&name)?)),
+            Object::Stream(stream) => Ok(Self::Stream(stream)),
+            found => Err(ParseError::MismatchedObjectTypeAny {
+                expected: &[ObjectType::Stream, ObjectType::Name],
+                found,
+            }),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct Type0Font {
@@ -20,7 +45,7 @@ pub struct Type0Font {
     /// maps character codes to font numbers and CIDs. If the descendant is
     /// a Type 2 CIDFont whose associated TrueType font program is not embedded
     /// in the PDF file, the Encoding entry shall be a predefined CMap name
-    encoding: FontEncoding,
+    encoding: Type0FontEncoding,
 
     /// A one-element array specifying the CIDFont dictionary that is the descendant of this Type 0 font
     descendant_fonts: CidFontDictionary,
@@ -32,7 +57,8 @@ pub struct Type0Font {
 impl Type0Font {
     pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         let base_font = dict.expect_name("BaseFont", resolver)?;
-        let encoding = FontEncoding::from_obj(dict.expect_object("Encoding", resolver)?, resolver)?;
+        let encoding =
+            Type0FontEncoding::from_obj(dict.expect_object("Encoding", resolver)?, resolver)?;
         let descendant_fonts = {
             let mut arr = dict.expect_arr("DescendantFonts", resolver)?;
 

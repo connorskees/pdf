@@ -13,6 +13,8 @@ pub use self::{
 mod cid;
 mod cid_font_type0;
 mod cid_font_type2;
+mod cjk;
+mod cmap;
 mod descriptor;
 mod embedded;
 mod encoding;
