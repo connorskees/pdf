@@ -240,6 +240,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
             .get_or_insert_with(|| Path::new(Point::new(0.0, 0.0)));
 
         path.move_to(Point::new(x, y));
+        path.start = Point::new(x, y);
 
         Ok(())
     }
