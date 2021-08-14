@@ -200,7 +200,10 @@ impl DocumentCatalog {
         let lang = dict.get_string("Lang", lexer)?;
         let spider_info = None;
         let output_intents = None;
-        let piece_info = None;
+        let piece_info = dict
+            .get_dict("PieceInfo", lexer)?
+            .map(|dict| PagePiece::from_dict(dict, lexer))
+            .transpose()?;
         let oc_properties = dict
             .get_dict("OCProperties", lexer)?
             .map(|dict| OptionalContentProperties::from_dict(dict, lexer))
@@ -453,11 +456,11 @@ pub struct WebCapture;
 #[derive(Debug)]
 pub struct OutputIntent;
 #[derive(Debug)]
-pub struct PagePiece;
+pub struct PagePiece(Dictionary);
 
 impl PagePiece {
-    pub fn from_dict(_dict: Dictionary, _resolver: &mut dyn Resolve) -> PdfResult<Self> {
-        todo!()
+    pub fn from_dict(dict: Dictionary, _resolver: &mut dyn Resolve) -> PdfResult<Self> {
+        Ok(Self(dict))
     }
 }
 
@@ -599,10 +602,20 @@ pub enum ColorSpace {
 }
 
 impl ColorSpace {
+    /// For the framebuffer we currently use, this appears to be in ARGB format
+    ///
+    /// This may change in the future
     pub fn as_u32(&self) -> u32 {
         match self {
             Self::DeviceGray(n) => *n as u32,
-            _ => todo!("unimplemented color space"),
+            &Self::DeviceRGB { red, green, blue } => {
+                let r = red as u32;
+                let g = green as u32;
+                let b = blue as u32;
+
+                (0xff << 24) | (r << 16) | (g << 8) | b
+            }
+            c => todo!("unimplemented color space: {:?}", c),
         }
     }
 }

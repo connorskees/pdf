@@ -39,7 +39,7 @@ pub(crate) use crate::resolve::Resolve;
 
 use crate::{
     annotation::Annotation,
-    catalog::{DocumentCatalog, GroupAttributes, InformationDictionary},
+    catalog::{DocumentCatalog, GroupAttributes, InformationDictionary, PagePiece},
     content::{ContentLexer, ContentStream},
     error::{ParseError, PdfResult},
     filter::decode_stream,
@@ -244,7 +244,7 @@ impl Lexer {
         pages: &mut HashMap<Reference, PageNode>,
     ) -> PdfResult<()> {
         let parent = dict.expect_reference("Parent")?;
-        let last_modified = None;
+        let last_modified = dict.get_date("LastModified", self)?;
         let resources = dict
             .get_dict("Resources", self)?
             .map(|dict| Resources::from_dict(dict, self))
@@ -264,7 +264,7 @@ impl Lexer {
             .get_dict("Group", self)?
             .map(|dict| GroupAttributes::from_dict(dict, self))
             .transpose()?;
-        let thumb = None;
+        let thumb = dict.get_stream("Thumb", self)?;
         let b = None;
         let dur = None;
         let trans = None;
@@ -279,7 +279,10 @@ impl Lexer {
             .transpose()?;
         let aa = None;
         let metadata = None;
-        let piece_info = None;
+        let piece_info = dict
+            .get_dict("PieceInfo", self)?
+            .map(|dict| PagePiece::from_dict(dict, self))
+            .transpose()?;
         let struct_parents = dict.get_integer("StructParents", self)?;
         let id = None;
         let pz = None;

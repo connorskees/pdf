@@ -124,6 +124,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
                     PdfGraphicsOperator::rg => self.set_nonstroking_rgb()?,
                     PdfGraphicsOperator::ET => self.end_text()?,
                     PdfGraphicsOperator::BDC => self.begin_marked_content_sequence()?,
+                    PdfGraphicsOperator::EMC => self.end_marked_content_sequence()?,
                     PdfGraphicsOperator::Tm => self.set_text_matrix()?,
                     PdfGraphicsOperator::Tj => self.draw_text()?,
                     PdfGraphicsOperator::gs => self.set_graphics_state_parameters()?,
@@ -131,6 +132,10 @@ impl<'a, 'b> Renderer<'a, 'b> {
                         self.fill_path(FillRule::NonZeroWindingNumber)?
                     }
                     PdfGraphicsOperator::f_star => self.fill_path(FillRule::EvenOdd)?,
+                    PdfGraphicsOperator::m => self.move_to()?,
+                    PdfGraphicsOperator::l => self.line_to()?,
+                    PdfGraphicsOperator::h => self.close_path()?,
+                    PdfGraphicsOperator::S => self.stroke_path()?,
                     _ => todo!("unimplemented operator: {:?}", op),
                 },
             }
@@ -157,6 +162,84 @@ impl<'a, 'b> Renderer<'a, 'b> {
         graphics_state_parameters
             .unwrap()
             .update_graphics_state(&mut self.graphics_state, &mut self.text_state);
+
+        Ok(())
+    }
+
+    /// Stroke the path.
+    fn stroke_path(&mut self) -> PdfResult<()> {
+        let path = self
+            .current_path
+            .get_or_insert_with(|| Path::new(Point::new(0.0, 0.0)));
+
+        let color = self
+            .graphics_state
+            .device_independent
+            .color_space
+            .stroking
+            .as_u32();
+
+        path.apply_transform(
+            self.graphics_state
+                .device_independent
+                .current_transformation_matrix,
+        );
+
+        self.canvas.stroke_path(&path, color);
+
+        self.current_path = None;
+
+        Ok(())
+    }
+
+    /// Close the current subpath by appending a straight line segment from the
+    /// current point to the starting point of the subpath. If the current subpath
+    /// is already closed, h shall do nothing.
+    ///
+    /// This operator terminates the current subpath. Appending another segment
+    /// to the current path shall begin a new subpath, even if the new segment
+    /// begins at the endpoint reached by the h operation.
+    fn close_path(&mut self) -> PdfResult<()> {
+        if let Some(path) = self.current_path.as_mut() {
+            let current_point = path.current_point;
+            path.close_path();
+
+            path.current_point = current_point;
+            path.start = current_point;
+        }
+
+        Ok(())
+    }
+
+    /// Append a straight line segment from the current point to the point (x, y).
+    ///
+    /// The new current point shall be (x, y).
+    fn line_to(&mut self) -> PdfResult<()> {
+        let y = self.pop_number()?;
+        let x = self.pop_number()?;
+
+        let path = self
+            .current_path
+            .get_or_insert_with(|| Path::new(Point::new(0.0, 0.0)));
+
+        path.line_to(Point::new(x, y));
+
+        Ok(())
+    }
+
+    /// Begin a new subpath by moving the current point to coordinates (x, y),
+    /// omitting any connecting line segment. If the previous path construction
+    /// operator in the current path was also m, the new m overrides it; no vestige
+    /// of the previous m operation remains in the path.
+    fn move_to(&mut self) -> PdfResult<()> {
+        let y = self.pop_number()?;
+        let x = self.pop_number()?;
+
+        let path = self
+            .current_path
+            .get_or_insert_with(|| Path::new(Point::new(0.0, 0.0)));
+
+        path.move_to(Point::new(x, y));
 
         Ok(())
     }
@@ -526,7 +609,14 @@ impl<'a, 'b> Renderer<'a, 'b> {
         let _properties = self.pop()?;
         let _tag = self.pop_name()?;
 
-        dbg!("todo: unimplemented marked content operator");
+        dbg!("todo: unimplemented marked content operator: BDC");
+
+        Ok(())
+    }
+
+    /// End a marked-content sequence begun by a BMC or BDC operator.
+    fn end_marked_content_sequence(&mut self) -> PdfResult<()> {
+        dbg!("todo: unimplemented marked content operator: EMC");
 
         Ok(())
     }

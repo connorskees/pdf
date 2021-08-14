@@ -12,6 +12,7 @@ use crate::{
     objects::Dictionary,
     pdf_enum,
     resources::Resources,
+    stream::Stream,
     Reference, Resolve,
 };
 
@@ -212,7 +213,7 @@ pub struct PageObject {
     pub group: Option<GroupAttributes>,
 
     /// A stream object that shall define the page's thumbnail image
-    pub thumb: Option<Vec<u8>>,
+    pub thumb: Option<Stream>,
 
     /// An array that shall contain indirect references to all article beads
     /// appearing on the page. The beads shall be listed in the array in

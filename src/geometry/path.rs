@@ -28,7 +28,7 @@ impl Subpath {
 pub struct Path {
     pub subpaths: Vec<Subpath>,
     pub current_point: Point,
-    start: Point,
+    pub start: Point,
 }
 
 impl Path {
