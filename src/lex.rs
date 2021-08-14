@@ -28,18 +28,26 @@ pub(crate) trait LexBase {
     }
 
     fn next_byte(&mut self) -> Option<u8> {
-        self.buffer().get(self.cursor()).cloned().map(|b| {
+        self.buffer().get(self.cursor()).copied().map(|b| {
             *self.cursor_mut() += 1;
             b
         })
     }
 
     fn peek_byte(&self) -> Option<u8> {
-        self.buffer().get(self.cursor()).cloned()
+        self.buffer().get(self.cursor()).copied()
     }
 
     fn peek_byte_offset(&self, offset: usize) -> Option<u8> {
-        self.buffer().get(self.cursor() + offset).cloned()
+        self.buffer().get(self.cursor() + offset).copied()
+    }
+
+    fn next_is_delimiter(&self) -> bool {
+        self.peek_byte().map_or(false, Self::is_delimiter)
+    }
+
+    fn next_is_whitespace(&self) -> bool {
+        self.peek_byte().map_or(false, Self::is_whitespace)
     }
 
     /// Whitespace chars are defined as
@@ -443,17 +451,17 @@ pub(crate) trait LexObject: LexBase {
         {
             let generation = self.lex_whole_number();
             self.skip_whitespace();
-            match self.next_byte() {
-                Some(b'R') => {
-                    return Ok(Object::Reference(Reference {
-                        object_number: whole_number.parse::<usize>()?,
-                        generation: generation.parse::<usize>()?,
-                    }));
-                }
-                Some(..) | None => {
-                    *self.cursor_mut() = whole_end_pos;
-                }
+
+            if self.next_byte() == Some(b'R')
+                && (self.next_is_delimiter() || self.next_is_whitespace())
+            {
+                return Ok(Object::Reference(Reference {
+                    object_number: whole_number.parse::<usize>()?,
+                    generation: generation.parse::<usize>()?,
+                }));
             }
+
+            *self.cursor_mut() = whole_end_pos;
         }
 
         Ok(Object::Integer(whole_number.parse::<i32>()? * negative))

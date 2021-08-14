@@ -23,7 +23,7 @@ pub struct ContentLexer<'a> {
     in_compatibility_mode: u128,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ContentToken {
     Object(Object),
     Operator(PdfGraphicsOperator),
@@ -146,5 +146,29 @@ impl LexBase for ContentLexer<'_> {
 impl LexObject for ContentLexer<'_> {
     fn lex_dict(&mut self) -> PdfResult<Object> {
         Ok(Object::Dictionary(self.lex_dict_ignore_stream()?))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn rg_operator_is_not_parsed_as_reference() {
+        let buffer = b"1 1 1 RG";
+
+        let tokens = ContentLexer::new(Cow::Borrowed(buffer))
+            .collect::<PdfResult<Vec<ContentToken>>>()
+            .unwrap();
+
+        assert_eq!(
+            tokens,
+            vec![
+                ContentToken::Object(Object::Integer(1)),
+                ContentToken::Object(Object::Integer(1)),
+                ContentToken::Object(Object::Integer(1)),
+                ContentToken::Operator(PdfGraphicsOperator::RG)
+            ]
+        );
     }
 }
