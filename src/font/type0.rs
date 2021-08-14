@@ -6,7 +6,7 @@ use crate::{
     Resolve,
 };
 
-use super::{cid::CidFontDictionary, cjk::PredefinedCjkCmapName};
+use super::{cid::CidFontDictionary, cjk::PredefinedCjkCmapName, cmap::ToUnicodeCmapStream};
 
 #[derive(Debug)]
 enum Type0FontEncoding {
@@ -27,6 +27,10 @@ impl Type0FontEncoding {
     }
 }
 
+/// A composite font, also called a Type 0 font, is one whose glyphs are obtained
+/// from a fontlike object called a CIDFont. A composite font shall be represented
+/// by a font dictionary whose Subtype value is Type0. The Type 0 font is known
+/// as the root font, and its associated CIDFont is called its descendant.
 #[derive(Debug)]
 pub struct Type0Font {
     /// The name of the font. If the descendant is a Type 0 CIDFont, this
@@ -51,7 +55,7 @@ pub struct Type0Font {
     descendant_fonts: CidFontDictionary,
 
     /// A stream containing a CMap file that maps character codes to Unicode values
-    to_unicode: Option<Stream>,
+    to_unicode: Option<ToUnicodeCmapStream>,
 }
 
 impl Type0Font {
@@ -67,9 +71,10 @@ impl Type0Font {
             CidFontDictionary::from_dict(resolver.assert_dict(arr.pop().unwrap())?, resolver)
         }?;
 
-        let to_unicode = dict.get_stream("ToUnicode", resolver)?;
-
-        assert!(to_unicode.is_none(), "cmap?");
+        let to_unicode = dict
+            .get_stream("ToUnicode", resolver)?
+            .map(|stream| ToUnicodeCmapStream::from_stream(stream, resolver))
+            .transpose()?;
 
         Ok(Self {
             base_font,

@@ -1,4 +1,4 @@
-use crate::{error::PdfResult, objects::Dictionary, stream::Stream, Resolve};
+use crate::{error::PdfResult, font::cmap::ToUnicodeCmapStream, objects::Dictionary, Resolve};
 
 use super::{encoding::FontEncoding, BaseFontDict};
 
@@ -28,7 +28,7 @@ pub struct Type1Font {
     encoding: Option<FontEncoding>,
 
     /// A stream containing a CMap file that maps character codes to Unicode values
-    to_unicode: Option<Stream>,
+    to_unicode: Option<ToUnicodeCmapStream>,
 }
 
 impl Type1Font {
@@ -39,9 +39,10 @@ impl Type1Font {
             .get_object("Encoding", resolver)?
             .map(|obj| FontEncoding::from_obj(obj, resolver))
             .transpose()?;
-        let to_unicode = dict.get_stream("ToUnicode", resolver)?;
-
-        assert!(to_unicode.is_none(), "cmap?");
+        let to_unicode = dict
+            .get_stream("ToUnicode", resolver)?
+            .map(|stream| ToUnicodeCmapStream::from_stream(stream, resolver))
+            .transpose()?;
 
         Ok(Self {
             base,

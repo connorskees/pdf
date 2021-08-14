@@ -480,7 +480,7 @@ pub struct Permissions;
 pub struct Legal;
 #[derive(Debug)]
 pub struct Requirement;
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Collection;
 #[derive(Debug)]
 pub struct BoxColorInfo;

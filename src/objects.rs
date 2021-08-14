@@ -23,7 +23,7 @@ pub enum ObjectType {
     Reference,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Object {
     Null,
     True,
@@ -59,13 +59,18 @@ pub struct Reference {
     pub generation: usize,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Dictionary {
     dict: HashMap<String, Object>,
 }
 
 impl fmt::Debug for Dictionary {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.dict.is_empty() {
+            write!(f, "Dictionary {{}}")?;
+            return Ok(());
+        }
+
         let mut dictionary = f.debug_struct("Dictionary");
 
         for (key, value) in &self.dict {

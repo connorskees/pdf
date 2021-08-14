@@ -8,7 +8,7 @@ use crate::{
     Resolve,
 };
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Stream {
     pub(crate) dict: StreamDict,
     pub(crate) stream: Vec<u8>,
@@ -23,7 +23,7 @@ impl fmt::Debug for Stream {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct DecodeParams {
     params: Vec<Dictionary>,
 }
@@ -52,7 +52,7 @@ impl DecodeParams {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StreamDict {
     /// The number of bytes from the beginning of the line following the keyword stream
     /// to the last byte just before the keyword endstream. (There may be an additional

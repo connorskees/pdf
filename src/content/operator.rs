@@ -1,7 +1,7 @@
 use crate::pdf_enum;
 
 pdf_enum!(
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     #[allow(non_camel_case_types)]
     pub enum PdfGraphicsOperator {
         /// Close, fill, and stroke path using nonzero winding number rule

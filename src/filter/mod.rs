@@ -59,7 +59,7 @@ pub(crate) fn decode_stream<'a>(
 }
 
 pdf_enum!(
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
     pub enum FilterKind {
         /// Decodes data encoded in an ASCII hexadecimal representation, reproducing
         /// the original binary data

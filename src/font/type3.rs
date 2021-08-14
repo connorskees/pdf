@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::{
     data_structures::{Matrix, Rectangle},
     error::PdfResult,
+    font::cmap::ToUnicodeCmapStream,
     objects::Dictionary,
     resources::Resources,
     stream::Stream,
@@ -55,14 +56,16 @@ pub struct Type3Font {
     resources: Option<Resources>,
 
     /// A stream containing a CMap file that maps character codes to Unicode values
-    to_unicode: Option<Stream>,
+    to_unicode: Option<ToUnicodeCmapStream>,
 }
 
 impl Type3Font {
     pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         let base = BaseFontDict::from_dict(&mut dict, resolver)?;
         let font_bounding_box = dict.expect_rectangle("FontBBox", resolver)?;
-        let font_matrix = dict.expect_matrix("Matrix", resolver)?;
+        let font_matrix = dict
+            .get_matrix("Matrix", resolver)?
+            .unwrap_or_else(|| Matrix::new(0.001, 0.0, 0.0, 0.001, 0.0, 0.0));
         let char_procs = dict
             .expect_dict("CharProcs", resolver)?
             .entries()
@@ -73,9 +76,10 @@ impl Type3Font {
             .get_dict("Resources", resolver)?
             .map(|dict| Resources::from_dict(dict, resolver))
             .transpose()?;
-        let to_unicode = dict.get_stream("ToUnicode", resolver)?;
-
-        assert!(to_unicode.is_none(), "cmap?");
+        let to_unicode = dict
+            .get_stream("ToUnicode", resolver)?
+            .map(|stream| ToUnicodeCmapStream::from_stream(stream, resolver))
+            .transpose()?;
 
         Ok(Self {
             base,

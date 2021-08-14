@@ -34,6 +34,8 @@ pub(crate) struct PostscriptInterpreter<'a> {
     dictionary_stack: Vec<DictionaryIndex>,
     execution_stack: Vec<()>,
 
+    resources: PostScriptDictionary,
+
     pub fonts: HashMap<PostScriptString, Type1PostscriptFont>,
 }
 
@@ -217,6 +219,7 @@ impl<'a> PostscriptInterpreter<'a> {
             arrays: Container::new(),
             dictionaries: Container::new(),
             fonts: HashMap::new(),
+            resources: PostScriptDictionary::new(),
         };
 
         let system_dict = interpreter.new_dict(gen_system_dict());
@@ -312,6 +315,16 @@ impl<'a> PostscriptInterpreter<'a> {
             PostscriptOperator::DefineFont => self.define_font(),
             PostscriptOperator::Mark => self.mark(),
             PostscriptOperator::CloseFile => self.close_file(),
+            op
+            @
+            (PostscriptOperator::DefineResource
+            | PostscriptOperator::UndefineResource
+            | PostscriptOperator::FindResource
+            | PostscriptOperator::FindColorRendering
+            | PostscriptOperator::ResourceStatus
+            | PostscriptOperator::ResourceForAll) => {
+                todo!("unimplemented resource operator {:?}", op)
+            }
             op @ (PostscriptOperator::Abs | PostscriptOperator::Add) => todo!("{:?}", op),
         }
     }
@@ -916,6 +929,36 @@ pub(self) enum PostscriptOperator {
     DefineFont,
     Mark,
     CloseFile,
+
+    /// Register named resource instance in category
+    ///
+    /// key instance category `defineresource` instance
+    DefineResource,
+
+    /// Remove resource registration
+    ///
+    /// key category `undefineresource` –
+    UndefineResource,
+
+    /// Return resource instance identified by key in category
+    ///
+    /// key category `findresource` instance
+    FindResource,
+
+    /// Select CIE-based color rendering dictionary by rendering intent
+    ///
+    /// renderingintent `findcolorrendering` name bool
+    FindColorRendering,
+
+    /// Return status of resource instance
+    ///
+    /// key category `resourcestatus` status size true OR false
+    ResourceStatus,
+
+    /// Enumerate resource instances in category
+    ///
+    /// template proc scratch category `resourceforall` –
+    ResourceForAll,
 }
 
 #[derive(Debug, Clone, Copy)]

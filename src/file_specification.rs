@@ -6,7 +6,7 @@ use crate::{
     Resolve,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum FileSpecification {
     Simple(FileSpecificationString),
     Full(FullFileSpecification),
@@ -27,7 +27,7 @@ impl FileSpecification {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FullFileSpecification {
     /// The name of the file system that shall be used to interpret this file
     /// specification.
@@ -150,7 +150,7 @@ impl FullFileSpecification {
 /// components may be empty. If a component contains one or more literal SOLIDI, each shall
 /// be preceded by a REVERSE SOLIDUS (5Ch) (\), which in turn shall be preceded by another
 /// REVERSE SOLIDUS to indicate that it is part of the string and not an escape character.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FileSpecificationString(String);
 
 impl FileSpecificationString {
@@ -164,7 +164,7 @@ struct EmbeddedFileStream;
 #[derive(Debug, Clone)]
 struct RelatedFilesArray;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FileIdentifier(String, String);
 
 impl FileIdentifier {

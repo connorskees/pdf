@@ -40,6 +40,7 @@ fn ident_token_from_bytes(bytes: &[u8]) -> PdfResult<PostScriptObject> {
         b"definefont" => PostscriptOperator::DefineFont,
         b"mark" => PostscriptOperator::Mark,
         b"closefile" => PostscriptOperator::CloseFile,
+        b"findresource" => PostscriptOperator::FindResource,
         literal => {
             // todo: only to detect unimplemented operators
             match literal {
