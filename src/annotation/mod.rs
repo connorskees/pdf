@@ -4,6 +4,7 @@ use crate::{
     date::Date,
     error::{ParseError, PdfResult},
     objects::{Dictionary, Object, Reference},
+    optional_content::OptionalContent,
     pdf_enum,
     resources::graphics_state_parameters::LineDashPattern,
     Resolve,
@@ -436,8 +437,6 @@ impl Default for AnnotationFlags {
 
 #[derive(Debug)]
 struct Appearance;
-#[derive(Debug)]
-struct OptionalContent;
 #[derive(Debug)]
 struct RichTextString;
 

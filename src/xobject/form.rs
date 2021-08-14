@@ -1,8 +1,9 @@
 use crate::{
-    catalog::{GroupAttributes, MetadataStream, OptionalContent, PagePiece},
+    catalog::{GroupAttributes, MetadataStream, PagePiece},
     data_structures::{Matrix, Rectangle},
     date::Date,
     error::PdfResult,
+    optional_content::OptionalContent,
     resources::Resources,
     stream::Stream,
     Resolve,

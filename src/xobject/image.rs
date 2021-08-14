@@ -1,8 +1,9 @@
 use crate::{
-    catalog::{MetadataStream, OptionalContent},
+    catalog::MetadataStream,
     error::PdfResult,
     filter::flate::BitsPerComponent,
     objects::{Dictionary, Object},
+    optional_content::OptionalContent,
     resources::graphics_state_parameters::RenderingIntent,
     stream::Stream,
     Resolve,

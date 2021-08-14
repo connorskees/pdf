@@ -19,6 +19,7 @@ mod lex;
 mod macros;
 mod object_stream;
 mod objects;
+mod optional_content;
 mod page;
 mod postscript;
 mod render;
@@ -516,6 +517,7 @@ fn main() -> PdfResult<()> {
         let renderer = render::Renderer::new(&mut content, &mut parser.lexer, Rc::clone(&page));
 
         renderer.render().unwrap();
+        // break;
     }
 
     // dbg!(parser.run().unwrap());

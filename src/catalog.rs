@@ -13,9 +13,9 @@ document is opened.
 
 use crate::{
     actions::Actions, assert_empty, data_structures::NumberTree, date::Date,
-    destination::Destination, pdf_enum, stream::Stream, structure::StructTreeRoot,
-    viewer_preferences::ViewerPreferences, Dictionary, Lexer, Object, ParseError, PdfResult,
-    Reference, Resolve,
+    destination::Destination, optional_content::OptionalContentProperties, pdf_enum,
+    stream::Stream, structure::StructTreeRoot, viewer_preferences::ViewerPreferences, Dictionary,
+    Lexer, Object, ParseError, PdfResult, Reference, Resolve,
 };
 
 /// See module level documentation
@@ -201,7 +201,10 @@ impl DocumentCatalog {
         let spider_info = None;
         let output_intents = None;
         let piece_info = None;
-        let oc_properties = None;
+        let oc_properties = dict
+            .get_dict("OCProperties", lexer)?
+            .map(|dict| OptionalContentProperties::from_dict(dict, lexer))
+            .transpose()?;
         let perms = None;
         let legal = None;
         let requirements = None;
@@ -458,22 +461,6 @@ impl PagePiece {
     }
 }
 
-#[derive(Debug)]
-pub struct OptionalContent;
-impl OptionalContent {
-    pub fn from_dict(_dict: Dictionary, _resolver: &mut dyn Resolve) -> PdfResult<Self> {
-        todo!()
-    }
-}
-
-#[derive(Debug)]
-pub struct OptionalContentProperties;
-
-impl OptionalContentProperties {
-    pub fn from_dict(_dict: Dictionary, _resolver: &mut dyn Resolve) -> PdfResult<Self> {
-        todo!()
-    }
-}
 #[derive(Debug)]
 pub struct Permissions;
 #[derive(Debug)]
