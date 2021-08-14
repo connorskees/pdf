@@ -74,6 +74,17 @@ pub(crate) trait LexBase {
         !Self::is_whitespace(b) && !Self::is_delimiter(b)
     }
 
+    /// `start` is inclusive, `end` is exclusive
+    /// 0 indexed
+    // todo: DO NOT COPY
+    fn get_byte_range(&self, start: usize, end: usize) -> Vec<u8> {
+        if start == end {
+            return Vec::new();
+        }
+
+        self.buffer()[start..end].to_vec()
+    }
+
     /// Assumes the leading `%` has already been consumed
     fn skip_comment(&mut self) {
         while !self.next_is_eol() {
@@ -237,12 +248,22 @@ pub(crate) trait LexBase {
                         Some(b'0') => string.push('\0'),
                         // TODO: do we skip whitespace after `\` in multiline string?
                         Some(b'\n' | b'\r') => self.skip_whitespace(),
-                        // TODO: octal escape
-                        Some(c) => todo!(
-                            "unhandled escaped char {:?} on line {}",
-                            c as char,
-                            self.line_number()
-                        ),
+                        // octal escape of the form `\ddd`
+                        Some(c) => {
+                            let mut n = c - b'0';
+
+                            let digit_two =
+                                self.next_byte().ok_or(ParseError::UnexpectedEof)? - b'0';
+                            let digit_three =
+                                self.next_byte().ok_or(ParseError::UnexpectedEof)? - b'0';
+
+                            n *= 8;
+                            n += digit_two;
+                            n *= 8;
+                            n += digit_three;
+
+                            string.push(n as char);
+                        }
                         None => todo!(),
                     }
                     continue;
@@ -498,17 +519,6 @@ pub(crate) trait LexObject: LexBase {
             stream,
             dict: stream_dict,
         })
-    }
-
-    /// `start` is inclusive, `end` is exclusive
-    /// 0 indexed
-    // todo: DO NOT COPY
-    fn get_byte_range(&self, start: usize, end: usize) -> Vec<u8> {
-        if start == end {
-            return Vec::new();
-        }
-
-        self.buffer()[start..end].to_vec()
     }
 
     fn hex_byte_to_digit(b: u8) -> u8 {
