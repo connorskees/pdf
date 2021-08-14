@@ -86,6 +86,22 @@ impl Path {
         self.line_to(end);
     }
 
+    pub fn intersects_line_even_odd(&self, line: Line) -> bool {
+        let mut count = 0;
+        for path in &self.subpaths {
+            match path {
+                Subpath::Line(line2) => {
+                    if line2.intersects_line(line) {
+                        count += 1;
+                    }
+                }
+                Subpath::Cubic(..) => todo!(),
+            }
+        }
+
+        (count & 1) != 0
+    }
+
     pub fn cubic_curve_to(
         &mut self,
         first_control_point: Point,

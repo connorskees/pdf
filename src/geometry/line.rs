@@ -36,4 +36,19 @@ impl Line {
 
         bbox
     }
+
+    pub fn intersects_line(&self, other: Line) -> bool {
+        let f = |x: f32, y: f32| -> f32 {
+            (x - self.start.x) * (self.end.y - self.start.y)
+                - (y - self.start.y) * (self.end.x - self.start.x)
+        };
+
+        let g = |x: f32, y: f32| -> f32 {
+            (x - other.start.x) * (other.end.y - other.start.y)
+                - (y - other.start.y) * (other.end.x - other.start.x)
+        };
+
+        f(other.start.x, other.start.y) * f(other.end.x, other.end.y) < 0.0
+            && g(self.start.x, self.start.y) * g(self.end.x, self.end.y) < 0.0
+    }
 }

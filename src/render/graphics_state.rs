@@ -9,7 +9,7 @@ use crate::{
 };
 
 #[derive(Debug, Default, Clone)]
-pub(super) struct GraphicsState {
+pub(crate) struct GraphicsState {
     pub device_independent: DeviceIndependentGraphicsState,
     pub device_dependent: DeviceDependentGraphicsState,
 }
@@ -73,13 +73,13 @@ pub struct DeviceIndependentGraphicsState {
     /// stroked
     ///
     /// Initial value: 0, for square butt caps.
-    pub line_cap: LineCapStyle,
+    pub line_cap_style: LineCapStyle,
 
     /// A code specifying the shape of joints between connected segments of a
     /// stroked path
     ///
     /// Initial value: 0, for mitered joins.
-    pub line_join: LineJoinStyle,
+    pub line_join_style: LineJoinStyle,
 
     /// The maximum length of mitered line joins for stroked paths. This
     /// parameter limits the length of “spikes” produced when line segments
@@ -92,7 +92,7 @@ pub struct DeviceIndependentGraphicsState {
     /// A description of the dash pattern to be used when paths are stroked.
     ///
     /// Initial value: a solid line.
-    pub dash_pattern: LineDashPattern,
+    pub line_dash_pattern: LineDashPattern,
 
     /// The rendering intent to be used when converting CIE-based colours to
     /// device colours.
@@ -133,7 +133,8 @@ pub struct DeviceIndependentGraphicsState {
     /// of execution of a transparency group XObject
     ///
     /// Initial value: 1.0.
-    pub alpha_constant: f32,
+    pub stroking_alpha_constant: f32,
+    pub nonstroking_alpha_constant: f32,
 
     /// A flag specifying whether the current soft mask and alpha constant
     /// parameters shall be interpreted as shape values (true) or opacity values
@@ -151,15 +152,16 @@ impl Default for DeviceIndependentGraphicsState {
             clipping_path: ClippingPath,
             color_space: GraphicsStateColorSpace::default(),
             line_width: 1.0,
-            line_cap: LineCapStyle::Butt,
-            line_join: LineJoinStyle::Miter,
+            line_cap_style: LineCapStyle::Butt,
+            line_join_style: LineJoinStyle::Miter,
             miter_limit: 10.0,
-            dash_pattern: LineDashPattern::solid(),
+            line_dash_pattern: LineDashPattern::solid(),
             rendering_intent: RenderingIntent::RelativeColorimetric,
             stroke_adjustment: false,
             blend_mode: BlendMode::Normal,
             soft_mask: SoftMask::None,
-            alpha_constant: 1.0,
+            stroking_alpha_constant: 1.0,
+            nonstroking_alpha_constant: 1.0,
             alpha_source: false,
         }
     }
@@ -174,14 +176,16 @@ pub struct DeviceDependentGraphicsState {
     /// one for stroking and one for all other painting operations.
     ///
     /// Initial value: false.
-    overprint: bool,
+    pub should_overprint: bool,
+
+    pub should_overprint_stroking: bool,
 
     /// A code specifying whether a colour component value of 0 in a DeviceCMYK
     /// colour space should erase that component (0) or leave it unchanged (1) when
     /// overprinting
     ///
     /// Initial value: 0.
-    overprint_mode: i32,
+    pub overprint_mode: i32,
 
     /// A function that calculates the level of the black colour component to
     /// use when converting RGB colours to CMYK
@@ -190,7 +194,7 @@ pub struct DeviceDependentGraphicsState {
     /// device dependent value.
     // todo: this is temporarily nullable, as it's unclear what the default fn
     // should be
-    black_generation: Option<Function>,
+    pub black_generation: Option<Function>,
 
     /// A function that calculates the reduction in the levels of the cyan,
     /// magenta, and yellow colour components to compensate for the amount of
@@ -200,18 +204,18 @@ pub struct DeviceDependentGraphicsState {
     /// device dependent value.
     // todo: this is temporarily nullable, as it's unclear what the default fn
     // should be
-    undercolor_removal: Option<Function>,
+    pub undercolor_removal: Option<Function>,
 
     /// A function that adjusts device gray or colour component levels to
     /// compensate for nonlinear response in a particular output device
     ///
     /// Initial value: a conforming reader shall initialize this to a suitable
     /// device dependent value.
-    transfer: TransferFunction,
+    pub transfer: TransferFunction,
 
     /// A halftone screen for gray and colour rendering, specified as a halftone
     /// dictionary or stream
-    halftone: Halftones,
+    pub halftones: Halftones,
 
     /// The precision with which curves shall be rendered on the output device.
     /// The value of this parameter (positive number) gives the maximum error
@@ -219,7 +223,7 @@ pub struct DeviceDependentGraphicsState {
     /// curves at the expense of more computation and memory use.
     ///
     /// Initial value: 1.0.
-    flatness: f32,
+    pub flatness_tolerance: f32,
 
     /// The precision with which colour gradients are to be rendered on the
     /// output device. The value of this parameter (0 to 1.0) gives the maximum
@@ -229,20 +233,21 @@ pub struct DeviceDependentGraphicsState {
     ///
     /// Initial value: a conforming reader shall initialize this to a suitable
     /// device dependent value.
-    smoothness: f32,
+    pub smoothness_tolerance: f32,
 }
 
 impl Default for DeviceDependentGraphicsState {
     fn default() -> Self {
         Self {
-            overprint: false,
+            should_overprint: false,
+            should_overprint_stroking: false,
             overprint_mode: 0,
             black_generation: None,
             undercolor_removal: None,
             transfer: TransferFunction::Identity,
-            halftone: Halftones::Default,
-            flatness: 1.0,
-            smoothness: 0.5,
+            halftones: Halftones::Default,
+            flatness_tolerance: 1.0,
+            smoothness_tolerance: 0.5,
         }
     }
 }

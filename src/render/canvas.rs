@@ -8,7 +8,7 @@ use crate::{
 
 use minifb::{Key, Window, WindowOptions};
 
-fn fuzzy_eq(a: f32, b: f32) -> bool {
+pub fn fuzzy_eq(a: f32, b: f32) -> bool {
     let a = a.abs();
     let b = b.abs();
     let diff = (a - b).abs();
@@ -40,6 +40,30 @@ impl Canvas {
             height,
             buffer: vec![u32::MAX; width * height],
             window,
+        }
+    }
+
+    pub fn fill_path_non_zero_winding_number(&mut self, _path: &Path, _color: u32) {
+        todo!()
+    }
+
+    pub fn fill_path_even_odd(&mut self, path: &Path, color: u32) {
+        let bbox = path.bounding_box();
+
+        let x = bbox.min.x as u32;
+        let y = bbox.min.y as u32;
+
+        for h in y..(bbox.height().ceil() as u32 + y) {
+            for w in x..(bbox.width().ceil() as u32 + x) {
+                let point = Point::new(w as f32, h as f32);
+
+                if path.intersects_line_even_odd(Line::new(
+                    point,
+                    Point::new(bbox.max.x + 1.0, bbox.max.y + 1.0),
+                )) {
+                    self.paint_point(point, color);
+                }
+            }
         }
     }
 
@@ -94,7 +118,7 @@ impl Canvas {
     }
 
     fn paint_point(&mut self, point: Point, color: u32) {
-        if point.x >= self.width as f32 || point.y >= self.height as f32 {
+        if point.x >= self.width as f32 - 1.0 || point.y >= self.height as f32 - 1.0 {
             return;
         }
 

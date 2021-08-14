@@ -1,7 +1,7 @@
 pub(crate) mod canvas;
 pub(super) mod error;
-mod graphics_state;
-mod text_state;
+pub(crate) mod graphics_state;
+pub(crate) mod text_state;
 
 use std::rc::Rc;
 
@@ -24,6 +24,12 @@ use crate::{
 use canvas::Canvas;
 
 use self::{error::PdfRenderError, graphics_state::GraphicsState, text_state::TextState};
+
+#[derive(Debug)]
+enum FillRule {
+    EvenOdd,
+    NonZeroWindingNumber,
+}
 
 pub struct Renderer<'a, 'b> {
     content: &'b mut ContentLexer<'a>,
@@ -120,6 +126,11 @@ impl<'a, 'b> Renderer<'a, 'b> {
                     PdfGraphicsOperator::BDC => self.begin_marked_content_sequence()?,
                     PdfGraphicsOperator::Tm => self.set_text_matrix()?,
                     PdfGraphicsOperator::Tj => self.draw_text()?,
+                    PdfGraphicsOperator::gs => self.set_graphics_state_parameters()?,
+                    PdfGraphicsOperator::f | PdfGraphicsOperator::F => {
+                        self.fill_path(FillRule::NonZeroWindingNumber)?
+                    }
+                    PdfGraphicsOperator::f_star => self.fill_path(FillRule::EvenOdd)?,
                     _ => todo!("unimplemented operator: {:?}", op),
                 },
             }
@@ -130,12 +141,51 @@ impl<'a, 'b> Renderer<'a, 'b> {
         Ok(())
     }
 
+    /// Set the specified parameters in the graphics state. dictName shall be
+    /// the name of a graphics state parameter dictionary in the ExtGState
+    /// subdictionary of the current resource dictionary
+    fn set_graphics_state_parameters(&mut self) -> PdfResult<()> {
+        let dict_name = self.pop_name()?;
+
+        let graphics_state_parameters = self
+            .page
+            .resources
+            .as_ref()
+            .and_then(|res| res.ext_g_state.as_ref())
+            .and_then(|state_map| state_map.get(&dict_name));
+
+        graphics_state_parameters
+            .unwrap()
+            .update_graphics_state(&mut self.graphics_state, &mut self.text_state);
+
+        Ok(())
+    }
+
     /// Set the stroking colour space to DeviceGray and set the gray level to
     /// use for stroking operations. gray shall be a number between 0.0 (black)
     /// and 1.0 (white).
     fn set_stroking_gray(&mut self) -> PdfResult<()> {
         let gray = self.pop_number()?;
         self.graphics_state.device_independent.color_space.stroking = ColorSpace::DeviceGray(gray);
+
+        Ok(())
+    }
+
+    fn fill_path(&mut self, fill_rule: FillRule) -> PdfResult<()> {
+        let path = self.current_path.as_ref().unwrap();
+        let color = self
+            .graphics_state
+            .device_independent
+            .color_space
+            .nonstroking
+            .as_u32();
+
+        match fill_rule {
+            FillRule::EvenOdd => self.canvas.fill_path_even_odd(path, color),
+            FillRule::NonZeroWindingNumber => {
+                self.canvas.fill_path_non_zero_winding_number(path, color)
+            }
+        }
 
         Ok(())
     }

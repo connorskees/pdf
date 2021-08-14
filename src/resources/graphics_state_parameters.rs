@@ -1,11 +1,15 @@
+use std::rc::Rc;
+
 use crate::{
     assert_empty,
     catalog::assert_len,
     error::{ParseError, PdfResult},
+    font::Font,
     function::{Function, TransferFunction},
     halftones::Halftones,
     objects::{Dictionary, Object, ObjectType},
     pdf_enum,
+    render::{graphics_state::GraphicsState, text_state::TextState},
     stream::Stream,
     Resolve,
 };
@@ -58,12 +62,12 @@ pub struct GraphicsStateParameters {
     should_overprint: Option<bool>,
 
     overprint_mode: Option<i32>,
+
     /// An array of the form [font size], where font shall be an indirect reference to a font
     /// dictionary and size shall be a number expressed in text space units. These two objects
     /// correspond to the operands of the Tf operator; however, the first operand shall be an
     /// indirect object reference instead of a resource name.
-    // todo
-    font: Option<Object>,
+    font: Option<(Rc<Font>, f32)>,
 
     /// The black-generation function, which maps the interval [0.0 1.0] to the interval [0.0 1.0]
     black_generation: Option<Function>,
@@ -105,7 +109,7 @@ pub struct GraphicsStateParameters {
     smoothness_tolerance: Option<f32>,
 
     /// A flag specifying whether to apply automatic stroke adjustment
-    should_apply_automatic_stoke: Option<bool>,
+    stroke_adjustment: Option<bool>,
 
     /// The current blend mode to be used in the transparent imaging model
     blend_mode: Option<BlendMode>,
@@ -122,14 +126,14 @@ pub struct GraphicsStateParameters {
     /// The current stroking alpha constant, specifying the constant shape or constant
     /// opacity value that shall be used for stroking operations in the transparent imaging
     /// model
-    current_stroking_alpha_constant: Option<f32>,
+    stroking_alpha_constant: Option<f32>,
 
     /// Same as CA, but for nonstroking operations
-    current_nonstroking_alpha_constant: Option<f32>,
+    nonstroking_alpha_constant: Option<f32>,
 
     /// The alpha source flag, specifying whether the current soft mask and alpha constant
     /// shall be interpreted as shape values (true) or opacity values (false).
-    alpha_is_shape: Option<bool>,
+    alpha_source: Option<bool>,
 
     /// The text knockout flag, shall determine the behaviour of overlapping glyphs within
     /// a text object in the transparent imaging model
@@ -323,7 +327,71 @@ impl LineDashPattern {
     }
 }
 
+fn graphics_state_parameters_font_from_obj(
+    obj: Object,
+    resolver: &mut dyn Resolve,
+) -> PdfResult<(Rc<Font>, f32)> {
+    let mut arr = resolver.assert_arr(obj)?;
+
+    assert_len(&arr, 2)?;
+
+    let size = resolver.assert_number(arr.pop().unwrap())?;
+    let font_dict = resolver.assert_dict(arr.pop().unwrap())?;
+
+    Ok((Rc::new(Font::from_dict(font_dict, resolver)?), size))
+}
+
 impl GraphicsStateParameters {
+    pub(crate) fn update_graphics_state(
+        &self,
+        graphics_state: &mut GraphicsState,
+        text_state: &mut TextState,
+    ) {
+        if let Some((font, size)) = self.font.clone() {
+            text_state.font = Some(font);
+            text_state.font_size = size;
+        }
+
+        macro_rules! update_field {
+            ($field:ident, $device:ident) => {
+                if let Some($field) = self.$field {
+                    graphics_state.$device.$field = $field;
+                }
+            };
+            (@clone $field:ident, $device:ident) => {
+                if let Some($field) = self.$field.clone() {
+                    graphics_state.$device.$field = $field;
+                }
+            };
+        }
+
+        update_field!(line_width, device_independent);
+        update_field!(line_cap_style, device_independent);
+        update_field!(line_join_style, device_independent);
+        update_field!(miter_limit, device_independent);
+        update_field!(@clone line_dash_pattern, device_independent);
+        update_field!(rendering_intent, device_independent);
+        update_field!(should_overprint_stroking, device_dependent);
+        update_field!(should_overprint, device_dependent);
+        update_field!(overprint_mode, device_dependent);
+        // todo: function fields
+        // update_field!(black_generation, device_dependent);
+        // update_field!(black_generation_two, device_dependent);
+        // update_field!(undercolor_removal, device_dependent);
+        // update_field!(undercolor_removal_two, device_dependent);
+        // update_field!(transfer, device_dependent);
+        // update_field!(transfer_two, device_dependent);
+        update_field!(@clone halftones, device_dependent);
+        update_field!(flatness_tolerance, device_dependent);
+        update_field!(smoothness_tolerance, device_dependent);
+        update_field!(stroke_adjustment, device_independent);
+        update_field!(@clone blend_mode, device_independent);
+        update_field!(@clone soft_mask, device_independent);
+        update_field!(stroking_alpha_constant, device_independent);
+        update_field!(nonstroking_alpha_constant, device_independent);
+        update_field!(alpha_source, device_independent);
+    }
+
     pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         dict.expect_type("ExtGState", resolver, false)?;
 
@@ -348,7 +416,10 @@ impl GraphicsStateParameters {
         let should_overprint_stroking = dict.get_bool("OP", resolver)?;
         let should_overprint = dict.get_bool("op", resolver)?;
         let overprint_mode = dict.get_integer("OPM", resolver)?;
-        let font = dict.get_object("Font", resolver)?;
+        let font = dict
+            .get_object("Font", resolver)?
+            .map(|obj| graphics_state_parameters_font_from_obj(obj, resolver))
+            .transpose()?;
         let black_generation = dict.get_function("BG", resolver)?;
         let black_generation_two = dict
             .get_object("BG2", resolver)?
@@ -374,7 +445,7 @@ impl GraphicsStateParameters {
 
         let flatness_tolerance = dict.get_number("FL", resolver)?;
         let smoothness_tolerance = dict.get_number("SM", resolver)?;
-        let should_apply_automatic_stoke = dict.get_bool("SA", resolver)?;
+        let stroke_adjustment = dict.get_bool("SA", resolver)?;
 
         let blend_mode = dict
             .get_object("BM", resolver)?
@@ -386,9 +457,9 @@ impl GraphicsStateParameters {
             .map(|obj| SoftMask::from_obj(obj, resolver))
             .transpose()?;
 
-        let current_stroking_alpha_constant = dict.get_number("CA", resolver)?;
-        let current_nonstroking_alpha_constant = dict.get_number("ca", resolver)?;
-        let alpha_is_shape = dict.get_bool("AIS", resolver)?;
+        let stroking_alpha_constant = dict.get_number("CA", resolver)?;
+        let nonstroking_alpha_constant = dict.get_number("ca", resolver)?;
+        let alpha_source = dict.get_bool("AIS", resolver)?;
         let is_knockout = dict.get_bool("TK", resolver)?;
         let apple_antialiasing = dict.get_bool("AAPL:AA", resolver)?;
 
@@ -414,12 +485,12 @@ impl GraphicsStateParameters {
             halftones,
             flatness_tolerance,
             smoothness_tolerance,
-            should_apply_automatic_stoke,
+            stroke_adjustment,
             blend_mode,
             soft_mask,
-            current_stroking_alpha_constant,
-            current_nonstroking_alpha_constant,
-            alpha_is_shape,
+            stroking_alpha_constant,
+            nonstroking_alpha_constant,
+            alpha_source,
             is_knockout,
             apple_antialiasing,
         })

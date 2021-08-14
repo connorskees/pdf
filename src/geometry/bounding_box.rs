@@ -1,8 +1,8 @@
 use super::Point;
 #[derive(Debug, Clone, Copy)]
 pub struct BoundingBox {
-    min: Point,
-    max: Point,
+    pub(crate) min: Point,
+    pub(crate) max: Point,
 }
 
 impl BoundingBox {
