@@ -13,7 +13,7 @@ use crate::{
 /// be extended beyond either or both endpoints by continuing the boundary colours indefinitely
 ///
 /// This type of shading shall not be used with an Indexed colour space.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AxialShading<'a> {
     /// An array of four numbers [x0 y0 x1 y1] specifying the starting and ending coordinates
     /// of the axis, expressed in the shading's target coordinate space
@@ -82,7 +82,7 @@ impl<'a> AxialShading<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 struct Coords {
     x0: f32,
     y0: f32,

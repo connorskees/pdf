@@ -10,7 +10,7 @@ use super::freeform::{BitsPerCoordinate, BitsPerFlag};
 /// of the 12 control points that define a Coons patch. The shading dictionaries representing
 /// the two patch types differ only in the value of the ShadingType entry and in the number
 /// of control points specified for each patch in the data stream
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TensorProductPatchMeshShading<'a> {
     /// The number of bits used to represent each vertex coordinate.
     ///

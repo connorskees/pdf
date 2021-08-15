@@ -20,7 +20,7 @@ mod latticeform;
 mod radial;
 mod tensor_product_patch_mesh;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ShadingObject<'a> {
     Dictionary(ShadingDictionary<'a>),
     Stream(ShadingStream),
@@ -44,10 +44,10 @@ impl<'a> ShadingObject<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ShadingStream;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ShadingDictionary<'a> {
     base: BaseShadingDictionary<'a>,
     sub_type: SubtypeShadingDictionary<'a>,
@@ -64,7 +64,7 @@ impl<'a> ShadingDictionary<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SubtypeShadingDictionary<'a> {
     FunctionBased(FunctionBasedShading<'a>),
     Axial(AxialShading<'a>),
@@ -109,7 +109,7 @@ impl<'a> SubtypeShadingDictionary<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BaseShadingDictionary<'a> {
     shading_type: ShadingType,
 

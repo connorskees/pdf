@@ -9,7 +9,7 @@ use super::freeform::BitsPerCoordinate;
 /// 4, but instead of using freeform geometry, their vertices are arranged in a
 /// pseudorectangular lattice, which is topologically equivalent to a rectangular
 /// grid. The vertices are organized into rows, which need not be geometrically linear
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LatticeformShading<'a> {
     /// The number of bits used to represent each vertex coordinate.
     ///

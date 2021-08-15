@@ -14,7 +14,7 @@ use crate::{
     Resolve,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum FunctionOrDefault<'a> {
     Function(Function<'a>),
     Default,
@@ -34,7 +34,7 @@ impl<'a> FunctionOrDefault<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GraphicsStateParameters<'a> {
     line_width: Option<f32>,
     line_cap_style: Option<LineCapStyle>,

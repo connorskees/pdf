@@ -6,7 +6,7 @@ use crate::{
     resolve::Resolve,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OptionalContent;
 impl OptionalContent {
     pub fn from_dict<'a>(
@@ -227,8 +227,14 @@ impl<'a> OptionalContentConfiguration<'a> {
     }
 }
 
-#[derive(Debug)]
-struct OptionalContentGroup;
+#[derive(Debug, Clone)]
+pub struct OptionalContentGroup;
+impl OptionalContentGroup {
+    pub fn from_dict<'a>(_dict: Dictionary, _resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        todo!()
+    }
+}
+
 #[derive(Debug)]
 struct OptionalContentUsage;
 #[derive(Debug)]

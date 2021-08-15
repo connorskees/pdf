@@ -44,7 +44,7 @@ impl Canvas {
     }
 
     pub fn fill_path_non_zero_winding_number(&mut self, _path: &Path, _color: u32) {
-        todo!()
+        self.fill_path_even_odd(_path, _color)
     }
 
     pub fn fill_path_even_odd(&mut self, path: &Path, color: u32) {

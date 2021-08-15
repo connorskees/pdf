@@ -17,7 +17,7 @@ use crate::{
     page::PageObject,
     pdf_enum,
     postscript::{charstring::CharStringPainter, PostscriptInterpreter},
-    xobject::XObject,
+    xobject::{FormXObject, XObject},
     Resolve,
 };
 
@@ -99,13 +99,28 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         }
     }
 
-    pub fn render(mut self) -> PdfResult<()> {
+    fn render_form_xobject(&mut self, form: FormXObject<'b>) -> PdfResult<()> {
+        // todo: decode this stream
+        // let content_buffer = decode_stream(&form.stream.stream, &form.stream.dict, self.resolver)?;
+
+        let mut form_content = ContentLexer::new(form.stream.stream);
+
+        std::mem::swap(self.content, &mut form_content);
+
+        self.render_content_stream()?;
+
+        std::mem::swap(self.content, &mut form_content);
+
+        Ok(())
+    }
+
+    fn render_content_stream(&mut self) -> PdfResult<()> {
         while let Some(token) = self.content.next() {
             let token = token?;
 
             match token {
                 ContentToken::Object(obj) => self.operand_stack.push(obj),
-                ContentToken::Operator(op) => match op {
+                ContentToken::Operator(op) => match dbg!(op) {
                     PdfGraphicsOperator::G => self.set_stroking_gray()?,
                     PdfGraphicsOperator::g => self.set_nonstroking_gray()?,
                     PdfGraphicsOperator::BT => self.begin_text()?,
@@ -118,6 +133,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     PdfGraphicsOperator::Do => self.draw_xobject()?,
                     PdfGraphicsOperator::w => self.set_line_width()?,
                     PdfGraphicsOperator::re => self.create_rectangle()?,
+                    PdfGraphicsOperator::W => self.set_clipping_path_non_zero_winding_number()?,
                     PdfGraphicsOperator::W_star => self.set_clipping_path_even_odd()?,
                     PdfGraphicsOperator::n => self.draw_path_nop()?,
                     PdfGraphicsOperator::RG => self.set_stroking_rgb()?,
@@ -136,12 +152,129 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     PdfGraphicsOperator::l => self.line_to()?,
                     PdfGraphicsOperator::h => self.close_path()?,
                     PdfGraphicsOperator::S => self.stroke_path()?,
+                    PdfGraphicsOperator::k => self.set_nonstroking_cmyk()?,
+                    PdfGraphicsOperator::K => self.set_stroking_cmyk()?,
+                    PdfGraphicsOperator::TL => self.set_text_leading()?,
+                    PdfGraphicsOperator::c => self.curve_to()?,
+                    PdfGraphicsOperator::v => self.curve_to_initial_replicated()?,
+                    PdfGraphicsOperator::y => self.curve_to_final_replicated()?,
                     _ => todo!("unimplemented operator: {:?}", op),
                 },
             }
         }
 
+        Ok(())
+    }
+
+    pub fn render(mut self) -> PdfResult<()> {
+        self.render_content_stream()?;
+
         self.canvas.draw();
+
+        Ok(())
+    }
+
+    /// Append a cubic Bézier curve to the current path. The curve shall extend
+    /// from the current point to the point (x3, y3), using the current point and
+    /// (x2, y2) as the Bézier control points
+    ///
+    /// The new current point shall be (x3, y3).
+    fn curve_to_initial_replicated(&mut self) -> PdfResult<()> {
+        let y3 = self.pop_number()?;
+        let x3 = self.pop_number()?;
+        let y2 = self.pop_number()?;
+        let x2 = self.pop_number()?;
+
+        if let Some(path) = self.current_path.as_mut() {
+            path.cubic_curve_to(path.current_point, Point::new(x2, y2), Point::new(x3, y3));
+        }
+
+        Ok(())
+    }
+
+    /// Append a cubic Bézier curve to the current path. The curve shall extend
+    /// from the current point to the point (x3, y3), using (x1, y1) and (x3, y3)
+    /// as the Bézier control points
+    ///
+    /// The new current point shall be (x3, y3).
+    fn curve_to_final_replicated(&mut self) -> PdfResult<()> {
+        let y3 = self.pop_number()?;
+        let x3 = self.pop_number()?;
+        let y1 = self.pop_number()?;
+        let x1 = self.pop_number()?;
+
+        if let Some(path) = self.current_path.as_mut() {
+            path.cubic_curve_to(Point::new(x1, y1), Point::new(x3, y3), Point::new(x3, y3));
+        }
+
+        Ok(())
+    }
+
+    /// Append a cubic Bézier curve to the current path. The curve shall extend
+    /// from the current point to the point (x3, y3), using (x1, y1) and (x2, y2)
+    /// as the Bézier control points
+    ///
+    /// The new current point shall be (x3, y3).
+    fn curve_to(&mut self) -> PdfResult<()> {
+        let y3 = self.pop_number()?;
+        let x3 = self.pop_number()?;
+        let y2 = self.pop_number()?;
+        let x2 = self.pop_number()?;
+        let y1 = self.pop_number()?;
+        let x1 = self.pop_number()?;
+
+        if let Some(path) = self.current_path.as_mut() {
+            path.cubic_curve_to(Point::new(x1, y1), Point::new(x2, y2), Point::new(x3, y3));
+        }
+
+        Ok(())
+    }
+
+    fn set_text_leading(&mut self) -> PdfResult<()> {
+        let leading = self.pop_number()?;
+
+        self.text_state.leading = leading;
+
+        Ok(())
+    }
+
+    /// Set the stroking colour space to DeviceCMYK (or the DefaultCMYK colour
+    /// space) and set the colour to use for stroking operations. Each operand
+    /// shall be a number between 0.0 (zero concentration) and 1.0 (maximum
+    /// concentration). The behaviour of this operator is affected by the overprint
+    /// mode
+    fn set_stroking_cmyk(&mut self) -> PdfResult<()> {
+        let key = self.pop_number()?;
+        let yellow = self.pop_number()?;
+        let magenta = self.pop_number()?;
+        let cyan = self.pop_number()?;
+
+        self.graphics_state.device_independent.color_space.stroking = ColorSpace::DeviceCMYK {
+            cyan,
+            magenta,
+            yellow,
+            key,
+        };
+
+        Ok(())
+    }
+
+    /// Same as [Renderer::set_stroking_cmyk], but used for nonstroking operations
+    fn set_nonstroking_cmyk(&mut self) -> PdfResult<()> {
+        let key = self.pop_number()?;
+        let yellow = self.pop_number()?;
+        let magenta = self.pop_number()?;
+        let cyan = self.pop_number()?;
+
+        self.graphics_state
+            .device_independent
+            .color_space
+            .nonstroking = ColorSpace::DeviceCMYK {
+            cyan,
+            magenta,
+            yellow,
+            key,
+        };
 
         Ok(())
     }
@@ -256,7 +389,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     }
 
     fn fill_path(&mut self, fill_rule: FillRule) -> PdfResult<()> {
-        let path = self.current_path.as_ref().unwrap();
+        let mut path = self.current_path.take().unwrap();
         let color = self
             .graphics_state
             .device_independent
@@ -264,10 +397,16 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
             .nonstroking
             .as_u32();
 
+        path.apply_transform(
+            self.graphics_state
+                .device_independent
+                .current_transformation_matrix,
+        );
+
         match fill_rule {
-            FillRule::EvenOdd => self.canvas.fill_path_even_odd(path, color),
+            FillRule::EvenOdd => self.canvas.fill_path_even_odd(&path, color),
             FillRule::NonZeroWindingNumber => {
-                self.canvas.fill_path_non_zero_winding_number(path, color)
+                self.canvas.fill_path_non_zero_winding_number(&path, color)
             }
         }
 
@@ -538,7 +677,14 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
             match xobject {
                 Some(XObject::Image(image)) => self.canvas.draw_image(image, self.resolver)?,
-                _ => todo!("unimplemented xobject"),
+                Some(XObject::Form(form)) => {
+                    let form = FormXObject::clone(form);
+                    self.render_form_xobject(form)?
+                }
+                Some(XObject::PostScript(ps_obj)) => {
+                    todo!("unimplemented postscript xobject {:#?}", ps_obj)
+                }
+                None => todo!("unable to find xobject {:#?}", name),
             }
         }
 
@@ -586,7 +732,16 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     /// path, using the even-odd rule to determine which regions lie inside the
     /// clipping path.
     fn set_clipping_path_even_odd(&mut self) -> PdfResult<()> {
-        dbg!("unimplemented clipping path operator");
+        dbg!("unimplemented clipping path operator even-odd");
+
+        Ok(())
+    }
+
+    /// Modify the current clipping path by intersecting it with the current path,
+    /// using the nonzero winding number rule to determine which regions lie inside
+    /// the clipping path.
+    fn set_clipping_path_non_zero_winding_number(&mut self) -> PdfResult<()> {
+        dbg!("unimplemented clipping path operator non-zero winding number");
 
         Ok(())
     }

@@ -5,7 +5,7 @@ use crate::{
     Resolve,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ReferenceXObject<'a> {
     /// The file containing the target document
     f: FileSpecification<'a>,
@@ -25,7 +25,7 @@ pub struct ReferenceXObject<'a> {
     id: Option<FileIdentifier>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum PageIdentifier {
     Index(usize),
     Label(String),

@@ -3,7 +3,7 @@ use crate::{
     NUMBERS,
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Date {
     year: Option<u16>,
     month: Option<u16>,
@@ -122,7 +122,7 @@ impl Date {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum UtRelationship {
     Plus,
     Minus,

@@ -11,13 +11,15 @@ use crate::{
 
 use super::{reference::ReferenceXObject, OpenPrepressInterface};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FormXObject<'a> {
     /// An array of four numbers in the form coordinate system (see above), giving the
     /// coordinates of the left, bottom, right, and top edges, respectively, of the form
     /// XObject's bounding box. These boundaries shall be used to clip the form XObject and
     /// to determine its size for caching
     bbox: Rectangle,
+
+    pub stream: Stream<'a>,
 
     /// An array of six numbers specifying the form matrix, which maps form space into
     /// user space
@@ -144,6 +146,7 @@ impl<'a> FormXObject<'a> {
         Ok(Self {
             bbox,
             matrix,
+            stream,
             resources,
             reference,
             group,

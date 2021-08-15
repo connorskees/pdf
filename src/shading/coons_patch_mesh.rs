@@ -15,7 +15,7 @@ use super::freeform::{BitsPerCoordinate, BitsPerFlag};
 ///   * Coordinates are mapped from the unit square into a four-sided patch whose sides are
 ///     not necessarily linear. The mapping is continuous: the corners of the unit square map
 ///     to corners of the patch and the sides of the unit square map to sides of the patch
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CoonsPatchMeshShading<'a> {
     /// The number of bits used to represent each vertex coordinate.
     ///

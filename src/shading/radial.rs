@@ -12,7 +12,7 @@ use crate::{
 /// of this type are commonly used to depict three-dimensional spheres and cones
 ///
 /// This type of shading shall not be used with an Indexed colour space
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RadialShading<'a> {
     /// An array of six numbers [x0 y0 r0 x1 y1 r1] specifying the centres and radii of
     /// the starting and ending circles, expressed in the shading's target coordinate
@@ -87,7 +87,7 @@ impl<'a> RadialShading<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Coords {
     start: Circle,
     end: Circle,
@@ -104,7 +104,7 @@ impl Coords {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 struct Circle {
     x: f32,
     y: f32,

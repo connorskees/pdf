@@ -458,7 +458,7 @@ impl MarkInformationDictionary {
 pub struct WebCapture;
 #[derive(Debug)]
 pub struct OutputIntent;
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PagePiece<'a>(Dictionary<'a>);
 
 impl<'a> PagePiece<'a> {
@@ -478,7 +478,7 @@ pub struct Collection;
 #[derive(Debug)]
 pub struct BoxColorInfo;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GroupAttributes<'a> {
     /// The group colour space, which is used for the following purposes:
     ///
@@ -610,11 +610,24 @@ impl ColorSpace {
     /// This may change in the future
     pub fn as_u32(&self) -> u32 {
         match self {
+            // todo: argb
             Self::DeviceGray(n) => *n as u32,
             &Self::DeviceRGB { red, green, blue } => {
                 let r = red as u32;
                 let g = green as u32;
                 let b = blue as u32;
+
+                (0xff << 24) | (r << 16) | (g << 8) | b
+            }
+            &Self::DeviceCMYK {
+                cyan,
+                magenta,
+                yellow,
+                key,
+            } => {
+                let r = (255.0 * (1.0 - cyan) * (1.0 - key)) as u32;
+                let g = (255.0 * (1.0 - magenta) * (1.0 - key)) as u32;
+                let b = (255.0 * (1.0 - yellow) * (1.0 - key)) as u32;
 
                 (0xff << 24) | (r << 16) | (g << 8) | b
             }

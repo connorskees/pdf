@@ -3,7 +3,7 @@ use crate::{
     error::PdfResult,
     filter::flate::BitsPerComponent,
     objects::{Dictionary, Object},
-    optional_content::OptionalContent,
+    optional_content::{OptionalContent, OptionalContentGroup},
     resources::graphics_state_parameters::RenderingIntent,
     stream::Stream,
     Resolve,
@@ -11,7 +11,7 @@ use crate::{
 
 use super::OpenPrepressInterface;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImageXObject<'a> {
     /// The width of the image, in samples
     pub width: u32,
@@ -229,7 +229,7 @@ impl<'a> ImageXObject<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SoftMask<'a> {
     /// If a Matte entry is present, shall be the same as the Width value of the parent
     /// image; otherwise independent of it. Both images shall be mapped to the unit square
@@ -294,7 +294,7 @@ impl<'a> SoftMask<'a> {
         })
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AlternateImage<'a> {
     /// The image XObject for the alternate image
     image: ImageXObject<'a>,
@@ -333,15 +333,7 @@ impl<'a> AlternateImage<'a> {
     }
 }
 
-#[derive(Debug)]
-pub struct OptionalContentGroup;
-impl OptionalContentGroup {
-    pub fn from_dict<'a>(_dict: Dictionary, _resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        todo!()
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImageMask;
 
 impl ImageMask {

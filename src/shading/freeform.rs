@@ -9,7 +9,7 @@ use crate::{
 /// vertex of the triangles is specified, and a technique known as Gouraud interpolation
 /// is used to colour the interiors. The interpolation functions defining the shading may
 /// be linear or nonlinear
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FreeformShading<'a> {
     /// The number of bits used to represent each vertex coordinate.
     ///

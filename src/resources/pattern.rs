@@ -10,7 +10,7 @@ use crate::{
 
 use super::{graphics_state_parameters::GraphicsStateParameters, Resources};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Pattern<'a> {
     /// Tiling patterns consist of a small graphical figure (called a pattern cell) that is
     /// replicated at fixed horizontal and vertical intervals to fill the area to be painted.
@@ -55,7 +55,7 @@ impl<'a> Pattern<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TilingPattern<'a> {
     /// A code that determines how the colour of the pattern cell shall be specified
     paint_type: PaintType,
@@ -114,7 +114,7 @@ impl<'a> TilingPattern<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ShadingPattern<'a> {
     /// A shading object defining the shading pattern's gradient fill
     shading: ShadingObject<'a>,
@@ -163,7 +163,7 @@ pdf_enum!(
 
 pdf_enum!(
     int
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy)]
     enum PaintType {
         /// The pattern's content stream shall specify the colours used to paint the pattern
         /// cell. When the content stream begins execution, the current colour is the one
@@ -184,7 +184,7 @@ pdf_enum!(
 
 pdf_enum!(
     int
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy)]
     enum TilingType {
         /// Pattern cells shall be spaced consistently -- that is, by a multiple of a device
         /// pixel. To achieve this, the conforming reader may need to distort the pattern

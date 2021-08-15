@@ -1,6 +1,6 @@
 use crate::{error::PdfResult, stream::Stream, Resolve};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PostScriptXObject<'a> {
     stream: Stream<'a>,
 

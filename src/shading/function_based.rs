@@ -11,7 +11,7 @@ use crate::{
 /// mathematical function. The function need not be smooth or continuous. This type is the most general of the
 /// available shading types and is useful for shadings that cannot be adequately described with any of the other
 /// types
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FunctionBasedShading<'a> {
     /// An array of four numbers [xmin xmax ymin ymax] specifying the rectangular domain of coordinates
     /// over which the colour function(s) are defined
@@ -53,7 +53,7 @@ impl<'a> FunctionBasedShading<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 struct FunctionDomain {
     x_min: f32,
     x_max: f32,

@@ -10,7 +10,7 @@ use self::{graphics_state_parameters::GraphicsStateParameters, pattern::Pattern}
 pub mod graphics_state_parameters;
 pub mod pattern;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Resources<'a> {
     /// A dictionary that maps resource names to
     /// graphics state parameter dictionaries
@@ -137,7 +137,7 @@ impl<'a> Resources<'a> {
 }
 
 pdf_enum!(
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy)]
     pub enum ProcedureSet {
         Pdf = "PDF",
         Text = "Text",

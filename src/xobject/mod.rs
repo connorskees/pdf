@@ -10,7 +10,7 @@ mod reference;
 /// An external object (commonly called an XObject) is a graphics object
 /// whose contents are defined by a self-contained stream, separate from the
 /// content stream in which it is used
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum XObject<'a> {
     Image(ImageXObject<'a>),
     Form(FormXObject<'a>),
@@ -45,7 +45,7 @@ impl<'a> XObject<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OpenPrepressInterface;
 
 impl OpenPrepressInterface {
