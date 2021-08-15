@@ -106,7 +106,7 @@ impl ObjectStreamParser {
     }
 }
 
-impl LexBase for ObjectStreamParser {
+impl<'a> LexBase<'a> for ObjectStreamParser {
     fn cursor(&self) -> usize {
         self.cursor
     }
@@ -120,7 +120,7 @@ impl LexBase for ObjectStreamParser {
     }
 }
 
-impl LexObject for ObjectStreamParser {
+impl<'a> LexObject<'a> for ObjectStreamParser {
     fn lex_dict(&mut self) -> PdfResult<Object> {
         let dict = self.lex_dict_ignore_stream()?;
 

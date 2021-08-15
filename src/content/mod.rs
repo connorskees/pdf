@@ -129,8 +129,8 @@ impl<'a> ContentLexer<'a> {
     }
 }
 
-impl LexBase for ContentLexer<'_> {
-    fn buffer<'a>(&'a self) -> &'a [u8] {
+impl<'a> LexBase<'a> for ContentLexer<'_> {
+    fn buffer(&self) -> &[u8] {
         self.buffer.borrow()
     }
 
@@ -143,7 +143,7 @@ impl LexBase for ContentLexer<'_> {
     }
 }
 
-impl LexObject for ContentLexer<'_> {
+impl<'a> LexObject<'a> for ContentLexer<'_> {
     fn lex_dict(&mut self) -> PdfResult<Object> {
         Ok(Object::Dictionary(self.lex_dict_ignore_stream()?))
     }

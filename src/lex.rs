@@ -9,8 +9,8 @@ use crate::{
 const FORM_FEED: u8 = b'\x0C';
 const BACKSPACE: u8 = b'\x08';
 
-pub(crate) trait LexBase {
-    fn buffer<'a>(&'a self) -> &'a [u8];
+pub(crate) trait LexBase<'a> {
+    fn buffer(&self) -> &[u8];
     fn cursor(&self) -> usize;
     fn cursor_mut(&mut self) -> &mut usize;
 
@@ -76,13 +76,12 @@ pub(crate) trait LexBase {
 
     /// `start` is inclusive, `end` is exclusive
     /// 0 indexed
-    // todo: DO NOT COPY
-    fn get_byte_range(&self, start: usize, end: usize) -> Vec<u8> {
+    fn get_byte_range(&self, start: usize, end: usize) -> &[u8] {
         if start == end {
-            return Vec::new();
+            return &[];
         }
 
-        self.buffer()[start..end].to_vec()
+        &self.buffer()[start..end]
     }
 
     /// Assumes the leading `%` has already been consumed
@@ -296,7 +295,7 @@ pub(crate) trait LexBase {
     }
 }
 
-pub(crate) trait LexObject: LexBase {
+pub(crate) trait LexObject<'a>: LexBase<'a> {
     fn lex_object(&mut self) -> PdfResult<Object> {
         self.skip_whitespace();
         let obj = match self.peek_byte() {
@@ -507,7 +506,9 @@ pub(crate) trait LexObject: LexBase {
         self.expect_bytes(b"stream")?;
         self.expect_eol()?;
 
-        let stream = self.get_byte_range(self.cursor(), self.cursor() + stream_dict.len);
+        let stream = self
+            .get_byte_range(self.cursor(), self.cursor() + stream_dict.len)
+            .to_vec();
         *self.cursor_mut() += stream_dict.len;
 
         self.skip_whitespace();

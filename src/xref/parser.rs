@@ -23,7 +23,7 @@ pub(crate) struct XrefParser<'a> {
     pos: usize,
 }
 
-impl LexBase for XrefParser<'_> {
+impl<'a> LexBase<'a> for XrefParser<'_> {
     fn buffer(&self) -> &[u8] {
         self.file
     }
@@ -37,7 +37,7 @@ impl LexBase for XrefParser<'_> {
     }
 }
 
-impl LexObject for XrefParser<'_> {
+impl<'a> LexObject<'a> for XrefParser<'_> {
     fn lex_dict(&mut self) -> PdfResult<Object> {
         Ok(Object::Dictionary(self.lex_dict_ignore_stream()?))
     }
@@ -149,8 +149,9 @@ impl<'a> XrefParser<'a> {
         self.expect_bytes(b"stream")?;
         self.expect_eol()?;
 
-        let stream =
-            self.get_byte_range(self.cursor(), self.cursor() + stream_dict.stream_dict.len);
+        let stream = self
+            .get_byte_range(self.cursor(), self.cursor() + stream_dict.stream_dict.len)
+            .to_vec();
         *self.cursor_mut() += stream_dict.stream_dict.len;
 
         self.expect_eol()?;

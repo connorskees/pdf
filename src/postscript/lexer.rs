@@ -207,8 +207,8 @@ impl<'a> PostScriptLexer<'a> {
     }
 }
 
-impl LexBase for PostScriptLexer<'_> {
-    fn buffer<'a>(&'a self) -> &'a [u8] {
+impl<'a> LexBase<'a> for PostScriptLexer<'_> {
+    fn buffer(&self) -> &[u8] {
         &self.buffer
     }
 

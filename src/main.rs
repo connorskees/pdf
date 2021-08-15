@@ -72,7 +72,7 @@ pub fn assert_reference(obj: Object) -> PdfResult<Reference> {
     }
 }
 
-impl LexBase for Lexer {
+impl<'a> LexBase<'a> for Lexer {
     fn buffer(&self) -> &[u8] {
         &self.file
     }
@@ -86,7 +86,7 @@ impl LexBase for Lexer {
     }
 }
 
-impl LexObject for Lexer {
+impl<'a> LexObject<'a> for Lexer {
     // TODO: move to Lex trait proper and restrain to where Self: Sized + Resolve
     fn lex_dict(&mut self) -> PdfResult<Object> {
         let dict = self.lex_dict_ignore_stream()?;
@@ -512,6 +512,33 @@ impl Parser {
 }
 
 fn main() -> PdfResult<()> {
+    // let mut parser = Parser::new("corpus/test2.pdf")?;
+    // let mut parser = Parser::new("corpus/EnrollmentForm.pdf")?;
+    // let mut parser = Parser::new("corpus/tnc280.pdf")?;
+    // let mut parser = Parser::new("corpus/download.pdf")?;
+    // let mut parser = Parser::new("corpus/ISLR Seventh Printing.pdf")?;
+    // let mut parser = Parser::new("corpus/crown_tattoos_11_27_18.pdf")?;
+    // let mut parser = Parser::new("corpus/Kelly_Jack_New_Hire_Letter.pdf")?;
+    // let mut parser = Parser::new("corpus/DigitalGatewayAPIRefV1.pdf")?;
+    // let mut parser = Parser::new("corpus/Kenn Jam.pdf")?;
+    // let mut parser = Parser::new("corpus/Christopher Smith Resume.pdf")?;
+    // let mut parser = Parser::new("corpus/doe-fy2021-budget-volume-2.pdf")?;
+    // let mut parser = Parser::new("Transaction Receipt 1.pdf")?;
+    // let mut parser = Parser::new("corpus/Await_Syntax_Write_Up.pdf")?;
+    let mut parser = Parser::new("corpus/na-c-01.pdf")?;
+    // let mut parser = Parser::new("corpus/Mayaan Albert Resume.pdf")?;
+    // let mut parser = Parser::new("corpus/78024cf5cc2195b9c819834e4452e2a2.pdf")?;
+    // let mut parser = Parser::new("corpus/R-intro.pdf")?;
+    // let mut parser =
+    //     Parser::new("corpus/3D Computer Graphics - A Mathematical Introduction with OpenGL.pdf")?;
+    // let mut parser =
+    //     Parser::new("corpus/Miecznikowski-Hendren2002_Chapter_DecompilingJavaBytecodeProblem.pdf")?;
+    // let mut parser = Parser::new("corpus/Dandy Clear Aligners - Launch Overview.pdf")?;
+    // let mut parser = Parser::new("corpus/Meeting Room Reservation SOP.pdf")?;
+    // let mut parser = Parser::new("corpus/diploma.pdf")?;
+    // let mut parser = Parser::new("/home/connor/Downloads/connor_skees (1).pdf")?;
+    // let mut parser = Parser::new("corpus/connor-skees.pdf")?;
+
     // dbg!(&parser.page_tree);
 
     for page in parser.pages() {
