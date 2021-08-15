@@ -37,7 +37,7 @@ impl<'a> StitchingFunction<'a> {
             .collect::<PdfResult<Vec<f32>>>()?;
 
         let encode = dict
-            .expect_arr("Bounds", resolver)?
+            .expect_arr("Encode", resolver)?
             .into_iter()
             .map(|obj| resolver.assert_number(obj))
             .collect::<PdfResult<Vec<f32>>>()?;
