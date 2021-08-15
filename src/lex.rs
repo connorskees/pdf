@@ -492,6 +492,8 @@ pub(crate) trait LexObject<'a>: LexBase<'a> {
     fn lex_array(&mut self) -> PdfResult<Object<'a>> {
         let mut arr = Vec::new();
         self.expect_byte(b'[')?;
+        self.skip_whitespace();
+
         while let Some(b) = self.peek_byte() {
             if b == b']' {
                 self.next_byte();
@@ -548,5 +550,48 @@ pub(crate) trait LexObject<'a>: LexBase<'a> {
         self.expect_bytes(b"endobj")?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::{collections::HashMap, rc::Rc};
+
+    use crate::{objects::Object, xref::Xref, Lexer};
+
+    use super::LexObject;
+
+    #[test]
+    fn empty_array_with_whitespace() {
+        let body = b"[   ]";
+
+        let mut lexer = Lexer::new(
+            body.to_vec(),
+            Rc::new(Xref {
+                objects: HashMap::new(),
+            }),
+        )
+        .unwrap();
+
+        let obj = lexer.lex_object().unwrap();
+
+        assert_eq!(obj, Object::Array(Vec::new()));
+    }
+
+    #[test]
+    fn array_with_single_element_leading_and_trailing_whitespace() {
+        let body = b"[   1.0   ]";
+
+        let mut lexer = Lexer::new(
+            body.to_vec(),
+            Rc::new(Xref {
+                objects: HashMap::new(),
+            }),
+        )
+        .unwrap();
+
+        let obj = lexer.lex_object().unwrap();
+
+        assert_eq!(obj, Object::Array(vec![Object::Real(1.0)]));
     }
 }
