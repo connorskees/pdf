@@ -757,7 +757,7 @@ impl<'a> PostscriptInterpreter<'a> {
     }
 }
 
-impl PostscriptInterpreter<'_> {
+impl<'a> PostscriptInterpreter<'a> {
     fn push(&mut self, obj: PostScriptObject) {
         self.operand_stack.push(obj);
     }

@@ -9,27 +9,30 @@ use crate::{
 #[derive(Debug)]
 pub struct OptionalContent;
 impl OptionalContent {
-    pub fn from_dict(_dict: Dictionary, _resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict<'a>(
+        _dict: Dictionary<'a>,
+        _resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         todo!()
     }
 }
 
 #[derive(Debug)]
-pub struct OptionalContentProperties {
+pub struct OptionalContentProperties<'a> {
     /// An array of indirect references to all the optional content groups in the
     /// document, in any order. Every optional content group shall be included
     /// in this array.
-    optional_content_groups: Vec<Object>,
+    optional_content_groups: Vec<Object<'a>>,
 
     /// The default viewing optional content configuration dictionary
-    default_config: OptionalContentConfiguration,
+    default_config: OptionalContentConfiguration<'a>,
 
     /// An array of alternate optional content configuration dictionaries
-    alternate_configs: Option<Vec<OptionalContentConfiguration>>,
+    alternate_configs: Option<Vec<OptionalContentConfiguration<'a>>>,
 }
 
-impl OptionalContentProperties {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> OptionalContentProperties<'a> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let optional_content_groups = dict.expect_arr("OCGs", resolver)?;
         let default_config =
             OptionalContentConfiguration::from_dict(dict.expect_dict("D", resolver)?, resolver)?;
@@ -56,7 +59,7 @@ impl OptionalContentProperties {
 }
 
 #[derive(Debug)]
-struct OptionalContentConfiguration {
+struct OptionalContentConfiguration<'a> {
     /// A name for the configuration, suitable for presentation in a user interface.
     name: Option<String>,
 
@@ -85,14 +88,14 @@ struct OptionalContentConfiguration {
     ///
     /// If the BaseState entry is ON, this entry is redundant.
     // todo: Vec<OptionalContentGroup>
-    on: Option<Vec<Object>>,
+    on: Option<Vec<Object<'a>>>,
 
     /// An array of optional content groups whose state shall be set to OFF when
     /// this configuration is applied.
     ///
     /// If the BaseState entry is OFF, this entry is redundant.
     // todo: Vec<OptionalContentGroup>
-    off: Option<Vec<Object>>,
+    off: Option<Vec<Object<'a>>>,
 
     /// A single intent name or an array containing any combination of names. It
     /// shall be used to determine which optional content groups’ states to consider
@@ -112,7 +115,7 @@ struct OptionalContentConfiguration {
     /// the current system language or viewing magnification, and when they shall
     /// be applied.
     // todo: Vec<OptionalContentUsageApplication>
-    applications: Option<Vec<Object>>,
+    applications: Option<Vec<Object<'a>>>,
 
     /// An array specifying the order for presentation of optional content groups
     /// in a conforming reader’s user interface. The array elements may include
@@ -141,7 +144,7 @@ struct OptionalContentConfiguration {
     /// Any groups not listed in this array shall not be presented in any user
     /// interface that uses the configuration.
     // todo: Vec<OptionalContentGroup>
-    order: Option<Vec<Object>>,
+    order: Option<Vec<Object<'a>>>,
 
     /// A name specifying which optional content groups in the Order array shall
     /// be displayed to the user.
@@ -160,7 +163,7 @@ struct OptionalContentConfiguration {
     /// empty array; in other configuration dictionaries, the default is the
     /// RBGroups value from the default configuration dictionary.
     // todo: better type
-    rb_groups: Option<Vec<Object>>,
+    rb_groups: Option<Vec<Object<'a>>>,
 
     /// An array of optional content groups that shall be locked when this
     /// configuration is applied. The state of a locked group cannot be changed
@@ -174,11 +177,11 @@ struct OptionalContentConfiguration {
     /// being changed by means other than the user interface, such as JavaScript
     /// or items in the AS entry of a configuration dictionary.
     // todo: Vec<OptionalContentGroup>
-    locked: Option<Vec<Object>>,
+    locked: Option<Vec<Object<'a>>>,
 }
 
-impl OptionalContentConfiguration {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> OptionalContentConfiguration<'a> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let name = dict.get_string("Name", resolver)?;
         let creator = dict.get_string("Creator", resolver)?;
         let base_state = dict

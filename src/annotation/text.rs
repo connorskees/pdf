@@ -72,7 +72,10 @@ impl Default for TextAnnotationName {
 impl TextAnnotation {
     const TYPE: &'static str = "Text";
 
-    pub fn from_dict(dict: &mut Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict<'a>(
+        dict: &mut Dictionary<'a>,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         let is_open = dict.get_bool("Open", resolver)?.unwrap_or(false);
         let name = dict
             .get_name("Name", resolver)?

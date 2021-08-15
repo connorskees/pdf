@@ -19,8 +19,8 @@ use super::{encoding::FontEncoding, BaseFontDict};
 /// streams shall be associated with glyph names. A separate encoding entry shall map
 /// character codes to the appropriate glyph names for the glyphs
 #[derive(Debug)]
-pub struct Type3Font {
-    base: BaseFontDict,
+pub struct Type3Font<'a> {
+    base: BaseFontDict<'a>,
 
     /// A rectangle expressed in the glyph coordinate system, specifying the font
     /// bounding box. This is the smallest rectangle enclosing the shape that would
@@ -44,7 +44,7 @@ pub struct Type3Font {
     /// that character. The stream shall include as its first operator either d0 or d1,
     /// followed by operators describing one or more graphics objects, which may include
     /// path, text, or image objects. See below for more details about Type 3 glyph descriptions
-    char_procs: HashMap<String, Stream>,
+    char_procs: HashMap<String, Stream<'a>>,
 
     /// An encoding dictionary whose Differences array shall specify the complete character encoding for this font
     encoding: FontEncoding,
@@ -53,14 +53,14 @@ pub struct Type3Font {
     /// descriptions in this font. If any glyph descriptions refer to named resources but this
     /// dictionary is absent, the names shall be looked up in the resource dictionary of the
     /// page on which the font is used
-    resources: Option<Resources>,
+    resources: Option<Resources<'a>>,
 
     /// A stream containing a CMap file that maps character codes to Unicode values
-    to_unicode: Option<ToUnicodeCmapStream>,
+    to_unicode: Option<ToUnicodeCmapStream<'a>>,
 }
 
-impl Type3Font {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> Type3Font<'a> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let base = BaseFontDict::from_dict(&mut dict, resolver)?;
         let font_bounding_box = dict.expect_rectangle("FontBBox", resolver)?;
         let font_matrix = dict

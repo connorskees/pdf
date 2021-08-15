@@ -13,7 +13,7 @@ pub enum FontEncoding {
 }
 
 impl FontEncoding {
-    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_obj<'a>(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         Ok(match resolver.resolve(obj)? {
             Object::Name(ref name) => Self::Base(BaseFontEncoding::from_str(name)?),
             Object::Dictionary(dict) => {
@@ -21,9 +21,9 @@ impl FontEncoding {
             }
             found => {
                 return Err(ParseError::MismatchedObjectTypeAny {
-                    found,
+                    // found,
                     expected: &[ObjectType::Dictionary, ObjectType::Name],
-                })
+                });
             }
         })
     }
@@ -75,7 +75,10 @@ pub struct FontEncodingDict {
 impl FontEncodingDict {
     const TYPE: &'static str = "Encoding";
 
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict<'a>(
+        mut dict: Dictionary<'a>,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         dict.expect_type(Self::TYPE, resolver, false)?;
 
         let base_encoding = dict
@@ -97,7 +100,10 @@ impl FontEncodingDict {
 struct FontDifferences(HashMap<u32, Vec<String>>);
 
 impl FontDifferences {
-    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_arr<'a>(
+        mut arr: Vec<Object<'a>>,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         if arr.is_empty() {
             return Ok(FontDifferences(HashMap::new()));
         }
@@ -117,9 +123,9 @@ impl FontDifferences {
                 Object::Name(name) => names.push(name),
                 found => {
                     return Err(ParseError::MismatchedObjectTypeAny {
-                        found,
+                        // found,
                         expected: &[ObjectType::Name, ObjectType::Integer],
-                    })
+                    });
                 }
             }
         }

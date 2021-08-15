@@ -12,14 +12,14 @@ use crate::{
 use super::OpenPrepressInterface;
 
 #[derive(Debug)]
-pub struct ImageXObject {
+pub struct ImageXObject<'a> {
     /// The width of the image, in samples
     pub width: u32,
 
     /// The height of the image, in samples
     pub height: u32,
 
-    pub stream: Stream,
+    pub stream: Stream<'a>,
 
     /// The colour space in which image samples shall be specified; it can be
     /// any type of colour space except Pattern.
@@ -31,7 +31,7 @@ pub struct ImageXObject {
     ///      JPEG2000 data shall be used. The Decode array shall also be
     ///      ignored unless ImageMask is true
     // todo: type of this
-    color_space: Option<Object>,
+    color_space: Option<Object<'a>>,
 
     /// The number of bits used to represent each colour component. Only a
     /// single value shall be specified; the number of bits shall be the same
@@ -87,7 +87,7 @@ pub struct ImageXObject {
     /// An array of alternate image dictionaries for this image. The order of elements
     /// within the array shall have no significance. This entry shall not be present
     /// in an image XObject that is itself an alternate image
-    alternates: Option<Vec<AlternateImage>>,
+    alternates: Option<Vec<AlternateImage<'a>>>,
 
     /// A subsidiary image XObject defining a softmask image that shall be used as a source
     /// of mask shape or mask opacity values in the transparent imaging model. The alpha
@@ -99,7 +99,7 @@ pub struct ImageXObject {
     /// graphics state parameters -- blend mode and alpha constant -- shall remain in effect.
     /// If SMask is absent, the image shall have no associated soft mask (although the current
     /// soft mask in the graphics state may still apply)
-    s_mask: Option<SoftMask>,
+    s_mask: Option<SoftMask<'a>>,
 
     /// A code specifying how soft-mask information encoded with image samples shall be used:
     ///   0 If present, encoded soft-mask image information shall be ignored.
@@ -132,7 +132,7 @@ pub struct ImageXObject {
     opi: Option<OpenPrepressInterface>,
 
     /// A metadata stream containing metadata for the image
-    metadata: Option<MetadataStream>,
+    metadata: Option<MetadataStream<'a>>,
 
     /// An optional content group or optional content membership dictionary, specifying the optional
     /// content properties for this image XObject. Before the image is processed by a conforming reader,
@@ -141,8 +141,8 @@ pub struct ImageXObject {
     oc: Option<OptionalContent>,
 }
 
-impl ImageXObject {
-    pub fn from_stream(mut stream: Stream, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> ImageXObject<'a> {
+    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let dict = &mut stream.dict.other;
 
         let width = dict.expect_unsigned_integer("Width", resolver)?;
@@ -230,7 +230,7 @@ impl ImageXObject {
 }
 
 #[derive(Debug)]
-pub struct SoftMask {
+pub struct SoftMask<'a> {
     /// If a Matte entry is present, shall be the same as the Width value of the parent
     /// image; otherwise independent of it. Both images shall be mapped to the unit square
     /// in user space (as are all images), regardless of whether the samples coincide individually.
@@ -241,7 +241,7 @@ pub struct SoftMask {
 
     /// Required; shall be DeviceGray.
     // todo: color space
-    color_space: Object,
+    color_space: Object<'a>,
 
     bits_per_component: BitsPerComponent,
 
@@ -256,13 +256,13 @@ pub struct SoftMask {
     /// the parent image's image dictionary; the numbers shall be valid colour components in that
     /// colour space. If this entry is absent, the image data shall not be preblended
     // todo: type
-    matte: Option<Vec<Object>>,
+    matte: Option<Vec<Object<'a>>>,
 
-    stream: Stream,
+    stream: Stream<'a>,
 }
 
-impl SoftMask {
-    pub fn from_stream(mut stream: Stream, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> SoftMask<'a> {
+    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let dict = &mut stream.dict.other;
 
         let width = dict.expect_unsigned_integer("Width", resolver)?;
@@ -295,9 +295,9 @@ impl SoftMask {
     }
 }
 #[derive(Debug)]
-pub struct AlternateImage {
+pub struct AlternateImage<'a> {
     /// The image XObject for the alternate image
-    image: ImageXObject,
+    image: ImageXObject<'a>,
 
     /// A flag indicating whether this alternate image shall be the default
     /// version to be used for printing
@@ -313,8 +313,8 @@ pub struct AlternateImage {
     oc: Option<OptionalContentGroup>,
 }
 
-impl AlternateImage {
-    pub fn from_stream(mut stream: Stream, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> AlternateImage<'a> {
+    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let dict = &mut stream.dict.other;
 
         let default_for_printing = dict.get_bool("DefaultForPrinting", resolver)?;
@@ -336,7 +336,7 @@ impl AlternateImage {
 #[derive(Debug)]
 pub struct OptionalContentGroup;
 impl OptionalContentGroup {
-    pub fn from_dict(_dict: Dictionary, _resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict<'a>(_dict: Dictionary, _resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         todo!()
     }
 }
@@ -345,7 +345,7 @@ impl OptionalContentGroup {
 pub struct ImageMask;
 
 impl ImageMask {
-    pub fn from_obj(_obj: Object, _resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_obj<'a>(_obj: Object, _resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         todo!()
     }
 }

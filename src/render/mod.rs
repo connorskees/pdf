@@ -31,24 +31,24 @@ enum FillRule {
     NonZeroWindingNumber,
 }
 
-pub struct Renderer<'a, 'b> {
-    content: &'b mut ContentLexer<'a>,
-    resolver: &'b mut dyn Resolve<'a>,
+pub struct Renderer<'a, 'b: 'a> {
+    content: &'a mut ContentLexer<'b>,
+    resolver: &'a mut dyn Resolve<'b>,
     canvas: Canvas,
-    graphics_state_stack: Vec<GraphicsState>,
-    operand_stack: Vec<Object>,
-    graphics_state: GraphicsState,
+    graphics_state_stack: Vec<GraphicsState<'b>>,
+    operand_stack: Vec<Object<'b>>,
+    graphics_state: GraphicsState<'b>,
 
     /// A set of nine graphics state parameters that pertain only to the
     /// painting of text. These include parameters that select the font, scale
     /// the glyphs to an appropriate size, and accomplish other effects.
-    text_state: TextState,
-    page: Rc<PageObject>,
+    text_state: TextState<'b>,
+    page: Rc<PageObject<'b>>,
     current_path: Option<Path>,
 }
 
-impl<'a, 'b> Renderer<'a, 'b> {
-    fn pop(&mut self) -> PdfResult<Object> {
+impl<'a, 'b: 'a> Renderer<'a, 'b> {
+    fn pop(&mut self) -> PdfResult<Object<'b>> {
         Ok(self
             .operand_stack
             .pop()
@@ -73,18 +73,18 @@ impl<'a, 'b> Renderer<'a, 'b> {
         self.resolver.assert_string(obj)
     }
 
-    fn pop_arr(&mut self) -> PdfResult<Vec<Object>> {
+    fn pop_arr(&mut self) -> PdfResult<Vec<Object<'b>>> {
         let obj = self.pop()?;
 
         self.resolver.assert_arr(obj)
     }
 }
 
-impl<'a, 'b> Renderer<'a, 'b> {
+impl<'a, 'b: 'a> Renderer<'a, 'b> {
     pub fn new(
-        content: &'b mut ContentLexer<'a>,
-        resolver: &'b mut dyn Resolve<'a>,
-        page: Rc<PageObject>,
+        content: &'a mut ContentLexer<'b>,
+        resolver: &'a mut dyn Resolve<'b>,
+        page: Rc<PageObject<'b>>,
     ) -> Self {
         Self {
             content,

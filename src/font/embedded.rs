@@ -4,7 +4,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-struct EmbeddedFontDictionary {
+struct EmbeddedFontDictionary<'a> {
     /// The length in bytes of the clear-text portion of the Type 1 font program, or the entire
     /// TrueType font program, after it has been decoded using the filters specified by the stream’s
     /// Filter entry, if any
@@ -21,11 +21,11 @@ struct EmbeddedFontDictionary {
     length_three: Option<u32>,
 
     /// A metadata stream containing metadata for the embedded font program
-    metadata: Option<MetadataStream>,
+    metadata: Option<MetadataStream<'a>>,
 }
 
-impl EmbeddedFontDictionary {
-    pub fn from_dict(dict: &mut Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> EmbeddedFontDictionary<'a> {
+    pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let length_one = dict.get_unsigned_integer("Length1", resolver)?;
         let length_two = dict.get_unsigned_integer("Length2", resolver)?;
         let length_three = dict.get_unsigned_integer("Length3", resolver)?;
@@ -47,13 +47,13 @@ impl EmbeddedFontDictionary {
 /// Font Format. This entry may appear in the font descriptor for a Type1 or MMType1 font
 /// dictionary
 #[derive(Debug, Clone)]
-pub struct Type1FontFile {
-    dict: EmbeddedFontDictionary,
-    pub stream: Stream,
+pub struct Type1FontFile<'a> {
+    dict: EmbeddedFontDictionary<'a>,
+    pub stream: Stream<'a>,
 }
 
-impl Type1FontFile {
-    pub fn from_stream(mut stream: Stream, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> Type1FontFile<'a> {
+    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let dict = EmbeddedFontDictionary::from_dict(&mut stream.dict.other, resolver)?;
 
         Ok(Self { dict, stream })
@@ -63,13 +63,13 @@ impl Type1FontFile {
 /// TrueType font program, as described in the TrueType Reference Manual. This entry may appear in
 /// the font descriptor for a TrueType font dictionary or for a CIDFontType2 CIDFont dictionary
 #[derive(Debug)]
-pub struct TrueTypeFontFile {
-    dict: EmbeddedFontDictionary,
-    stream: Stream,
+pub struct TrueTypeFontFile<'a> {
+    dict: EmbeddedFontDictionary<'a>,
+    stream: Stream<'a>,
 }
 
-impl TrueTypeFontFile {
-    pub fn from_stream(mut stream: Stream, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> TrueTypeFontFile<'a> {
+    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let dict = EmbeddedFontDictionary::from_dict(&mut stream.dict.other, resolver)?;
 
         Ok(Self { dict, stream })
@@ -77,28 +77,28 @@ impl TrueTypeFontFile {
 }
 
 #[derive(Debug)]
-pub enum Type3FontFile {
-    CompactType1(CompactType1FontFile),
-    CompactType0Cid(CompactType0CidFontFile),
-    OpenType(OpenTypeFontFile),
+pub enum Type3FontFile<'a> {
+    CompactType1(CompactType1FontFile<'a>),
+    CompactType0Cid(CompactType0CidFontFile<'a>),
+    OpenType(OpenTypeFontFile<'a>),
 }
 
 /// Type 1–equivalent font program represented in the Compact Font Format (CFF), as described
 /// in Adobe Technical Note #5176, The Compact Font Format Specification. This entry may appear
 /// in the font descriptor for a Type1 or MMType1 font dictionary
 #[derive(Debug)]
-pub struct CompactType1FontFile {
-    dict: EmbeddedFontDictionary,
-    stream: Stream,
+pub struct CompactType1FontFile<'a> {
+    dict: EmbeddedFontDictionary<'a>,
+    stream: Stream<'a>,
 }
 
 /// Type 0 CIDFont program represented in the Compact Font Format (CFF), as described in Adobe
 /// Technical Note #5176, The Compact Font Format Specification. This entry may appear in the
 /// font descriptor for a CIDFontType0 CIDFont dictionary
 #[derive(Debug)]
-pub struct CompactType0CidFontFile {
-    dict: EmbeddedFontDictionary,
-    stream: Stream,
+pub struct CompactType0CidFontFile<'a> {
+    dict: EmbeddedFontDictionary<'a>,
+    stream: Stream<'a>,
 }
 
 /// OpenType® font program, as described in the OpenType Specification v.1.4. OpenType is an
@@ -123,9 +123,9 @@ pub struct CompactType0CidFontFile {
 /// NOTE: The absence of some optional tables (such as those used for advanced line layout) may prevent
 ///       editing of text containing the font
 #[derive(Debug)]
-pub struct OpenTypeFontFile {
-    dict: EmbeddedFontDictionary,
-    stream: Stream,
+pub struct OpenTypeFontFile<'a> {
+    dict: EmbeddedFontDictionary<'a>,
+    stream: Stream<'a>,
 }
 
 pdf_enum!(
@@ -136,8 +136,8 @@ pdf_enum!(
     }
 );
 
-impl Type3FontFile {
-    pub fn from_stream(mut stream: Stream, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> Type3FontFile<'a> {
+    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let subtype = Type3Subtype::from_str(&stream.dict.other.expect_name("Subtype", resolver)?)?;
 
         Ok(match subtype {
@@ -154,24 +154,24 @@ impl Type3FontFile {
     }
 }
 
-impl CompactType1FontFile {
-    pub fn from_stream(mut stream: Stream, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> CompactType1FontFile<'a> {
+    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let dict = EmbeddedFontDictionary::from_dict(&mut stream.dict.other, resolver)?;
 
         Ok(Self { dict, stream })
     }
 }
 
-impl CompactType0CidFontFile {
-    pub fn from_stream(mut stream: Stream, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> CompactType0CidFontFile<'a> {
+    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let dict = EmbeddedFontDictionary::from_dict(&mut stream.dict.other, resolver)?;
 
         Ok(Self { dict, stream })
     }
 }
 
-impl OpenTypeFontFile {
-    pub fn from_stream(mut stream: Stream, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> OpenTypeFontFile<'a> {
+    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let dict = EmbeddedFontDictionary::from_dict(&mut stream.dict.other, resolver)?;
 
         Ok(Self { dict, stream })

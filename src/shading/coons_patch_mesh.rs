@@ -16,7 +16,7 @@ use super::freeform::{BitsPerCoordinate, BitsPerFlag};
 ///     not necessarily linear. The mapping is continuous: the corners of the unit square map
 ///     to corners of the patch and the sides of the unit square map to sides of the patch
 #[derive(Debug)]
-pub struct CoonsPatchMeshShading {
+pub struct CoonsPatchMeshShading<'a> {
     /// The number of bits used to represent each vertex coordinate.
     ///
     /// The value shall be 1, 2, 4, 8, 12, 16, 24, or 32.
@@ -55,11 +55,11 @@ pub struct CoonsPatchMeshShading {
     /// to the nearest valid value.
     ///
     /// This entry shall not be used with an Indexed colour space
-    function: Option<Function>,
+    function: Option<Function<'a>>,
 }
 
-impl CoonsPatchMeshShading {
-    pub fn from_dict(dict: &mut Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> CoonsPatchMeshShading<'a> {
+    pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let bits_per_coordinate =
             BitsPerCoordinate::from_integer(dict.expect_integer("BitsPerCoordinate", resolver)?)?;
         let bits_per_component =

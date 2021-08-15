@@ -11,38 +11,41 @@ pub mod graphics_state_parameters;
 pub mod pattern;
 
 #[derive(Debug)]
-pub struct Resources {
+pub struct Resources<'a> {
     /// A dictionary that maps resource names to
     /// graphics state parameter dictionaries
-    pub ext_g_state: Option<HashMap<String, GraphicsStateParameters>>,
+    pub ext_g_state: Option<HashMap<String, GraphicsStateParameters<'a>>>,
 
     /// A dictionary that maps each resource name to
     /// either the name of a device-dependent color
     /// space or an array describing a color space
     // color_space: Option<HashMap<String, ColorSpace>>,
-    pub color_space: Option<Dictionary>,
+    pub color_space: Option<Dictionary<'a>>,
 
     /// A dictionary that maps resource names to pattern objects
-    pub pattern: Option<HashMap<String, Pattern>>,
+    pub pattern: Option<HashMap<String, Pattern<'a>>>,
 
     /// A dictionary that maps resource names to shading dictionaries
-    pub shading: Option<HashMap<String, ShadingObject>>,
+    pub shading: Option<HashMap<String, ShadingObject<'a>>>,
 
     /// A dictionary that maps resource names to external objects
-    pub xobject: Option<HashMap<String, XObject>>,
+    pub xobject: Option<HashMap<String, XObject<'a>>>,
 
     /// A dictionary that maps resource names to font dictionaries
-    pub font: Option<HashMap<String, Rc<Font>>>,
+    pub font: Option<HashMap<String, Rc<Font<'a>>>>,
 
     /// An array of predefined procedure set names
     pub proc_set: Option<Vec<ProcedureSet>>,
 
-    pub properties: Option<Dictionary>,
+    pub properties: Option<Dictionary<'a>>,
     // properties: Option<HashMap<String, PropertyList>>,
 }
 
-impl Resources {
-    pub(crate) fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> Resources<'a> {
+    pub(crate) fn from_dict(
+        mut dict: Dictionary<'a>,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         let ext_g_state = dict
             .get_dict("ExtGState", resolver)?
             .map(|dict| {

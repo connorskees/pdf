@@ -11,7 +11,10 @@ pub struct GoToAction {
 }
 
 impl GoToAction {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict<'a>(
+        mut dict: Dictionary<'a>,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         let d = Destination::from_obj(dict.expect_object("D", resolver)?, resolver)?;
 
         Ok(Self { d })
@@ -21,9 +24,9 @@ impl GoToAction {
 /// A remote go-to action is similar to an ordinary go-to action but jumps to a destination in
 /// another PDF file instead of the current file
 #[derive(Debug)]
-pub struct GoToRemoteAction {
+pub struct GoToRemoteAction<'a> {
     /// The file in which the destination shall be located
-    f: FileSpecification,
+    f: FileSpecification<'a>,
 
     /// The destination to jump to. If the value is an array defining an explicit destination, its
     /// first element shall be a page number within the remote document rather than an indirect reference
@@ -39,8 +42,8 @@ pub struct GoToRemoteAction {
     new_window: Option<bool>,
 }
 
-impl GoToRemoteAction {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> GoToRemoteAction<'a> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let f = FileSpecification::from_obj(dict.expect_object("F", resolver)?, resolver)?;
         let d = Destination::from_obj(dict.expect_object("D", resolver)?, resolver)?;
         let new_window = dict.get_bool("NewWindow", resolver)?;

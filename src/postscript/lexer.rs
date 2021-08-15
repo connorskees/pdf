@@ -110,11 +110,6 @@ impl<'a> PostScriptLexer<'a> {
                 _ => self.lex_operator()?,
             },
             Some(..) => self.lex_operator()?,
-            // Some(b) => todo!(
-            //     "unexpected object start {:?} at line {}",
-            //     b as char,
-            //     self.line_number()
-            // ),
             None => return Ok(None),
         }))
     }

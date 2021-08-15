@@ -21,13 +21,13 @@ mod radial;
 mod tensor_product_patch_mesh;
 
 #[derive(Debug)]
-pub enum ShadingObject {
-    Dictionary(ShadingDictionary),
+pub enum ShadingObject<'a> {
+    Dictionary(ShadingDictionary<'a>),
     Stream(ShadingStream),
 }
 
-impl ShadingObject {
-    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> ShadingObject<'a> {
+    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let obj = resolver.resolve(obj)?;
 
         Ok(
@@ -48,13 +48,13 @@ impl ShadingObject {
 pub struct ShadingStream;
 
 #[derive(Debug)]
-pub struct ShadingDictionary {
-    base: BaseShadingDictionary,
-    sub_type: SubtypeShadingDictionary,
+pub struct ShadingDictionary<'a> {
+    base: BaseShadingDictionary<'a>,
+    sub_type: SubtypeShadingDictionary<'a>,
 }
 
-impl ShadingDictionary {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> ShadingDictionary<'a> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let base = BaseShadingDictionary::from_dict(&mut dict, resolver)?;
         let sub_type = SubtypeShadingDictionary::from_dict(&mut dict, base.shading_type, resolver)?;
 
@@ -65,21 +65,21 @@ impl ShadingDictionary {
 }
 
 #[derive(Debug)]
-pub enum SubtypeShadingDictionary {
-    FunctionBased(FunctionBasedShading),
-    Axial(AxialShading),
-    Radial(RadialShading),
-    Freeform(FreeformShading),
-    Latticeform(LatticeformShading),
-    CoonsPatchMesh(CoonsPatchMeshShading),
-    TensorProductPatchMesh(TensorProductPatchMeshShading),
+pub enum SubtypeShadingDictionary<'a> {
+    FunctionBased(FunctionBasedShading<'a>),
+    Axial(AxialShading<'a>),
+    Radial(RadialShading<'a>),
+    Freeform(FreeformShading<'a>),
+    Latticeform(LatticeformShading<'a>),
+    CoonsPatchMesh(CoonsPatchMeshShading<'a>),
+    TensorProductPatchMesh(TensorProductPatchMeshShading<'a>),
 }
 
-impl SubtypeShadingDictionary {
+impl<'a> SubtypeShadingDictionary<'a> {
     pub fn from_dict(
-        dict: &mut Dictionary,
+        dict: &mut Dictionary<'a>,
         sub_type: ShadingType,
-        resolver: &mut dyn Resolve,
+        resolver: &mut dyn Resolve<'a>,
     ) -> PdfResult<Self> {
         Ok(match sub_type {
             ShadingType::FunctionBased => SubtypeShadingDictionary::FunctionBased(
@@ -110,13 +110,13 @@ impl SubtypeShadingDictionary {
 }
 
 #[derive(Debug)]
-pub struct BaseShadingDictionary {
+pub struct BaseShadingDictionary<'a> {
     shading_type: ShadingType,
 
     /// The colour space in which colour values shall be expressed. This may be any device,
     /// CIE-based, or special colour space except a Pattern space
     // todo: actually parse the color space
-    color_space: Object,
+    color_space: Object<'a>,
 
     /// An array of colour components appropriate to the colour space, specifying a single
     /// background colour value. If present, this colour shall be used, before any painting
@@ -153,8 +153,8 @@ pub struct BaseShadingDictionary {
     anti_alias: bool,
 }
 
-impl BaseShadingDictionary {
-    pub fn from_dict(dict: &mut Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> BaseShadingDictionary<'a> {
+    pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let shading_type =
             ShadingType::from_integer(dict.expect_integer("ShadingType", resolver)?)?;
 

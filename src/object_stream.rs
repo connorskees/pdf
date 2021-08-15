@@ -11,12 +11,12 @@ use crate::{
 #[derive(Debug)]
 pub(crate) struct ObjectStream<'a> {
     pub(crate) stream: Cow<'a, [u8]>,
-    pub(crate) dict: ObjectStreamDict,
+    pub(crate) dict: ObjectStreamDict<'a>,
 }
 
 #[derive(Debug)]
-pub(crate) struct ObjectStreamDict {
-    pub(crate) stream_dict: StreamDict,
+pub(crate) struct ObjectStreamDict<'a> {
+    pub(crate) stream_dict: StreamDict<'a>,
 
     /// The number of indirect objects stored in the stream
     pub(crate) n: usize,
@@ -34,10 +34,10 @@ pub(crate) struct ObjectStreamDict {
     pub(crate) extends: Option<Reference>,
 }
 
-impl ObjectStreamDict {
+impl<'a> ObjectStreamDict<'a> {
     const TYPE: &'static str = "ObjStm";
 
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         dict.expect_type(Self::TYPE, resolver, true)?;
 
         let n = usize::try_from(dict.expect_unsigned_integer("N", resolver)?)?;
@@ -59,17 +59,20 @@ impl ObjectStreamDict {
 }
 
 #[derive(Debug)]
-pub(crate) struct ObjectStreamParser {
+pub(crate) struct ObjectStreamParser<'a> {
     decoded_stream: Vec<u8>,
     cursor: usize,
-    object_stream_dict: ObjectStreamDict,
+    object_stream_dict: ObjectStreamDict<'a>,
 
     /// Map from object number to offset
     offsets: HashMap<usize, usize>,
 }
 
-impl ObjectStreamParser {
-    pub fn new(decoded_stream: Vec<u8>, object_stream_dict: ObjectStreamDict) -> PdfResult<Self> {
+impl<'a> ObjectStreamParser<'a> {
+    pub fn new(
+        decoded_stream: Vec<u8>,
+        object_stream_dict: ObjectStreamDict<'a>,
+    ) -> PdfResult<Self> {
         let mut parser = Self {
             decoded_stream,
             object_stream_dict,
@@ -94,7 +97,7 @@ impl ObjectStreamParser {
         Ok(parser)
     }
 
-    pub fn parse_object(&mut self, reference: Reference) -> PdfResult<Object> {
+    pub fn parse_object(&mut self, reference: Reference) -> PdfResult<Object<'a>> {
         let byte_offset = match self.offsets.get(&reference.object_number) {
             Some(&v) => v,
             None => return Ok(Object::Null),
@@ -106,7 +109,7 @@ impl ObjectStreamParser {
     }
 }
 
-impl<'a> LexBase<'a> for ObjectStreamParser {
+impl<'a> LexBase<'a> for ObjectStreamParser<'_> {
     fn cursor(&self) -> usize {
         self.cursor
     }
@@ -120,8 +123,8 @@ impl<'a> LexBase<'a> for ObjectStreamParser {
     }
 }
 
-impl<'a> LexObject<'a> for ObjectStreamParser {
-    fn lex_dict(&mut self) -> PdfResult<Object> {
+impl<'a> LexObject<'a> for ObjectStreamParser<'_> {
+    fn lex_dict(&mut self) -> PdfResult<Object<'a>> {
         let dict = self.lex_dict_ignore_stream()?;
 
         if self.next_matches(b"stream") {

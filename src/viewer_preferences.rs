@@ -164,7 +164,7 @@ pub struct ViewerPreferences {
 }
 
 impl ViewerPreferences {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict<'a>(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let hide_toolbar = dict.get_bool("HideToolbar", resolver)?.unwrap_or(false);
         let hide_menubar = dict.get_bool("HideMenubar", resolver)?.unwrap_or(false);
         let hide_window_ui = dict.get_bool("HideWindowUI", resolver)?.unwrap_or(false);
@@ -271,7 +271,11 @@ struct PageRange {
 }
 
 impl PageRange {
-    pub fn from_objs(first: Object, last: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_objs<'a>(
+        first: Object,
+        last: Object,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         let first = resolver.assert_unsigned_integer(first)?;
         let last = resolver.assert_unsigned_integer(last)?;
 

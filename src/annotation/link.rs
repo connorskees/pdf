@@ -11,9 +11,9 @@ use super::BorderStyle;
 /// A link annotation represents either a hypertext link to a destination elsewhere
 /// in the document or an action to be performed
 #[derive(Debug)]
-pub(crate) struct LinkAnnotation {
+pub(crate) struct LinkAnnotation<'a> {
     /// An action that shall be performed when the link annotation is activated
-    a: Option<Actions>,
+    a: Option<Actions<'a>>,
 
     /// A destination that shall be displayed when the annotation is activated
     // todo: not permitted if `a` is present
@@ -74,10 +74,10 @@ impl Default for HighlightingMode {
     }
 }
 
-impl LinkAnnotation {
+impl<'a> LinkAnnotation<'a> {
     const TYPE: &'static str = "Link";
 
-    pub fn from_dict(dict: &mut Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let a = dict
             .get_dict("A", resolver)?
             .map(|actions| Actions::from_dict(actions, resolver))

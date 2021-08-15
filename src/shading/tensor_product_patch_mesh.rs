@@ -11,7 +11,7 @@ use super::freeform::{BitsPerCoordinate, BitsPerFlag};
 /// the two patch types differ only in the value of the ShadingType entry and in the number
 /// of control points specified for each patch in the data stream
 #[derive(Debug)]
-pub struct TensorProductPatchMeshShading {
+pub struct TensorProductPatchMeshShading<'a> {
     /// The number of bits used to represent each vertex coordinate.
     ///
     /// The value shall be 1, 2, 4, 8, 12, 16, 24, or 32.
@@ -50,11 +50,11 @@ pub struct TensorProductPatchMeshShading {
     /// to the nearest valid value.
     ///
     /// This entry shall not be used with an Indexed colour space
-    function: Option<Function>,
+    function: Option<Function<'a>>,
 }
 
-impl TensorProductPatchMeshShading {
-    pub fn from_dict(dict: &mut Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> TensorProductPatchMeshShading<'a> {
+    pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let bits_per_coordinate =
             BitsPerCoordinate::from_integer(dict.expect_integer("BitsPerCoordinate", resolver)?)?;
         let bits_per_component =

@@ -7,7 +7,7 @@ use crate::{
 };
 
 pub trait Resolve<'a> {
-    fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object>;
+    fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object<'a>>;
 
     fn assert_integer(&mut self, obj: Object) -> PdfResult<i32> {
         match obj {
@@ -18,7 +18,7 @@ pub trait Resolve<'a> {
             }
             found => Err(ParseError::MismatchedObjectType {
                 expected: ObjectType::Integer,
-                found,
+                // found,
             }),
         }
     }
@@ -32,7 +32,7 @@ pub trait Resolve<'a> {
             }
             found => Err(ParseError::MismatchedObjectType {
                 expected: ObjectType::Integer,
-                found,
+                // found,
             }),
         }
     }
@@ -48,12 +48,12 @@ pub trait Resolve<'a> {
             }
             found => Err(ParseError::MismatchedObjectType {
                 expected: ObjectType::Real,
-                found,
+                // found,
             }),
         }
     }
 
-    fn assert_dict(&mut self, obj: Object) -> PdfResult<Dictionary> {
+    fn assert_dict(&mut self, obj: Object<'a>) -> PdfResult<Dictionary<'a>> {
         match obj {
             Object::Dictionary(d) => Ok(d),
             Object::Reference(r) => {
@@ -62,7 +62,7 @@ pub trait Resolve<'a> {
             }
             found => Err(ParseError::MismatchedObjectType {
                 expected: ObjectType::Dictionary,
-                found,
+                // found,
             }),
         }
     }
@@ -76,7 +76,7 @@ pub trait Resolve<'a> {
             }
             found => Err(ParseError::MismatchedObjectType {
                 expected: ObjectType::Name,
-                found,
+                // found,
             }),
         }
     }
@@ -90,12 +90,12 @@ pub trait Resolve<'a> {
             }
             found => Err(ParseError::MismatchedObjectType {
                 expected: ObjectType::String,
-                found,
+                // found,
             }),
         }
     }
 
-    fn assert_arr(&mut self, obj: Object) -> PdfResult<Vec<Object>> {
+    fn assert_arr(&mut self, obj: Object<'a>) -> PdfResult<Vec<Object<'a>>> {
         match obj {
             Object::Array(a) => Ok(a),
             Object::Reference(r) => {
@@ -104,7 +104,7 @@ pub trait Resolve<'a> {
             }
             found => Err(ParseError::MismatchedObjectType {
                 expected: ObjectType::Array,
-                found,
+                // found,
             }),
         }
     }
@@ -119,12 +119,12 @@ pub trait Resolve<'a> {
             }
             found => Err(ParseError::MismatchedObjectType {
                 expected: ObjectType::Boolean,
-                found,
+                // found,
             }),
         }
     }
 
-    fn assert_stream(&mut self, obj: Object) -> PdfResult<Stream> {
+    fn assert_stream(&mut self, obj: Object<'a>) -> PdfResult<Stream<'a>> {
         match obj {
             Object::Stream(s) => Ok(s),
             Object::Reference(r) => {
@@ -133,13 +133,13 @@ pub trait Resolve<'a> {
             }
             found => Err(ParseError::MismatchedObjectType {
                 expected: ObjectType::Stream,
-                found,
+                // found,
             }),
         }
     }
 
     /// Resolve all references
-    fn resolve(&mut self, obj: Object) -> PdfResult<Object> {
+    fn resolve(&mut self, obj: Object<'a>) -> PdfResult<Object<'a>> {
         match obj {
             Object::Reference(r) => {
                 let obj = self.lex_object_from_reference(r)?;

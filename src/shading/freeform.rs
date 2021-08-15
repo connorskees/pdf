@@ -10,7 +10,7 @@ use crate::{
 /// is used to colour the interiors. The interpolation functions defining the shading may
 /// be linear or nonlinear
 #[derive(Debug)]
-pub struct FreeformShading {
+pub struct FreeformShading<'a> {
     /// The number of bits used to represent each vertex coordinate.
     ///
     /// The value shall be 1, 2, 4, 8, 12, 16, 24, or 32.
@@ -37,11 +37,11 @@ pub struct FreeformShading {
     /// Only one pair of c values shall be specified if a Function entry is present
     decode: Vec<f32>,
 
-    function: Option<Function>,
+    function: Option<Function<'a>>,
 }
 
-impl FreeformShading {
-    pub fn from_dict(dict: &mut Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> FreeformShading<'a> {
+    pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let bits_per_coordinate =
             BitsPerCoordinate::from_integer(dict.expect_integer("BitsPerCoordinate", resolver)?)?;
         let bits_per_component =

@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::{borrow::Cow, convert::TryFrom};
 
 use crate::{
     catalog::assert_len,
@@ -12,16 +12,15 @@ use crate::{
 pub(super) mod parser;
 
 #[derive(Debug)]
-pub struct XrefStream {
-    pub(crate) dict: XrefStreamDict,
-    // todo: no copy
-    pub(crate) stream: Vec<u8>,
+pub struct XrefStream<'a> {
+    pub(crate) dict: XrefStreamDict<'a>,
+    pub(crate) stream: Cow<'a, [u8]>,
 }
 
 #[derive(Debug)]
 /// Values in this dictionary must *not* be indirect references
-pub struct XrefStreamDict {
-    pub(crate) stream_dict: StreamDict,
+pub struct XrefStreamDict<'a> {
+    pub(crate) stream_dict: StreamDict<'a>,
     pub(crate) trailer: Trailer,
 
     /// An array containing a pair of integers for each subsection in this
@@ -54,13 +53,13 @@ pub struct XrefStreamDict {
     pub(crate) w: XrefStreamFieldWidths,
 }
 
-impl XrefStreamDict {
+impl<'a> XrefStreamDict<'a> {
     const TYPE: &'static str = "XRef";
 
     pub fn from_dict(
-        mut dict: Dictionary,
+        mut dict: Dictionary<'a>,
         is_previous: bool,
-        resolver: &mut dyn Resolve,
+        resolver: &mut dyn Resolve<'a>,
     ) -> PdfResult<Self> {
         dict.expect_type(Self::TYPE, resolver, false)?;
 
@@ -113,7 +112,7 @@ pub(crate) struct XrefStreamFieldWidths {
 }
 
 impl XrefStreamFieldWidths {
-    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_arr<'a>(mut arr: Vec<Object>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         assert_len(&arr, 3)?;
 
         let field2 = resolver.assert_unsigned_integer(arr.pop().unwrap())?;

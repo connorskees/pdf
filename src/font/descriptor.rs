@@ -5,7 +5,7 @@ use crate::{data_structures::Rectangle, error::PdfResult, objects::Dictionary, p
 use super::embedded::{TrueTypeFontFile, Type1FontFile, Type3FontFile};
 
 #[derive(Debug)]
-pub struct FontDescriptor {
+pub struct FontDescriptor<'a> {
     /// The PostScript name of the font. This name shall be the same as the value of
     /// BaseFont in the font or CIDFont dictionary that refers to this font descriptor
     font_name: String,
@@ -93,14 +93,14 @@ pub struct FontDescriptor {
     pub missing_width: f32,
 
     /// A stream containing a Type 1 font program
-    pub font_file: Option<Type1FontFile>,
+    pub font_file: Option<Type1FontFile<'a>>,
 
     /// A stream containing a TrueType font program
-    font_file_two: Option<TrueTypeFontFile>,
+    font_file_two: Option<TrueTypeFontFile<'a>>,
 
     /// A stream containing a font program whose format is specified by the Subtype entry in the
     /// stream dictionary
-    font_file_three: Option<Type3FontFile>,
+    font_file_three: Option<Type3FontFile<'a>>,
 
     /// A string listing the character names defined in a font subset. The names in this string
     /// shall be in PDF syntax—that is, each name preceded by a slash (/). The names may appear in
@@ -112,14 +112,14 @@ pub struct FontDescriptor {
 }
 
 #[derive(Debug)]
-struct CidFontDescriptor {
-    base: FontDescriptor,
+struct CidFontDescriptor<'a> {
+    base: FontDescriptor<'a>,
 }
 
-impl FontDescriptor {
+impl<'a> FontDescriptor<'a> {
     const TYPE: &'static str = "FontDescriptor";
 
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         dict.expect_type(Self::TYPE, resolver, true)?;
 
         let font_name = dict.expect_name("FontName", resolver)?;

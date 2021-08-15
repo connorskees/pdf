@@ -18,7 +18,7 @@ mod sampled;
 mod stitching;
 
 #[derive(Debug, Clone)]
-pub struct Function {
+pub struct Function<'a> {
     /// An array of 2 * m numbers, where m shall be the number of input values.
     /// For each i from 0 to m - 1, Domain2i shall be less than or equal to Domain2i+1,
     /// and the ith input value, xi, shall lie in the interval Domain2i <= xi <= Domain2i+1.
@@ -34,36 +34,36 @@ pub struct Function {
     // todo: optional for type 0 and type 4
     range: Option<Vec<f32>>,
 
-    subtype: FunctionSubtype,
+    subtype: FunctionSubtype<'a>,
 }
 
 #[derive(Debug)]
-pub(crate) enum StreamOrDict {
-    Stream(Stream),
-    Dict(Dictionary),
+pub(crate) enum StreamOrDict<'a> {
+    Stream(Stream<'a>),
+    Dict(Dictionary<'a>),
 }
 
-impl StreamOrDict {
-    pub fn dict(&mut self) -> &mut Dictionary {
+impl<'a> StreamOrDict<'a> {
+    pub fn dict(&mut self) -> &mut Dictionary<'a> {
         match self {
             Self::Dict(dict) => dict,
             Self::Stream(stream) => &mut stream.dict.other,
         }
     }
 
-    pub fn expect_stream(self) -> PdfResult<Stream> {
+    pub fn expect_stream(self) -> PdfResult<Stream<'a>> {
         match self {
             Self::Dict(dict) => Err(ParseError::MismatchedObjectType {
                 expected: ObjectType::Stream,
-                found: Object::Dictionary(dict),
+                // found: Object::Dictionary(dict),
             }),
             Self::Stream(stream) => Ok(stream),
         }
     }
 }
 
-impl Function {
-    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> Function<'a> {
+    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let obj = resolver.resolve(obj)?;
 
         let mut stream_or_dict = if let Ok(stream) = resolver.assert_stream(obj.clone()) {
@@ -99,17 +99,17 @@ impl Function {
 }
 
 #[derive(Debug, Clone)]
-enum FunctionSubtype {
-    Sampled(SampledFunction),
+enum FunctionSubtype<'a> {
+    Sampled(SampledFunction<'a>),
     ExponentialInterpolation(ExponentialInterpolationFunction),
-    Stitching(StitchingFunction),
+    Stitching(StitchingFunction<'a>),
     PostScriptCalculator(PostScriptCalculatorFunction),
 }
 
-impl FunctionSubtype {
+impl<'a> FunctionSubtype<'a> {
     pub fn from_stream_or_dict(
-        mut stream_or_dict: StreamOrDict,
-        resolver: &mut dyn Resolve,
+        mut stream_or_dict: StreamOrDict<'a>,
+        resolver: &mut dyn Resolve<'a>,
     ) -> PdfResult<Self> {
         let dict = stream_or_dict.dict();
         let subtype = FunctionType::from_integer(dict.expect_integer("FunctionType", resolver)?)?;
@@ -147,13 +147,13 @@ pdf_enum!(
 );
 
 #[derive(Debug, Clone)]
-pub enum SpotFunction {
+pub enum SpotFunction<'a> {
     Predefined(PredefinedSpotFunction),
-    Function(Function),
+    Function(Function<'a>),
 }
 
-impl SpotFunction {
-    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> SpotFunction<'a> {
+    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         Ok(if let Object::Name(ref name) = obj {
             SpotFunction::Predefined(PredefinedSpotFunction::from_str(name)?)
         } else {
@@ -189,21 +189,21 @@ pdf_enum!(
 );
 
 #[derive(Debug, Clone)]
-pub enum TransferFunction {
+pub enum TransferFunction<'a> {
     Identity,
     Default,
-    Single(Function),
+    Single(Function<'a>),
     Colorants {
-        a: Function,
-        b: Function,
-        c: Function,
-        d: Function,
+        a: Function<'a>,
+        b: Function<'a>,
+        c: Function<'a>,
+        d: Function<'a>,
     },
 }
 
-impl TransferFunction {
+impl<'a> TransferFunction<'a> {
     // todo: array, default
-    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         // todo: dont use this
         Ok(if obj.name_is("Identity") {
             TransferFunction::Identity

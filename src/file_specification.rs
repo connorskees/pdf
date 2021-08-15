@@ -7,20 +7,20 @@ use crate::{
 };
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum FileSpecification {
+pub enum FileSpecification<'a> {
     Simple(FileSpecificationString),
-    Full(FullFileSpecification),
+    Full(FullFileSpecification<'a>),
 }
 
-impl FileSpecification {
-    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> FileSpecification<'a> {
+    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         match resolver.resolve(obj)? {
             Object::String(s) => Ok(FileSpecification::Simple(FileSpecificationString::new(s))),
             Object::Dictionary(dict) => Ok(FileSpecification::Full(
                 FullFileSpecification::from_dict(dict, resolver)?,
             )),
             obj => Err(ParseError::MismatchedObjectType {
-                found: obj,
+                // found: obj,
                 expected: ObjectType::Dictionary,
             }),
         }
@@ -28,7 +28,7 @@ impl FileSpecification {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct FullFileSpecification {
+pub struct FullFileSpecification<'a> {
     /// The name of the file system that shall be used to interpret this file
     /// specification.
     ///
@@ -79,7 +79,7 @@ pub struct FullFileSpecification {
     /// The value of each such key shall be an embedded file stream containing the corresponding
     /// file. If this entry is present, the Type entry is required and the file specification
     /// dictionary shall be indirectly referenced.
-    ef: Option<Dictionary>,
+    ef: Option<Dictionary<'a>>,
 
     /// A dictionary with the same structure as the EF dictionary, which shall be present.
     ///
@@ -89,7 +89,7 @@ pub struct FullFileSpecification {
     ///
     /// If this entry is present, the Type entry is required and the file specification dictionary
     /// shall be indirectly referenced.
-    rf: Option<Dictionary>,
+    rf: Option<Dictionary<'a>>,
 
     /// Descriptive text associated with the file specification.
     ///
@@ -101,10 +101,13 @@ pub struct FullFileSpecification {
     collection_item_dict: Option<Collection>,
 }
 
-impl FullFileSpecification {
+impl<'a> FullFileSpecification<'a> {
     const TYPE: &'static str = "Typespec";
 
-    pub(crate) fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub(crate) fn from_dict(
+        mut dict: Dictionary<'a>,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         dict.expect_type(Self::TYPE, resolver, false)?;
 
         let file_system = dict.get_name("Fs", resolver)?;
@@ -168,7 +171,7 @@ struct RelatedFilesArray;
 pub struct FileIdentifier(String, String);
 
 impl FileIdentifier {
-    pub fn from_arr(arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_arr<'a>(arr: Vec<Object>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         assert_len(&arr, 2)?;
 
         let mut iter = arr.into_iter().map(|obj| resolver.assert_string(obj));

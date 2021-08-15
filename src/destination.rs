@@ -22,7 +22,7 @@ pub enum Destination {
 }
 
 impl Destination {
-    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_obj<'a>(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let obj = resolver.resolve(obj)?;
 
         match obj {
@@ -31,7 +31,7 @@ impl Destination {
             )?)),
             Object::String(s) | Object::Name(s) => Ok(Destination::Named(s)),
             found => Err(ParseError::MismatchedObjectTypeAny {
-                found,
+                // found,
                 expected: &[ObjectType::Array, ObjectType::String, ObjectType::Name],
             }),
         }
@@ -45,11 +45,11 @@ pub struct ExplicitDestination {
 }
 
 impl ExplicitDestination {
-    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_arr<'a>(mut arr: Vec<Object>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         if arr.len() < 2 {
             return Err(ParseError::ArrayOfInvalidLength {
                 expected: 2,
-                found: arr,
+                // found: arr,
             });
         }
 

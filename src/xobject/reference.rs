@@ -6,9 +6,9 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct ReferenceXObject {
+pub struct ReferenceXObject<'a> {
     /// The file containing the target document
-    f: FileSpecification,
+    f: FileSpecification<'a>,
 
     /// A page index or page label identifying the page of the target
     /// document containing the content to be imported. This reference
@@ -32,7 +32,7 @@ enum PageIdentifier {
 }
 
 impl PageIdentifier {
-    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_obj<'a>(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         Ok(if let Ok(name) = resolver.assert_string(obj.clone()) {
             PageIdentifier::Label(name)
         } else {
@@ -43,8 +43,8 @@ impl PageIdentifier {
     }
 }
 
-impl ReferenceXObject {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> ReferenceXObject<'a> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let f = FileSpecification::from_obj(dict.expect_object("F", resolver)?, resolver)?;
         let page = PageIdentifier::from_obj(dict.expect_object("Page", resolver)?, resolver)?;
         let id = dict

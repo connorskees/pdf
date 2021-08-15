@@ -11,11 +11,11 @@ pub mod ascii;
 pub mod dct;
 pub mod flate;
 
-pub(crate) fn decode_stream<'a>(
-    stream: &'a [u8],
-    stream_dict: &StreamDict,
-    resolver: &mut dyn Resolve,
-) -> PdfResult<Cow<'a, [u8]>> {
+pub(crate) fn decode_stream<'a, 'b>(
+    stream: &'b [u8],
+    stream_dict: &StreamDict<'a>,
+    resolver: &mut dyn Resolve<'a>,
+) -> PdfResult<Cow<'b, [u8]>> {
     if let Some(filters) = &stream_dict.filter {
         if filters.is_empty() {
             return Ok(Cow::Borrowed(stream));
@@ -23,10 +23,10 @@ pub(crate) fn decode_stream<'a>(
 
         let mut stream = stream.to_vec();
 
+        let decode_params = stream_dict.decode_parms.as_ref();
+
         for (idx, filter) in filters.into_iter().enumerate() {
-            let decode_params = stream_dict
-                .decode_parms
-                .clone()
+            let decode_params = decode_params
                 .and_then(|params| params.get(idx).cloned())
                 .unwrap_or_else(Dictionary::empty);
 

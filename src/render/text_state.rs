@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::{data_structures::Matrix, font::Font};
 
 #[derive(Debug, Clone)]
-pub struct TextState {
+pub struct TextState<'a> {
     /// The character-spacing parameter shall be a number specified in unscaled
     /// text space units (although it shall be subject to scaling by the Th
     /// parameter if the writing mode is horizontal). When the glyph for each
@@ -46,7 +46,7 @@ pub struct TextState {
     /// It specifies the vertical distance between the baselines of adjacent
     /// lines of text
     pub leading: f32,
-    pub font: Option<Rc<Font>>,
+    pub font: Option<Rc<Font<'a>>>,
     pub font_size: f32,
     pub rendering_mode: TextRenderingMode,
 
@@ -98,14 +98,14 @@ pub struct TextState {
     pub text_line_matrix: Matrix,
 }
 
-impl TextState {
+impl<'a> TextState<'a> {
     pub fn reinit(&mut self) {
         self.text_matrix = Matrix::identity();
         self.text_line_matrix = Matrix::identity();
     }
 }
 
-impl Default for TextState {
+impl Default for TextState<'_> {
     fn default() -> Self {
         Self {
             character_spacing: 0.0,

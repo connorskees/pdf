@@ -51,7 +51,10 @@ impl FlateDecoderParams {
         self.bytes_per_pixel() * self.columns
     }
 
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict<'a>(
+        mut dict: Dictionary<'a>,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         let predictor = dict
             .get_integer("Predictor", resolver)?
             .map(Predictor::from_integer)

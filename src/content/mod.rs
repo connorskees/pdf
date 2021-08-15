@@ -24,19 +24,19 @@ pub struct ContentLexer<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum ContentToken {
-    Object(Object),
+pub enum ContentToken<'a> {
+    Object(Object<'a>),
     Operator(PdfGraphicsOperator),
 }
 
 #[derive(Debug)]
-enum ContentTokenOrUnknownOperator {
-    Token(ContentToken),
+enum ContentTokenOrUnknownOperator<'a> {
+    Token(ContentToken<'a>),
     UnknownOperator(String),
 }
 
 impl<'a> Iterator for ContentLexer<'a> {
-    type Item = PdfResult<ContentToken>;
+    type Item = PdfResult<ContentToken<'a>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.next_token() {
@@ -76,7 +76,7 @@ impl<'a> ContentLexer<'a> {
         self.in_compatibility_mode != 0
     }
 
-    fn try_lex_operator(&mut self) -> PdfResult<ContentTokenOrUnknownOperator> {
+    fn try_lex_operator(&mut self) -> PdfResult<ContentTokenOrUnknownOperator<'a>> {
         let start = self.cursor;
 
         while let Some(b) = self.peek_byte() {
@@ -114,7 +114,7 @@ impl<'a> ContentLexer<'a> {
         })
     }
 
-    fn next_token(&mut self) -> Option<PdfResult<ContentTokenOrUnknownOperator>> {
+    fn next_token(&mut self) -> Option<PdfResult<ContentTokenOrUnknownOperator<'a>>> {
         self.skip_whitespace();
         match self.peek_byte() {
             Some(b'"' | b'\'' | b'a'..=b'z' | b'A'..=b'Z') => Some(self.try_lex_operator()),
@@ -144,7 +144,7 @@ impl<'a> LexBase<'a> for ContentLexer<'_> {
 }
 
 impl<'a> LexObject<'a> for ContentLexer<'_> {
-    fn lex_dict(&mut self) -> PdfResult<Object> {
+    fn lex_dict(&mut self) -> PdfResult<Object<'a>> {
         Ok(Object::Dictionary(self.lex_dict_ignore_stream()?))
     }
 }

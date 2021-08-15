@@ -148,10 +148,10 @@ impl Canvas {
         }
     }
 
-    pub fn draw_image(
+    pub fn draw_image<'a>(
         &mut self,
-        image: &ImageXObject,
-        resolver: &mut dyn Resolve,
+        image: &ImageXObject<'a>,
+        resolver: &mut dyn Resolve<'a>,
     ) -> PdfResult<()> {
         let pixel_data = decode_stream(&image.stream.stream, &image.stream.dict, resolver)?;
 

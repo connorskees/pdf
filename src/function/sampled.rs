@@ -4,7 +4,7 @@ use crate::{error::PdfResult, pdf_enum, stream::Stream, Resolve};
 /// approximation for functions whose domains and ranges are bounded. The samples are organized
 /// as an m-dimensional table in which each entry has n components.
 #[derive(Debug, Clone)]
-pub struct SampledFunction {
+pub struct SampledFunction<'a> {
     /// An array of m positive integers that shall specify the number of samples in each
     /// input dimension of the sample table
     size: Vec<u32>,
@@ -32,11 +32,11 @@ pub struct SampledFunction {
     // todo: doesn't have to be Option because of default
     decode: Option<Vec<f32>>,
 
-    stream: Stream,
+    stream: Stream<'a>,
 }
 
-impl SampledFunction {
-    pub fn from_stream(mut stream: Stream, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> SampledFunction<'a> {
+    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let dict = &mut stream.dict.other;
         let size = dict
             .expect_arr("Size", resolver)?

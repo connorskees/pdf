@@ -20,7 +20,7 @@ use crate::{
 
 /// See module level documentation
 #[derive(Debug)]
-pub struct DocumentCatalog {
+pub struct DocumentCatalog<'a> {
     /// The version of the PDF specification
     /// to which the document conforms(for example,
     /// 1.4) if later than the version specified in
@@ -55,7 +55,7 @@ pub struct DocumentCatalog {
     /// range to which the specified page label dictionary
     /// applies. The tree shall include a value for
     /// page index 0.
-    page_labels: Option<NumberTree>,
+    page_labels: Option<NumberTree<'a>>,
 
     /// The document's name dictionary
     names: Option<NameDictionary>,
@@ -84,7 +84,7 @@ pub struct DocumentCatalog {
     ///
     /// If this entry is absent, the document shall be opened to the
     /// top of the first page at the default magnification factor.
-    open_action: Option<OpenAction>,
+    open_action: Option<OpenAction<'a>>,
 
     /// An additional-actions dictionary defining the actions
     /// that shall be taken in response to various trigger
@@ -99,7 +99,7 @@ pub struct DocumentCatalog {
 
     metadata: Option<Reference>,
 
-    struct_tree_root: Option<StructTreeRoot>,
+    struct_tree_root: Option<StructTreeRoot<'a>>,
 
     /// A mark information dictionary that shall contain information
     /// about the document's usage of Tagged PDF conventions
@@ -120,12 +120,12 @@ pub struct DocumentCatalog {
     /// characteristics of output devices on which the document might be rendered
     output_intents: Option<Vec<OutputIntent>>,
 
-    piece_info: Option<PagePiece>,
+    piece_info: Option<PagePiece<'a>>,
 
     /// The document's optional content properties dictionary
     ///
     /// Required if a document contains optional content
-    oc_properties: Option<OptionalContentProperties>,
+    oc_properties: Option<OptionalContentProperties<'a>>,
 
     /// A permissions dictionary that shall specify user access permissions
     /// for the document.
@@ -151,10 +151,10 @@ pub struct DocumentCatalog {
     needs_rendering: bool,
 }
 
-impl DocumentCatalog {
+impl<'a> DocumentCatalog<'a> {
     const TYPE: &'static str = "Catalog";
 
-    pub(crate) fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
+    pub(crate) fn from_dict(mut dict: Dictionary<'a>, lexer: &mut Lexer<'a>) -> PdfResult<Self> {
         dict.expect_type(Self::TYPE, lexer, true)?;
 
         let version = dict.get_name("Version", lexer)?;
@@ -252,7 +252,7 @@ impl DocumentCatalog {
 #[derive(Debug)]
 pub struct Encryption;
 #[derive(Debug)]
-pub struct InformationDictionary {
+pub struct InformationDictionary<'a> {
     title: Option<String>,
     author: Option<String>,
     subject: Option<String>,
@@ -273,11 +273,11 @@ pub struct InformationDictionary {
     mod_date: Option<Date>,
     trapped: Trapped,
 
-    other: Dictionary,
+    other: Dictionary<'a>,
 }
 
-impl InformationDictionary {
-    pub(crate) fn from_dict(mut dict: Dictionary, lexer: &mut Lexer) -> PdfResult<Self> {
+impl<'a> InformationDictionary<'a> {
+    pub(crate) fn from_dict(mut dict: Dictionary<'a>, lexer: &mut Lexer) -> PdfResult<Self> {
         let title = dict.get_string("Title", lexer)?;
         let author = dict.get_string("Author", lexer)?;
         let subject = dict.get_string("Subject", lexer)?;
@@ -360,7 +360,7 @@ pub fn assert_len(arr: &[Object], len: usize) -> PdfResult<()> {
     if arr.len() != len {
         return Err(ParseError::ArrayOfInvalidLength {
             expected: len,
-            found: arr.to_vec(),
+            // found: arr.to_vec(),
         });
     }
 
@@ -368,13 +368,13 @@ pub fn assert_len(arr: &[Object], len: usize) -> PdfResult<()> {
 }
 
 #[derive(Debug)]
-pub enum OpenAction {
+pub enum OpenAction<'a> {
     Destination(Destination),
-    Actions(Actions),
+    Actions(Actions<'a>),
 }
 
-impl OpenAction {
-    pub fn from_obj(obj: Object, lexer: &mut Lexer) -> PdfResult<Self> {
+impl<'a> OpenAction<'a> {
+    pub fn from_obj(obj: Object<'a>, lexer: &mut Lexer<'a>) -> PdfResult<Self> {
         let obj = lexer.resolve(obj)?;
         Ok(match obj {
             Object::Dictionary(dict) => OpenAction::Actions(Actions::from_dict(dict, lexer)?),
@@ -390,8 +390,8 @@ pub struct UriDict;
 #[derive(Debug)]
 pub struct AcroForm;
 #[derive(Debug, Clone)]
-pub struct MetadataStream {
-    stream: Stream,
+pub struct MetadataStream<'a> {
+    stream: Stream<'a>,
     subtype: MetadataStreamSubtype,
 }
 
@@ -402,10 +402,10 @@ pdf_enum!(
     }
 );
 
-impl MetadataStream {
+impl<'a> MetadataStream<'a> {
     const TYPE: &'static str = "Metadata";
 
-    pub fn from_stream(mut stream: Stream, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let dict = &mut stream.dict.other;
 
         dict.expect_type(Self::TYPE, resolver, true)?;
@@ -436,7 +436,10 @@ pub struct MarkInformationDictionary {
 }
 
 impl MarkInformationDictionary {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict<'a>(
+        mut dict: Dictionary<'a>,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         let marked = dict.get_bool("Marked", resolver)?.unwrap_or(false);
         let user_properties = dict.get_bool("UserProperties", resolver)?.unwrap_or(false);
         let suspects = dict.get_bool("Suspects", resolver)?.unwrap_or(false);
@@ -456,10 +459,10 @@ pub struct WebCapture;
 #[derive(Debug)]
 pub struct OutputIntent;
 #[derive(Debug)]
-pub struct PagePiece(Dictionary);
+pub struct PagePiece<'a>(Dictionary<'a>);
 
-impl PagePiece {
-    pub fn from_dict(dict: Dictionary, _resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> PagePiece<'a> {
+    pub fn from_dict(dict: Dictionary<'a>, _resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         Ok(Self(dict))
     }
 }
@@ -476,7 +479,7 @@ pub struct Collection;
 pub struct BoxColorInfo;
 
 #[derive(Debug)]
-pub struct GroupAttributes {
+pub struct GroupAttributes<'a> {
     /// The group colour space, which is used for the following purposes:
     ///
     ///  * As the colour space into which colours shall be converted when painted into the
@@ -514,7 +517,7 @@ pub struct GroupAttributes {
     /// For a transparency group XObject used as an annotation appearance, the default colour space
     /// shall be inherited from the page on which the annotation appears
     // todo: type
-    cs: Option<Object>,
+    cs: Option<Object<'a>>,
 
     /// A flag specifying whether the transparency group is isolated.
     ///
@@ -542,8 +545,8 @@ pub struct GroupAttributes {
     is_knockout: bool,
 }
 
-impl GroupAttributes {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> GroupAttributes<'a> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let s = dict.expect_name("S", resolver)?;
         if s != "Transparency" {
             todo!()

@@ -13,7 +13,7 @@ use crate::{
 ///
 /// This type of shading shall not be used with an Indexed colour space
 #[derive(Debug)]
-pub struct RadialShading {
+pub struct RadialShading<'a> {
     /// An array of six numbers [x0 y0 r0 x1 y1 r1] specifying the centres and radii of
     /// the starting and ending circles, expressed in the shading's target coordinate
     /// space. The radii r0 and r1 shall both be greater than or equal to 0. If one
@@ -36,7 +36,7 @@ pub struct RadialShading {
     /// a superset of that of the shading dictionary. If the value returned by the function
     /// for a given colour component is out of range, it shall be adjusted to the nearest
     /// valid value.
-    function: Function,
+    function: Function<'a>,
 
     /// An array of two boolean values specifying whether to extend the shading beyond the
     /// starting and ending circles, respectively
@@ -45,8 +45,8 @@ pub struct RadialShading {
     extend: [bool; 2],
 }
 
-impl RadialShading {
-    pub fn from_dict(dict: &mut Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> RadialShading<'a> {
+    pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let coords = Coords::from_arr(dict.expect_arr("Coords", resolver)?, resolver)?;
         let domain = dict
             .get_arr("Domain", resolver)?
@@ -94,7 +94,7 @@ struct Coords {
 }
 
 impl Coords {
-    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_arr<'a>(mut arr: Vec<Object>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         assert_len(&arr, 6)?;
 
         let end = Circle::from_arr(arr.split_off(3), resolver)?;
@@ -112,7 +112,7 @@ struct Circle {
 }
 
 impl Circle {
-    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_arr<'a>(mut arr: Vec<Object>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         assert_len(&arr, 3)?;
 
         let radius = resolver.assert_number(arr.pop().unwrap())?;

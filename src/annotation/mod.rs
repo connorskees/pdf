@@ -18,13 +18,13 @@ mod subtype;
 mod text;
 
 #[derive(Debug)]
-pub struct Annotation {
+pub struct Annotation<'a> {
     base: BaseAnnotation,
-    sub_type: AnnotationSubType,
+    sub_type: AnnotationSubType<'a>,
 }
 
-impl Annotation {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> Annotation<'a> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let base = BaseAnnotation::from_dict(&mut dict, resolver)?;
         let sub_type = AnnotationSubType::from_dict(&mut dict, &base, resolver)?;
 
@@ -208,7 +208,10 @@ struct ExternalDataDictionary {}
 impl ExternalDataDictionary {
     const TYPE: &'static str = "ExData";
 
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict<'a>(
+        mut dict: Dictionary<'a>,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         dict.expect_type(Self::TYPE, resolver, false)?;
 
         todo!()
@@ -224,7 +227,10 @@ pdf_enum!(
 );
 
 impl MarkupAnnotation {
-    pub fn from_dict(dict: &mut Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict<'a>(
+        dict: &mut Dictionary<'a>,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         let t = dict.get_string("T", resolver)?;
         let popup = dict.get_reference("Popup")?;
         let ca = dict.get_number("CA", resolver)?.unwrap_or(1.0);
@@ -261,7 +267,10 @@ impl MarkupAnnotation {
 impl BaseAnnotation {
     const TYPE: &'static str = "Annot";
 
-    pub fn from_dict(dict: &mut Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict<'a>(
+        dict: &mut Dictionary<'a>,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         dict.expect_type(Self::TYPE, resolver, false)?;
 
         let subtype = AnnotationSubTypeKind::from_str(&dict.expect_name("Subtype", resolver)?)?;
@@ -470,7 +479,10 @@ pub struct BorderStyle {
 impl BorderStyle {
     const TYPE: &'static str = "Border";
 
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict<'a>(
+        mut dict: Dictionary<'a>,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         dict.expect_type(Self::TYPE, resolver, false)?;
 
         let w = dict.get_unsigned_integer("W", resolver)?.unwrap_or(1);
@@ -528,11 +540,14 @@ struct Border {
 }
 
 impl Border {
-    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_arr<'a>(
+        mut arr: Vec<Object<'a>>,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         if arr.len() < 3 {
             return Err(ParseError::ArrayOfInvalidLength {
                 expected: 3,
-                found: arr,
+                // found: arr,
             });
         }
 

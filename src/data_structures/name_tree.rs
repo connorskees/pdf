@@ -4,7 +4,7 @@ use crate::{error::PdfResult, objects::Dictionary, Resolve};
 pub struct NameTree;
 
 impl NameTree {
-    pub fn from_dict(_dict: Dictionary, _resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict<'a>(_dict: Dictionary, _resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         todo!()
     }
 }

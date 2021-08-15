@@ -9,9 +9,9 @@ use crate::{
 };
 
 #[derive(Debug, Default, Clone)]
-pub(crate) struct GraphicsState {
-    pub device_independent: DeviceIndependentGraphicsState,
-    pub device_dependent: DeviceDependentGraphicsState,
+pub(crate) struct GraphicsState<'a> {
+    pub device_independent: DeviceIndependentGraphicsState<'a>,
+    pub device_dependent: DeviceDependentGraphicsState<'a>,
 }
 
 #[derive(Debug, Clone)]
@@ -30,7 +30,7 @@ impl Default for GraphicsStateColorSpace {
 }
 
 #[derive(Debug, Clone)]
-pub struct DeviceIndependentGraphicsState {
+pub struct DeviceIndependentGraphicsState<'a> {
     /// The current transformation matrix, which maps positions from user
     /// coordinates to device coordinates. This matrix is modified by each
     /// application of the coordinate transformation operator, cm.
@@ -124,7 +124,7 @@ pub struct DeviceIndependentGraphicsState {
     /// execution of a transparency group XObject
     ///
     /// Initial value: None.
-    pub soft_mask: SoftMask,
+    pub soft_mask: SoftMask<'a>,
 
     /// The constant shape or constant opacity value to be used in the transparent
     /// imaging model. There are two separate alpha constant parameters: one for
@@ -145,7 +145,7 @@ pub struct DeviceIndependentGraphicsState {
     pub alpha_source: bool,
 }
 
-impl Default for DeviceIndependentGraphicsState {
+impl Default for DeviceIndependentGraphicsState<'_> {
     fn default() -> Self {
         Self {
             current_transformation_matrix: Matrix::identity(),
@@ -168,7 +168,7 @@ impl Default for DeviceIndependentGraphicsState {
 }
 
 #[derive(Debug, Clone)]
-pub struct DeviceDependentGraphicsState {
+pub struct DeviceDependentGraphicsState<'a> {
     /// A flag specifying (on output devices that support the overprint control
     /// feature) whether painting in one set of colorants should cause the
     /// corresponding areas of other colorants to be erased (false) or left
@@ -194,7 +194,7 @@ pub struct DeviceDependentGraphicsState {
     /// device dependent value.
     // todo: this is temporarily nullable, as it's unclear what the default fn
     // should be
-    pub black_generation: Option<Function>,
+    pub black_generation: Option<Function<'a>>,
 
     /// A function that calculates the reduction in the levels of the cyan,
     /// magenta, and yellow colour components to compensate for the amount of
@@ -204,18 +204,18 @@ pub struct DeviceDependentGraphicsState {
     /// device dependent value.
     // todo: this is temporarily nullable, as it's unclear what the default fn
     // should be
-    pub undercolor_removal: Option<Function>,
+    pub undercolor_removal: Option<Function<'a>>,
 
     /// A function that adjusts device gray or colour component levels to
     /// compensate for nonlinear response in a particular output device
     ///
     /// Initial value: a conforming reader shall initialize this to a suitable
     /// device dependent value.
-    pub transfer: TransferFunction,
+    pub transfer: TransferFunction<'a>,
 
     /// A halftone screen for gray and colour rendering, specified as a halftone
     /// dictionary or stream
-    pub halftones: Halftones,
+    pub halftones: Halftones<'a>,
 
     /// The precision with which curves shall be rendered on the output device.
     /// The value of this parameter (positive number) gives the maximum error
@@ -236,7 +236,7 @@ pub struct DeviceDependentGraphicsState {
     pub smoothness_tolerance: f32,
 }
 
-impl Default for DeviceDependentGraphicsState {
+impl Default for DeviceDependentGraphicsState<'_> {
     fn default() -> Self {
         Self {
             should_overprint: false,

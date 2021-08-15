@@ -6,11 +6,11 @@ use super::Function;
 /// produce a single new 1-input function. Since the resulting stitching function is a 1-input function,
 /// the domain is given by a twoelement array, [Domain0 Domain1].
 #[derive(Debug, Clone)]
-pub struct StitchingFunction {
+pub struct StitchingFunction<'a> {
     /// An array of k 1-input functions that shall make up the stitching function. The output
     /// dimensionality of all functions shall be the same, and compatible with the value of Range if Range
     /// is present
-    functions: Vec<Function>,
+    functions: Vec<Function<'a>>,
 
     /// An array of k - 1 numbers that, in combination with Domain, shall define the intervals to which
     /// each function from the Functions array shall apply. Bounds elements shall be in order of
@@ -22,8 +22,8 @@ pub struct StitchingFunction {
     encode: Vec<f32>,
 }
 
-impl StitchingFunction {
-    pub fn from_dict(dict: &mut Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> StitchingFunction<'a> {
+    pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let functions = dict
             .expect_arr("Functions", resolver)?
             .into_iter()

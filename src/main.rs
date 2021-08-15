@@ -67,12 +67,12 @@ pub fn assert_reference(obj: Object) -> PdfResult<Reference> {
         Object::Reference(r) => Ok(r),
         found => Err(ParseError::MismatchedObjectType {
             expected: ObjectType::Reference,
-            found,
+            // found,
         }),
     }
 }
 
-impl<'a> LexBase<'a> for Lexer {
+impl<'a> LexBase<'a> for Lexer<'_> {
     fn buffer(&self) -> &[u8] {
         &self.file
     }
@@ -86,9 +86,9 @@ impl<'a> LexBase<'a> for Lexer {
     }
 }
 
-impl<'a> LexObject<'a> for Lexer {
+impl<'a> LexObject<'a> for Lexer<'a> {
     // TODO: move to Lex trait proper and restrain to where Self: Sized + Resolve
-    fn lex_dict(&mut self) -> PdfResult<Object> {
+    fn lex_dict(&mut self) -> PdfResult<Object<'a>> {
         let dict = self.lex_dict_ignore_stream()?;
 
         if self.next_matches(b"stream") {
@@ -100,14 +100,14 @@ impl<'a> LexObject<'a> for Lexer {
     }
 }
 
-pub struct Lexer {
+pub struct Lexer<'a> {
     file: Vec<u8>,
     pos: usize,
     xref: Rc<Xref>,
-    cached_object_streams: HashMap<usize, ObjectStreamParser>,
+    cached_object_streams: HashMap<usize, ObjectStreamParser<'a>>,
 }
 
-impl Lexer {
+impl<'a> Lexer<'a> {
     pub fn new(file: Vec<u8>, xref: Rc<Xref>) -> io::Result<Self> {
         Ok(Self {
             file,
@@ -117,7 +117,7 @@ impl Lexer {
         })
     }
 
-    fn lex_object_stream(&mut self, byte_offset: usize) -> PdfResult<ObjectStream<'_>> {
+    fn lex_object_stream(&mut self, byte_offset: usize) -> PdfResult<ObjectStream<'a>> {
         self.pos = byte_offset;
         self.read_obj_prelude()?;
 
@@ -129,7 +129,7 @@ impl Lexer {
         self.read_obj_trailer()?;
 
         Ok(ObjectStream {
-            stream: Cow::Owned(stream),
+            stream,
             dict: object_stream_dict,
         })
     }
@@ -149,20 +149,13 @@ impl Lexer {
         &mut self,
         byte_offset: usize,
         reference: Reference,
-    ) -> PdfResult<Object> {
+    ) -> PdfResult<Object<'a>> {
         let parser = match self.cached_object_streams.get_mut(&byte_offset) {
             Some(v) => v,
             None => {
                 let ObjectStream { stream, dict } = self.lex_object_stream(byte_offset)?;
 
-                let decoded_stream = decode_stream(
-                    // SAFETY: the lexer does not mutate the underlying buffer
-                    //
-                    // We do this to avoid an unnecessary copy of the stream
-                    unsafe { &*(&*stream as *const [u8]) },
-                    &dict.stream_dict,
-                    self,
-                )?;
+                let decoded_stream = decode_stream(&*stream, &dict.stream_dict, self)?;
 
                 let parser = ObjectStreamParser::new(decoded_stream.into_owned(), dict)?;
 
@@ -175,7 +168,7 @@ impl Lexer {
         parser.parse_object(reference)
     }
 
-    fn lex_page_tree(&mut self, xref: &Xref, root_reference: Reference) -> PdfResult<PageNode> {
+    fn lex_page_tree(&mut self, xref: &Xref, root_reference: Reference) -> PdfResult<PageNode<'a>> {
         if xref.get_offset(root_reference, self)?.is_none() {
             return Ok(PageNode::Root(Rc::new(RefCell::new(PageTree {
                 kids: Vec::new(),
@@ -239,9 +232,9 @@ impl Lexer {
 
     fn lex_page_object(
         &mut self,
-        mut dict: Dictionary,
+        mut dict: Dictionary<'a>,
         kid_ref: Reference,
-        pages: &mut HashMap<Reference, PageNode>,
+        pages: &mut HashMap<Reference, PageNode<'a>>,
     ) -> PdfResult<()> {
         let parent = dict.expect_reference("Parent")?;
         let last_modified = dict.get_date("LastModified", self)?;
@@ -346,10 +339,10 @@ impl Lexer {
 
     fn lex_page_tree_node(
         &mut self,
-        mut dict: Dictionary,
+        mut dict: Dictionary<'a>,
         kid_ref: Reference,
         page_queue: &mut Vec<Reference>,
-        pages: &mut HashMap<Reference, PageNode>,
+        pages: &mut HashMap<Reference, PageNode<'a>>,
     ) -> PdfResult<()> {
         let kids = dict.expect_arr("Kids", self)?;
         let parent = dict.expect_reference("Parent")?;
@@ -384,8 +377,8 @@ impl Lexer {
     }
 }
 
-impl<'a> Resolve<'a> for Lexer {
-    fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object> {
+impl<'a> Resolve<'a> for Lexer<'a> {
+    fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object<'a>> {
         let init_pos = self.pos;
 
         self.pos = match Rc::clone(&self.xref).get_offset(reference, self)? {
@@ -408,15 +401,15 @@ impl<'a> Resolve<'a> for Lexer {
     }
 }
 
-pub struct Parser {
-    lexer: Lexer,
+pub struct Parser<'a> {
+    lexer: Lexer<'a>,
     xref: Rc<Xref>,
     trailer: Trailer,
-    catalog: DocumentCatalog,
-    page_tree: PageNode,
+    catalog: DocumentCatalog<'a>,
+    page_tree: PageNode<'a>,
 }
 
-impl Parser {
+impl<'a> Parser<'a> {
     pub fn new(p: &'static str) -> PdfResult<Self> {
         let file = std::fs::read(p)?;
 
@@ -481,7 +474,7 @@ impl Parser {
     }
 
     // todo: make this an iterator
-    pub fn pages(&self) -> Vec<Rc<PageObject>> {
+    pub fn pages(&self) -> Vec<Rc<PageObject<'a>>> {
         self.page_tree.leaves()
     }
 
@@ -503,11 +496,16 @@ impl Parser {
         Ok(None)
     }
 
-    pub fn page_contents<'a>(&mut self, page: &'a PageObject) -> PdfResult<ContentLexer<'a>> {
-        Ok(match &page.contents {
-            Some(stream) => ContentLexer::new(Cow::Borrowed(&stream.combined_buffer)),
+    pub fn page_contents(&mut self, page: &PageObject<'a>) -> PdfResult<ContentLexer<'a>> {
+        let stream = match &page.contents {
+            Some(stream) => stream,
             _ => todo!(),
-        })
+        };
+
+        // todo: no copy
+        Ok(ContentLexer::new(Cow::Owned(
+            stream.combined_buffer.clone(),
+        )))
     }
 }
 

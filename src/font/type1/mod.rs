@@ -8,8 +8,8 @@ mod data;
 /// uses a compact encoding for the glyph descriptions, and it includes hint information
 /// that enables high-quality rendering even at small sizes and low resolutions
 #[derive(Debug)]
-pub struct Type1Font {
-    pub base: BaseFontDict,
+pub struct Type1Font<'a> {
+    pub base: BaseFontDict<'a>,
 
     /// The PostScript name of the font. For Type 1 fonts, this is
     /// always the value of the FontName entry in the font program; for more
@@ -28,11 +28,11 @@ pub struct Type1Font {
     encoding: Option<FontEncoding>,
 
     /// A stream containing a CMap file that maps character codes to Unicode values
-    to_unicode: Option<ToUnicodeCmapStream>,
+    to_unicode: Option<ToUnicodeCmapStream<'a>>,
 }
 
-impl Type1Font {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> Type1Font<'a> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let base = BaseFontDict::from_dict(&mut dict, resolver)?;
         let base_font = dict.expect_name("BaseFont", resolver)?;
         let encoding = dict
@@ -58,12 +58,12 @@ impl Type1Font {
 /// program. This is accomplished through the presence of various design dimensions
 /// in the font
 #[derive(Debug)]
-pub struct MmType1Font {
-    type1: Type1Font,
+pub struct MmType1Font<'a> {
+    type1: Type1Font<'a>,
 }
 
-impl MmType1Font {
-    pub fn from_dict(dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> MmType1Font<'a> {
+    pub fn from_dict(dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         Ok(Self {
             type1: Type1Font::from_dict(dict, resolver)?,
         })

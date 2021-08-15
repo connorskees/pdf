@@ -14,7 +14,7 @@ use crate::{
 ///
 /// This type of shading shall not be used with an Indexed colour space.
 #[derive(Debug)]
-pub struct AxialShading {
+pub struct AxialShading<'a> {
     /// An array of four numbers [x0 y0 x1 y1] specifying the starting and ending coordinates
     /// of the axis, expressed in the shading's target coordinate space
     coords: Coords,
@@ -33,15 +33,15 @@ pub struct AxialShading {
     /// Each function's domain shall be a superset of that of the shading dictionary. If the value
     /// returned by the function for a given colour component is out of range, it shall be adjusted
     /// to the nearest valid value
-    function: Function,
+    function: Function<'a>,
 
     /// An array of two boolean values specifying whether to extend the shading beyond the starting
     /// and ending points of the axis, respectively. Default value: [false false].
     extend: [bool; 2],
 }
 
-impl AxialShading {
-    pub fn from_dict(dict: &mut Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> AxialShading<'a> {
+    pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let coords = Coords::from_arr(dict.expect_arr("Coords", resolver)?, resolver)?;
         let domain = dict
             .get_arr("Domain", resolver)?
@@ -91,7 +91,7 @@ struct Coords {
 }
 
 impl Coords {
-    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_arr<'a>(mut arr: Vec<Object>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         assert_len(&arr, 4)?;
 
         let y1 = resolver.assert_number(arr.pop().unwrap())?;

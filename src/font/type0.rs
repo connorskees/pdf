@@ -9,19 +9,19 @@ use crate::{
 use super::{cid::CidFontDictionary, cjk::PredefinedCjkCmapName, cmap::ToUnicodeCmapStream};
 
 #[derive(Debug)]
-enum Type0FontEncoding {
+enum Type0FontEncoding<'a> {
     Predefined(PredefinedCjkCmapName),
-    Stream(Stream),
+    Stream(Stream<'a>),
 }
 
-impl Type0FontEncoding {
-    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> Type0FontEncoding<'a> {
+    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         match resolver.resolve(obj)? {
             Object::Name(name) => Ok(Self::Predefined(PredefinedCjkCmapName::from_str(&name)?)),
             Object::Stream(stream) => Ok(Self::Stream(stream)),
             found => Err(ParseError::MismatchedObjectTypeAny {
                 expected: &[ObjectType::Stream, ObjectType::Name],
-                found,
+                // found,
             }),
         }
     }
@@ -32,7 +32,7 @@ impl Type0FontEncoding {
 /// by a font dictionary whose Subtype value is Type0. The Type 0 font is known
 /// as the root font, and its associated CIDFont is called its descendant.
 #[derive(Debug)]
-pub struct Type0Font {
+pub struct Type0Font<'a> {
     /// The name of the font. If the descendant is a Type 0 CIDFont, this
     /// name should be the concatenation of the CIDFont’s BaseFont name,
     /// a hyphen, and the CMap name given in the Encoding entry (or the
@@ -49,17 +49,17 @@ pub struct Type0Font {
     /// maps character codes to font numbers and CIDs. If the descendant is
     /// a Type 2 CIDFont whose associated TrueType font program is not embedded
     /// in the PDF file, the Encoding entry shall be a predefined CMap name
-    encoding: Type0FontEncoding,
+    encoding: Type0FontEncoding<'a>,
 
     /// A one-element array specifying the CIDFont dictionary that is the descendant of this Type 0 font
-    descendant_fonts: CidFontDictionary,
+    descendant_fonts: CidFontDictionary<'a>,
 
     /// A stream containing a CMap file that maps character codes to Unicode values
-    to_unicode: Option<ToUnicodeCmapStream>,
+    to_unicode: Option<ToUnicodeCmapStream<'a>>,
 }
 
-impl Type0Font {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> Type0Font<'a> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let base_font = dict.expect_name("BaseFont", resolver)?;
         let encoding =
             Type0FontEncoding::from_obj(dict.expect_object("Encoding", resolver)?, resolver)?;

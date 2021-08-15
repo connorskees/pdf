@@ -11,10 +11,10 @@ mod reference;
 /// whose contents are defined by a self-contained stream, separate from the
 /// content stream in which it is used
 #[derive(Debug)]
-pub enum XObject {
-    Image(ImageXObject),
-    Form(FormXObject),
-    PostScript(PostScriptXObject),
+pub enum XObject<'a> {
+    Image(ImageXObject<'a>),
+    Form(FormXObject<'a>),
+    PostScript(PostScriptXObject<'a>),
 }
 
 pdf_enum!(
@@ -25,10 +25,10 @@ pdf_enum!(
     }
 );
 
-impl XObject {
+impl<'a> XObject<'a> {
     const TYPE: &'static str = "XObject";
 
-    pub fn from_stream(mut stream: Stream, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let dict = &mut stream.dict.other;
 
         dict.expect_type(Self::TYPE, resolver, false)?;
@@ -49,7 +49,7 @@ impl XObject {
 pub struct OpenPrepressInterface;
 
 impl OpenPrepressInterface {
-    pub fn from_dict(_dict: Dictionary, _resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict<'a>(_dict: Dictionary, _resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         todo!()
     }
 }

@@ -12,7 +12,7 @@ pub(crate) struct ContentStream {
 }
 
 impl ContentStream {
-    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_obj<'a>(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let streams = match resolver.resolve(obj)? {
             Object::Stream(stream) => vec![stream],
             Object::Array(arr) => arr
@@ -22,8 +22,8 @@ impl ContentStream {
             obj => {
                 return Err(ParseError::MismatchedObjectTypeAny {
                     expected: &[ObjectType::Array, ObjectType::Stream],
-                    found: obj,
-                })
+                    // found: obj,
+                });
             }
         };
 

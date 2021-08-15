@@ -12,7 +12,7 @@ use crate::{
 use super::{reference::ReferenceXObject, OpenPrepressInterface};
 
 #[derive(Debug)]
-pub struct FormXObject {
+pub struct FormXObject<'a> {
     /// An array of four numbers in the form coordinate system (see above), giving the
     /// coordinates of the left, bottom, right, and top edges, respectively, of the form
     /// XObject's bounding box. These boundaries shall be used to clip the form XObject and
@@ -42,7 +42,7 @@ pub struct FormXObject {
     /// and shall contain all named resources used by the form XObject. These resources shall
     /// not be promoted to the outer content stream's resource dictionary, although that
     /// stream's resource dictionary refers to the form XObject
-    resources: Option<Resources>,
+    resources: Option<Resources<'a>>,
 
     /// A group attributes dictionary indicating that the contents of the form XObject shall
     /// be treated as a group and specifying the attributes of that group.
@@ -50,17 +50,17 @@ pub struct FormXObject {
     /// If a Ref entry (see below) is present, the group attributes shall also apply to
     /// the external page imported by that entry, which allows such an imported page to be
     /// treated as a group without further modification
-    group: Option<GroupAttributes>,
+    group: Option<GroupAttributes<'a>>,
 
     /// A reference dictionary identifying a page to be imported from another PDF file,
     /// and for which the form XObject serves as a proxy
-    reference: Option<ReferenceXObject>,
+    reference: Option<ReferenceXObject<'a>>,
 
     /// A metadata stream containing metadata for the form XObject
-    metadata: Option<MetadataStream>,
+    metadata: Option<MetadataStream<'a>>,
 
     /// A page-piece dictionary associated with the form XObject
-    piece_info: Option<PagePiece>,
+    piece_info: Option<PagePiece<'a>>,
 
     /// The date and time when the form XObject's contents were most recently modified. If a
     /// page-piece dictionary (PieceInfo) is present, the modification date shall be used to
@@ -94,8 +94,8 @@ pub struct FormXObject {
     name: Option<String>,
 }
 
-impl FormXObject {
-    pub fn from_stream(mut stream: Stream, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> FormXObject<'a> {
+    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let dict = &mut stream.dict.other;
 
         let bbox = dict.expect_rectangle("BBox", resolver)?;

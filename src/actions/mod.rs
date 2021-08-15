@@ -11,8 +11,8 @@ mod goto;
 mod uri;
 
 #[derive(Debug)]
-pub struct Actions {
-    action: Action,
+pub struct Actions<'a> {
+    action: Action<'a>,
 
     /// The next action or sequence of actions that shall be performed after the action
     /// represented by this dictionary.
@@ -23,16 +23,16 @@ pub struct Actions {
 }
 
 #[derive(Debug)]
-enum Action {
+enum Action<'a> {
     GoTo(GoToAction),
-    GoToRemote(GoToRemoteAction),
+    GoToRemote(GoToRemoteAction<'a>),
     Uri(UriAction),
 }
 
-impl Actions {
+impl<'a> Actions<'a> {
     const TYPE: &'static str = "Action";
 
-    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Vec<Self>> {
+    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Vec<Self>> {
         Ok(match resolver.resolve(obj)? {
             Object::Array(arr) => arr
                 .into_iter()
@@ -42,13 +42,13 @@ impl Actions {
             found => {
                 return Err(ParseError::MismatchedObjectTypeAny {
                     expected: &[ObjectType::Array, ObjectType::Dictionary],
-                    found,
-                })
+                    // found,
+                });
             }
         })
     }
 
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let action_type = ActionType::from_str(&dict.expect_name("S", resolver)?)?;
 
         let next = dict

@@ -14,6 +14,7 @@ pub fn decrypt(cipher: &[u8]) -> Vec<u8> {
     decoded
 }
 
+// todo: no copy
 pub fn decrypt_charstring(cipher: &[u8]) -> Vec<u8> {
     let mut decoded = Vec::new();
     let mut r: u16 = 4330;

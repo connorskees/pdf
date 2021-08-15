@@ -10,7 +10,7 @@ use super::freeform::BitsPerCoordinate;
 /// pseudorectangular lattice, which is topologically equivalent to a rectangular
 /// grid. The vertices are organized into rows, which need not be geometrically linear
 #[derive(Debug)]
-pub struct LatticeformShading {
+pub struct LatticeformShading<'a> {
     /// The number of bits used to represent each vertex coordinate.
     ///
     /// The value shall be 1, 2, 4, 8, 12, 16, 24, or 32.
@@ -49,11 +49,11 @@ pub struct LatticeformShading {
     /// shall be adjusted to the nearest valid value.
     ///
     /// This entry shall not be used with an Indexed colour space.
-    function: Option<Function>,
+    function: Option<Function<'a>>,
 }
 
-impl LatticeformShading {
-    pub fn from_dict(dict: &mut Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> LatticeformShading<'a> {
+    pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let bits_per_coordinate =
             BitsPerCoordinate::from_integer(dict.expect_integer("BitsPerCoordinate", resolver)?)?;
         let bits_per_component =

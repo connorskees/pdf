@@ -11,22 +11,22 @@ use crate::{
 use super::{graphics_state_parameters::GraphicsStateParameters, Resources};
 
 #[derive(Debug)]
-pub enum Pattern {
+pub enum Pattern<'a> {
     /// Tiling patterns consist of a small graphical figure (called a pattern cell) that is
     /// replicated at fixed horizontal and vertical intervals to fill the area to be painted.
     /// The graphics objects to use for tiling shall be described by a content stream.
-    Tiling(TilingPattern),
+    Tiling(TilingPattern<'a>),
 
     /// Shading patterns define a gradient fill that produces a smooth transition between
     /// colours across the area. The colour to use shall be specified as a function of position
     /// using any of a variety of methods.
-    Shading(ShadingPattern),
+    Shading(ShadingPattern<'a>),
 }
 
-impl Pattern {
+impl<'a> Pattern<'a> {
     const TYPE: &'static str = "Pattern";
 
-    pub fn from_object(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_object(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let obj = resolver.resolve(obj)?;
 
         Ok(
@@ -56,7 +56,7 @@ impl Pattern {
 }
 
 #[derive(Debug)]
-pub struct TilingPattern {
+pub struct TilingPattern<'a> {
     /// A code that determines how the colour of the pattern cell shall be specified
     paint_type: PaintType,
 
@@ -81,7 +81,7 @@ pub struct TilingPattern {
 
     /// A resource dictionary that shall contain all of the named resources required by the pattern's
     /// content stream
-    resources: Resources,
+    resources: Resources<'a>,
 
     /// An array of six numbers specifying the pattern matrix.
     ///
@@ -89,8 +89,8 @@ pub struct TilingPattern {
     matrix: Matrix,
 }
 
-impl TilingPattern {
-    pub fn from_stream(stream: Stream, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> TilingPattern<'a> {
+    pub fn from_stream(stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let mut dict = stream.dict.other;
         let paint_type = PaintType::from_integer(dict.expect_integer("PaintType", resolver)?)?;
         let tiling_type = TilingType::from_integer(dict.expect_integer("TilingType", resolver)?)?;
@@ -115,9 +115,9 @@ impl TilingPattern {
 }
 
 #[derive(Debug)]
-pub struct ShadingPattern {
+pub struct ShadingPattern<'a> {
     /// A shading object defining the shading pattern's gradient fill
-    shading: ShadingObject,
+    shading: ShadingObject<'a>,
 
     /// An array of six numbers specifying the pattern matrix
     ///
@@ -128,11 +128,11 @@ pub struct ShadingPattern {
     /// into effect temporarily while the shading pattern is painted. Any parameters that are
     /// so specified shall be inherited from the graphics state that was in effect at the
     /// beginning of the content stream in which the pattern is defined as a resource
-    ext_g_state: Option<GraphicsStateParameters>,
+    ext_g_state: Option<GraphicsStateParameters<'a>>,
 }
 
-impl ShadingPattern {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> ShadingPattern<'a> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let shading = ShadingObject::from_obj(dict.expect_object("Shading", resolver)?, resolver)?;
 
         let matrix = dict

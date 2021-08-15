@@ -20,7 +20,10 @@ pub struct ExponentialInterpolationFunction {
 }
 
 impl ExponentialInterpolationFunction {
-    pub fn from_dict(dict: &mut Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict<'a>(
+        dict: &mut Dictionary<'a>,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         let c0 = dict
             .get_arr("C0", resolver)?
             .map(|arr| {

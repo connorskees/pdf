@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::TryFrom, fmt};
+use std::{collections::HashMap, convert::TryFrom, fmt, marker::PhantomData};
 
 use crate::{
     assert_reference,
@@ -24,7 +24,8 @@ pub enum ObjectType {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Object {
+pub enum Object<'a> {
+    Phantom(PhantomData<&'a ()>),
     Null,
     True,
     False,
@@ -33,12 +34,12 @@ pub enum Object {
     String(String),
     Name(String),
     Array(Vec<Self>),
-    Stream(Stream),
-    Dictionary(Dictionary),
+    Stream(Stream<'a>),
+    Dictionary(Dictionary<'a>),
     Reference(Reference),
 }
 
-impl Object {
+impl<'a> Object<'a> {
     /// If self is an instance of `Object::Name`, returns whether or not
     /// the names are equivalent.
     ///
@@ -60,11 +61,11 @@ pub struct Reference {
 }
 
 #[derive(Clone, PartialEq)]
-pub struct Dictionary {
-    dict: HashMap<String, Object>,
+pub struct Dictionary<'a> {
+    dict: HashMap<String, Object<'a>>,
 }
 
-impl fmt::Debug for Dictionary {
+impl fmt::Debug for Dictionary<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.dict.is_empty() {
             write!(f, "Dictionary {{}}")?;
@@ -81,8 +82,8 @@ impl fmt::Debug for Dictionary {
     }
 }
 
-impl Dictionary {
-    pub fn new(dict: HashMap<String, Object>) -> Self {
+impl<'a> Dictionary<'a> {
+    pub fn new(dict: HashMap<String, Object<'a>>) -> Self {
         Self { dict }
     }
 
@@ -92,15 +93,15 @@ impl Dictionary {
         }
     }
 
-    pub fn entries(self) -> impl Iterator<Item = (String, Object)> {
+    pub fn entries(self) -> impl Iterator<Item = (String, Object<'a>)> {
         self.dict.into_iter()
     }
 
     pub fn get_stream(
         &mut self,
         key: &str,
-        resolver: &mut dyn Resolve,
-    ) -> PdfResult<Option<Stream>> {
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Option<Stream<'a>>> {
         self.dict
             .remove(key)
             .map(|obj| resolver.assert_stream(obj))
@@ -110,15 +111,19 @@ impl Dictionary {
     pub fn expect_stream(
         &mut self,
         key: &'static str,
-        resolver: &mut dyn Resolve,
-    ) -> PdfResult<Stream> {
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Stream<'a>> {
         self.dict
             .remove(key)
             .map(|obj| resolver.assert_stream(obj))
             .ok_or(ParseError::MissingRequiredKey { key })?
     }
 
-    pub fn get_number(&mut self, key: &str, resolver: &mut dyn Resolve) -> PdfResult<Option<f32>> {
+    pub fn get_number(
+        &mut self,
+        key: &str,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Option<f32>> {
         self.dict
             .remove(key)
             .map(|obj| resolver.assert_number(obj))
@@ -244,8 +249,8 @@ impl Dictionary {
     pub fn get_object(
         &mut self,
         key: &str,
-        resolver: &mut dyn Resolve,
-    ) -> PdfResult<Option<Object>> {
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Option<Object<'a>>> {
         self.dict
             .remove(key)
             .map(|obj| resolver.resolve(obj))
@@ -255,8 +260,8 @@ impl Dictionary {
     pub fn expect_object(
         &mut self,
         key: &'static str,
-        resolver: &mut dyn Resolve,
-    ) -> PdfResult<Object> {
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Object<'a>> {
         self.dict
             .remove(key)
             .map(|obj| resolver.resolve(obj))
@@ -288,8 +293,8 @@ impl Dictionary {
     pub fn get_dict(
         &mut self,
         key: &str,
-        resolver: &mut dyn Resolve,
-    ) -> PdfResult<Option<Dictionary>> {
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Option<Dictionary<'a>>> {
         self.dict
             .remove(key)
             .map(|obj| resolver.assert_dict(obj))
@@ -299,8 +304,8 @@ impl Dictionary {
     pub fn expect_dict(
         &mut self,
         key: &'static str,
-        resolver: &mut dyn Resolve,
-    ) -> PdfResult<Dictionary> {
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Dictionary<'a>> {
         self.dict
             .remove(key)
             .map(|obj| resolver.assert_dict(obj))
@@ -310,8 +315,8 @@ impl Dictionary {
     pub fn get_arr(
         &mut self,
         key: &str,
-        resolver: &mut dyn Resolve,
-    ) -> PdfResult<Option<Vec<Object>>> {
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Option<Vec<Object<'a>>>> {
         self.dict
             .remove(key)
             .map(|obj| resolver.assert_arr(obj))
@@ -321,15 +326,19 @@ impl Dictionary {
     pub fn expect_arr(
         &mut self,
         key: &'static str,
-        resolver: &mut dyn Resolve,
-    ) -> PdfResult<Vec<Object>> {
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Vec<Object<'a>>> {
         self.dict
             .remove(key)
             .map(|obj| resolver.assert_arr(obj))
             .ok_or(ParseError::MissingRequiredKey { key })?
     }
 
-    pub fn get_bool(&mut self, key: &str, resolver: &mut dyn Resolve) -> PdfResult<Option<bool>> {
+    pub fn get_bool(
+        &mut self,
+        key: &str,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Option<bool>> {
         self.dict
             .remove(key)
             .map(|obj| resolver.assert_bool(obj))
@@ -338,11 +347,11 @@ impl Dictionary {
 }
 
 /// Non-native objects
-impl Dictionary {
+impl<'a> Dictionary<'a> {
     pub fn get_rectangle(
         &mut self,
         key: &str,
-        resolver: &mut dyn Resolve,
+        resolver: &mut dyn Resolve<'a>,
     ) -> PdfResult<Option<Rectangle>> {
         self.get_arr(key, resolver)?
             .map(|objs| Rectangle::from_arr(objs, resolver))
@@ -352,12 +361,16 @@ impl Dictionary {
     pub fn expect_rectangle(
         &mut self,
         key: &'static str,
-        resolver: &mut dyn Resolve,
+        resolver: &mut dyn Resolve<'a>,
     ) -> PdfResult<Rectangle> {
         Rectangle::from_arr(self.expect_arr(key, resolver)?, resolver)
     }
 
-    pub fn get_date(&mut self, key: &str, resolver: &mut dyn Resolve) -> PdfResult<Option<Date>> {
+    pub fn get_date(
+        &mut self,
+        key: &str,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Option<Date>> {
         self.get_string(key, resolver)?
             .as_deref()
             .map(Date::from_str)
@@ -367,7 +380,7 @@ impl Dictionary {
     pub fn expect_date(
         &mut self,
         key: &'static str,
-        resolver: &mut dyn Resolve,
+        resolver: &mut dyn Resolve<'a>,
     ) -> PdfResult<Date> {
         Date::from_str(&self.expect_string(key, resolver)?)
     }
@@ -375,8 +388,8 @@ impl Dictionary {
     pub fn get_function(
         &mut self,
         key: &str,
-        resolver: &mut dyn Resolve,
-    ) -> PdfResult<Option<Function>> {
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Option<Function<'a>>> {
         self.get_object(key, resolver)?
             .map(|obj| Function::from_obj(obj, resolver))
             .transpose()
@@ -385,15 +398,15 @@ impl Dictionary {
     pub fn expect_function(
         &mut self,
         key: &'static str,
-        resolver: &mut dyn Resolve,
-    ) -> PdfResult<Function> {
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Function<'a>> {
         Function::from_obj(self.expect_object(key, resolver)?, resolver)
     }
 
     pub fn get_matrix(
         &mut self,
         key: &str,
-        resolver: &mut dyn Resolve,
+        resolver: &mut dyn Resolve<'a>,
     ) -> PdfResult<Option<Matrix>> {
         self.get_arr(key, resolver)?
             .map(|obj| Matrix::from_arr(obj, resolver))
@@ -403,7 +416,7 @@ impl Dictionary {
     pub fn expect_matrix(
         &mut self,
         key: &'static str,
-        resolver: &mut dyn Resolve,
+        resolver: &mut dyn Resolve<'a>,
     ) -> PdfResult<Matrix> {
         Matrix::from_arr(self.expect_arr(key, resolver)?, resolver)
     }

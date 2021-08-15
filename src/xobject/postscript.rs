@@ -1,16 +1,16 @@
 use crate::{error::PdfResult, stream::Stream, Resolve};
 
 #[derive(Debug)]
-pub struct PostScriptXObject {
-    stream: Stream,
+pub struct PostScriptXObject<'a> {
+    stream: Stream<'a>,
 
     /// A stream whose contents shall be used in place of the PostScript XObject's stream
     /// when the target PostScript interpreter is known to support only LanguageLevel 1
-    level_one: Option<Stream>,
+    level_one: Option<Stream<'a>>,
 }
 
-impl PostScriptXObject {
-    pub fn from_stream(mut stream: Stream, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> PostScriptXObject<'a> {
+    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let dict = &mut stream.dict.other;
 
         let level_one = dict.get_stream("Level1", resolver)?;

@@ -16,24 +16,24 @@ use crate::{
     Reference, Resolve,
 };
 
-pub struct PageTree {
-    pub kids: Vec<PageNode>,
-    pub pages: HashMap<Reference, PageNode>,
+pub struct PageTree<'a> {
+    pub kids: Vec<PageNode<'a>>,
+    pub pages: HashMap<Reference, PageNode<'a>>,
     pub count: usize,
 
     /// Fields inheritable by child nodes
-    pub(crate) inheritable_page_fields: InheritablePageFields,
+    pub(crate) inheritable_page_fields: InheritablePageFields<'a>,
 }
 
 #[derive(Clone)]
-pub enum PageNode {
-    Root(Rc<RefCell<PageTree>>),
-    Node(Rc<RefCell<PageTreeNode>>),
-    Leaf(Rc<PageObject>),
+pub enum PageNode<'a> {
+    Root(Rc<RefCell<PageTree<'a>>>),
+    Node(Rc<RefCell<PageTreeNode<'a>>>),
+    Leaf(Rc<PageObject<'a>>),
 }
 
-impl PageNode {
-    pub fn leaves(&self) -> Vec<Rc<PageObject>> {
+impl<'a> PageNode<'a> {
+    pub fn leaves(&self) -> Vec<Rc<PageObject<'a>>> {
         let mut leaves = Vec::new();
 
         match self {
@@ -62,7 +62,7 @@ impl PageNode {
     }
 }
 
-impl fmt::Debug for PageNode {
+impl fmt::Debug for PageNode<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Root(r) => f
@@ -81,27 +81,27 @@ impl fmt::Debug for PageNode {
 }
 
 // "Pages"
-pub struct PageTreeNode {
+pub struct PageTreeNode<'a> {
     /// The page tree node that is the immediate parent of this one.
     ///
     /// Required except in root node; prohibited in the root node
-    pub parent: PageNode,
+    pub parent: PageNode<'a>,
 
     /// An array of indirect references to the immediate children
     /// of this node. The children shall only be page objects or
     /// other page tree nodes.
-    pub kids: Vec<PageNode>,
+    pub kids: Vec<PageNode<'a>>,
 
     /// The number of leaf nodes (page objects) that are descendants
     /// of this node within the page tree
     pub count: usize,
 
     /// Fields inheritable by child nodes
-    pub(crate) inheritable_page_fields: InheritablePageFields,
+    pub(crate) inheritable_page_fields: InheritablePageFields<'a>,
 }
 
-impl PageTreeNode {
-    pub fn leaves(&self) -> Vec<Rc<PageObject>> {
+impl<'a> PageTreeNode<'a> {
+    pub fn leaves(&self) -> Vec<Rc<PageObject<'a>>> {
         let mut leaves = Vec::new();
 
         for node in &self.kids {
@@ -117,8 +117,8 @@ impl PageTreeNode {
 }
 
 // "Page"
-pub struct PageObject {
-    pub parent: PageNode,
+pub struct PageObject<'a> {
+    pub parent: PageNode<'a>,
 
     /// The date and time when the page's contents were most recently
     /// modified. If a page-piece dictionary ([`PieceInfo`](crate::PieceInfo))
@@ -133,7 +133,7 @@ pub struct PageObject {
     /// resources shall be inherited from an ancestor node in the page tree.
     ///
     /// Inheritable
-    pub resources: Option<Resources>,
+    pub resources: Option<Resources<'a>>,
 
     /// A rectangle, expressed in default user space units, that shall define
     /// the boundaries of the physical medium on which the page shall be displayed
@@ -210,10 +210,10 @@ pub struct PageObject {
 
     /// A group attributes dictionary that shall specify the attributes of
     /// the page's page group for use in the transparent imaging model
-    pub group: Option<GroupAttributes>,
+    pub group: Option<GroupAttributes<'a>>,
 
     /// A stream object that shall define the page's thumbnail image
-    pub thumb: Option<Stream>,
+    pub thumb: Option<Stream<'a>>,
 
     /// An array that shall contain indirect references to all article beads
     /// appearing on the page. The beads shall be listed in the array in
@@ -241,8 +241,11 @@ pub struct PageObject {
     /// be performed when the page is opened or closed
     pub aa: Option<AdditionalActions>,
 
-    pub metadata: Option<MetadataStream>,
-    pub piece_info: Option<PagePiece>,
+    /// A metadata stream that shall contain metadata for the page
+    pub metadata: Option<MetadataStream<'a>>,
+
+    /// A page-piece dictionary associated with the page
+    pub piece_info: Option<PagePiece<'a>>,
 
     /// The integer key of the page's entry in the structural parent tree
     pub struct_parents: Option<i32>,
@@ -285,7 +288,7 @@ pub struct PageObject {
     pub vp: Option<Viewport>,
 }
 
-impl PageObject {
+impl<'a> PageObject<'a> {
     pub fn crop_box(&self) -> Option<Rectangle> {
         self.crop_box
             .or_else(|| self.parent.crop_box())
@@ -293,7 +296,7 @@ impl PageObject {
     }
 }
 
-impl fmt::Debug for PageObject {
+impl fmt::Debug for PageObject<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PageNode::Leaf")
             .field("resources", &self.resources)
@@ -319,14 +322,14 @@ pdf_enum!(
 );
 
 #[derive(Debug)]
-pub(crate) struct InheritablePageFields {
-    resources: Option<Resources>,
+pub(crate) struct InheritablePageFields<'a> {
+    resources: Option<Resources<'a>>,
     media_box: Option<Rectangle>,
     crop_box: Option<Rectangle>,
     rotate: Option<i32>,
 }
 
-impl InheritablePageFields {
+impl<'a> InheritablePageFields<'a> {
     pub fn new() -> Self {
         Self {
             resources: None,
@@ -336,7 +339,7 @@ impl InheritablePageFields {
         }
     }
 
-    pub fn from_dict(dict: &mut Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let resources = dict
             .get_dict("Resources", resolver)?
             .map(|dict| Resources::from_dict(dict, resolver))

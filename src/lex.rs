@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
     error::{ParseError, PdfResult},
@@ -296,7 +296,7 @@ pub(crate) trait LexBase<'a> {
 }
 
 pub(crate) trait LexObject<'a>: LexBase<'a> {
-    fn lex_object(&mut self) -> PdfResult<Object> {
+    fn lex_object(&mut self) -> PdfResult<Object<'a>> {
         self.skip_whitespace();
         let obj = match self.peek_byte() {
             Some(b't') => self.lex_true(),
@@ -319,27 +319,27 @@ pub(crate) trait LexObject<'a>: LexBase<'a> {
     }
 
     /// Assumes leading 't' has not been consumed
-    fn lex_true(&mut self) -> PdfResult<Object> {
+    fn lex_true(&mut self) -> PdfResult<Object<'a>> {
         self.expect_bytes(b"true")?;
 
         Ok(Object::True)
     }
 
     /// Assumes leading 'f' has not been consumed
-    fn lex_false(&mut self) -> PdfResult<Object> {
+    fn lex_false(&mut self) -> PdfResult<Object<'a>> {
         self.expect_bytes(b"false")?;
 
         Ok(Object::False)
     }
 
     /// Assumes leading 'n' has not been consumed
-    fn lex_null(&mut self) -> PdfResult<Object> {
+    fn lex_null(&mut self) -> PdfResult<Object<'a>> {
         self.expect_bytes(b"null")?;
 
         Ok(Object::Null)
     }
 
-    fn lex_gt(&mut self) -> PdfResult<Object> {
+    fn lex_gt(&mut self) -> PdfResult<Object<'a>> {
         match self.peek_byte_offset(1) {
             Some(b'<') => self.lex_dict(),
             Some(b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F') => self.lex_hex_string(),
@@ -354,7 +354,7 @@ pub(crate) trait LexObject<'a>: LexBase<'a> {
         }
     }
 
-    fn lex_dict_ignore_stream(&mut self) -> PdfResult<Dictionary> {
+    fn lex_dict_ignore_stream(&mut self) -> PdfResult<Dictionary<'a>> {
         self.expect_byte(b'<')?;
         self.expect_byte(b'<')?;
         self.skip_whitespace();
@@ -379,7 +379,7 @@ pub(crate) trait LexObject<'a>: LexBase<'a> {
         Ok(Dictionary::new(dict))
     }
 
-    fn lex_dict(&mut self) -> PdfResult<Object>;
+    fn lex_dict(&mut self) -> PdfResult<Object<'a>>;
 
     // utf-16 <FEFF0043006F006C006C00610062006F007200610020004F0066006600690063006500200036002E0034>
     fn read_hex_char(&mut self, is_utf16: bool) -> char {
@@ -410,7 +410,7 @@ pub(crate) trait LexObject<'a>: LexBase<'a> {
     }
 
     // todo: base 85?
-    fn lex_hex_string(&mut self) -> PdfResult<Object> {
+    fn lex_hex_string(&mut self) -> PdfResult<Object<'a>> {
         self.expect_byte(b'<')?;
 
         let mut string = String::new();
@@ -435,7 +435,7 @@ pub(crate) trait LexObject<'a>: LexBase<'a> {
 
     // todo: scientific notation (1e2)
     // todo: radix numbers (16#FFFE)
-    fn lex_number(&mut self) -> PdfResult<Object> {
+    fn lex_number(&mut self) -> PdfResult<Object<'a>> {
         let negative = match self.peek_byte() {
             Some(b'+') => {
                 self.next_byte();
@@ -487,7 +487,7 @@ pub(crate) trait LexObject<'a>: LexBase<'a> {
         Ok(Object::Integer(whole_number.parse::<i32>()? * negative))
     }
 
-    fn lex_array(&mut self) -> PdfResult<Object> {
+    fn lex_array(&mut self) -> PdfResult<Object<'a>> {
         let mut arr = Vec::new();
         self.expect_byte(b'[')?;
         while let Some(b) = self.peek_byte() {
@@ -502,7 +502,7 @@ pub(crate) trait LexObject<'a>: LexBase<'a> {
         Ok(Object::Array(arr))
     }
 
-    fn lex_stream(&mut self, stream_dict: StreamDict) -> PdfResult<Stream> {
+    fn lex_stream(&mut self, stream_dict: StreamDict<'a>) -> PdfResult<Stream<'a>> {
         self.expect_bytes(b"stream")?;
         self.expect_eol()?;
 
@@ -517,7 +517,7 @@ pub(crate) trait LexObject<'a>: LexBase<'a> {
         self.expect_eol()?;
 
         Ok(Stream {
-            stream,
+            stream: Cow::Owned(stream),
             dict: stream_dict,
         })
     }

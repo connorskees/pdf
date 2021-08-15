@@ -43,10 +43,10 @@ pub struct Trailer {
 }
 
 impl Trailer {
-    pub(crate) fn from_dict(
-        mut dict: Dictionary,
+    pub(crate) fn from_dict<'a>(
+        mut dict: Dictionary<'a>,
         is_previous: bool,
-        resolver: &mut dyn Resolve,
+        resolver: &mut dyn Resolve<'a>,
     ) -> PdfResult<Self> {
         let trailer = Trailer::from_dict_ref(&mut dict, is_previous, resolver)?;
 
@@ -55,10 +55,10 @@ impl Trailer {
         Ok(trailer)
     }
 
-    pub(crate) fn from_dict_ref(
-        dict: &mut Dictionary,
+    pub(crate) fn from_dict_ref<'a>(
+        dict: &mut Dictionary<'a>,
         is_previous: bool,
-        resolver: &mut dyn Resolve,
+        resolver: &mut dyn Resolve<'a>,
     ) -> PdfResult<Self> {
         let size = usize::try_from(dict.expect_integer("Size", resolver)?)?;
         let prev = dict

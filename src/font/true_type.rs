@@ -14,16 +14,16 @@ use super::{encoding::FontEncoding, BaseFontDict};
 ///      on the lfFaceName field in a LOGFONT structure; in the Mac OS, it shall be based on the name of the FOND
 ///      resource. If the name contains any SPACEs, the SPACEs shall be removed.
 #[derive(Debug)]
-pub struct TrueTypeFont {
-    base: BaseFontDict,
+pub struct TrueTypeFont<'a> {
+    base: BaseFontDict<'a>,
 
     base_font: String,
 
     encoding: Option<FontEncoding>,
 }
 
-impl TrueTypeFont {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> TrueTypeFont<'a> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let base = BaseFontDict::from_dict(&mut dict, resolver)?;
         let base_font = dict.expect_name("BaseFont", resolver)?;
         let encoding = dict

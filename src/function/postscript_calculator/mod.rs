@@ -13,7 +13,7 @@ pub struct PostScriptCalculatorFunction {
 }
 
 impl PostScriptCalculatorFunction {
-    pub fn from_stream(stream: Stream, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_stream<'a>(stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let buffer = decode_stream(&stream.stream, &stream.dict, resolver)?;
 
         Ok(Self {

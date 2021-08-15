@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
     filter::decode_stream,
@@ -38,13 +38,13 @@ impl<'a> LexBase<'a> for XrefParser<'_> {
 }
 
 impl<'a> LexObject<'a> for XrefParser<'_> {
-    fn lex_dict(&mut self) -> PdfResult<Object> {
+    fn lex_dict(&mut self) -> PdfResult<Object<'a>> {
         Ok(Object::Dictionary(self.lex_dict_ignore_stream()?))
     }
 }
 
-impl<'a> Resolve<'a> for XrefParser<'a> {
-    fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object> {
+impl<'a> Resolve<'a> for XrefParser<'_> {
+    fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object<'a>> {
         Ok(Object::Reference(reference))
     }
 }
@@ -107,8 +107,8 @@ impl<'a> XrefParser<'a> {
             obj => {
                 return Err(ParseError::MismatchedObjectType {
                     expected: ObjectType::Dictionary,
-                    found: obj,
-                })
+                    // found: obj,
+                });
             }
         };
 
@@ -145,13 +145,14 @@ impl<'a> XrefParser<'a> {
         })
     }
 
-    fn lex_stream(&mut self, stream_dict: XrefStreamDict) -> PdfResult<XrefStream> {
+    fn lex_stream(&mut self, stream_dict: XrefStreamDict<'a>) -> PdfResult<XrefStream<'a>> {
         self.expect_bytes(b"stream")?;
         self.expect_eol()?;
 
         let stream = self
             .get_byte_range(self.cursor(), self.cursor() + stream_dict.stream_dict.len)
             .to_vec();
+
         *self.cursor_mut() += stream_dict.stream_dict.len;
 
         self.expect_eol()?;
@@ -161,7 +162,7 @@ impl<'a> XrefParser<'a> {
         self.expect_eol()?;
 
         Ok(XrefStream {
-            stream,
+            stream: Cow::Owned(stream),
             dict: stream_dict,
         })
     }

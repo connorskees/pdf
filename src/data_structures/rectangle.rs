@@ -9,7 +9,10 @@ pub struct Rectangle {
 }
 
 impl Rectangle {
-    pub(crate) fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub(crate) fn from_arr<'a>(
+        mut arr: Vec<Object>,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         assert_len(&arr, 4)?;
 
         let upper_right_y = resolver.assert_number(arr.pop().unwrap())?;

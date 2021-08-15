@@ -8,14 +8,14 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub enum Halftones {
+pub enum Halftones<'a> {
     Default,
-    Dictionary(HalftoneDictionary),
+    Dictionary(HalftoneDictionary<'a>),
     Stream(HalftoneStream),
 }
 
-impl Halftones {
-    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> Halftones<'a> {
+    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         Ok(match obj {
             Object::Name(name) if name == "Default" => Halftones::Default,
             Object::Stream(stream) => Halftones::Stream(HalftoneStream::from_stream(stream)?),
@@ -25,8 +25,8 @@ impl Halftones {
             found => {
                 return Err(ParseError::MismatchedObjectTypeAny {
                     expected: &[ObjectType::Name, ObjectType::Stream, ObjectType::Dictionary],
-                    found,
-                })
+                    // found,
+                });
             }
         })
     }
@@ -42,12 +42,12 @@ impl HalftoneStream {
 }
 
 #[derive(Debug, Clone)]
-pub enum HalftoneDictionary {
-    One(HalftoneOne),
-    Five(HalftoneFive),
-    Six(HalftoneSix),
-    Ten(HalftoneTen),
-    Sixteen(HalftoneSixteen),
+pub enum HalftoneDictionary<'a> {
+    One(HalftoneOne<'a>),
+    Five(HalftoneFive<'a>),
+    Six(HalftoneSix<'a>),
+    Ten(HalftoneTen<'a>),
+    Sixteen(HalftoneSixteen<'a>),
 }
 
 enum HalftoneType {
@@ -91,7 +91,7 @@ impl HalftoneType {
 }
 
 #[derive(Debug, Clone)]
-pub struct HalftoneOne {
+pub struct HalftoneOne<'a> {
     /// The screen frequency, measured in halftone cells per inch in device space
     frequency: f32,
 
@@ -102,7 +102,7 @@ pub struct HalftoneOne {
     /// A function object defining the order in which device pixels within a screen
     /// cell shall be adjusted for different gray levels, or the name of one of the
     /// predefined spot functions
-    spot_function: SpotFunction,
+    spot_function: SpotFunction<'a>,
 
     /// A flag specifying whether to invoke a special halftone algorithm that is extremely
     /// precise but computationally expensive; see Note 1 for further discussion.
@@ -117,11 +117,11 @@ pub struct HalftoneOne {
     /// represents either a nonprimary or nonstandard primary colour component.
     ///
     /// The name Identity may be used to specify the identity function
-    transfer_function: Option<TransferFunction>,
+    transfer_function: Option<TransferFunction<'a>>,
 }
 
-impl HalftoneOne {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> HalftoneOne<'a> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let frequency = dict.expect_number("Frequency", resolver)?;
         let angle = dict.expect_number("Angle", resolver)?;
         let spot_function =
@@ -143,26 +143,26 @@ impl HalftoneOne {
 }
 
 #[derive(Debug, Clone)]
-pub struct HalftoneFive {
+pub struct HalftoneFive<'a> {
     colorant: ColorSpace,
-    default: Box<Halftones>,
+    default: Box<Halftones<'a>>,
 }
 
-impl HalftoneFive {
-    pub fn from_dict(mut _dict: Dictionary, _resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> HalftoneFive<'a> {
+    pub fn from_dict(mut _dict: Dictionary, _resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         todo!()
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct HalftoneSix {
+pub struct HalftoneSix<'a> {
     width: i32,
     height: i32,
-    transfer_function: Option<TransferFunction>,
+    transfer_function: Option<TransferFunction<'a>>,
 }
 
-impl HalftoneSix {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> HalftoneSix<'a> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let width = dict.expect_integer("Width", resolver)?;
         let height = dict.expect_integer("Height", resolver)?;
         let transfer_function = dict
@@ -179,18 +179,18 @@ impl HalftoneSix {
 }
 
 #[derive(Debug, Clone)]
-pub struct HalftoneTen {
+pub struct HalftoneTen<'a> {
     /// The side of square X, in device pixels
     x_square: i32,
 
     /// The side of square Y, in device pixels
     y_square: i32,
 
-    transfer_function: Option<TransferFunction>,
+    transfer_function: Option<TransferFunction<'a>>,
 }
 
-impl HalftoneTen {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> HalftoneTen<'a> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let x_square = dict.expect_integer("Xsquare", resolver)?;
         let y_square = dict.expect_integer("Ysquare", resolver)?;
         let transfer_function = dict
@@ -207,7 +207,7 @@ impl HalftoneTen {
 }
 
 #[derive(Debug, Clone)]
-pub struct HalftoneSixteen {
+pub struct HalftoneSixteen<'a> {
     /// The width of the first (or only) rectangle in the threshold array, in device pixels.
     width: i32,
 
@@ -224,11 +224,11 @@ pub struct HalftoneSixteen {
     /// The height of the optional second rectangle in the threshold array, in device pixels
     height_two: Option<i32>,
 
-    transfer_function: Option<TransferFunction>,
+    transfer_function: Option<TransferFunction<'a>>,
 }
 
-impl HalftoneSixteen {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> HalftoneSixteen<'a> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let width = dict.expect_integer("Width", resolver)?;
         let height = dict.expect_integer("Height", resolver)?;
         let width_two = dict.get_integer("Width2", resolver)?;
@@ -248,8 +248,8 @@ impl HalftoneSixteen {
     }
 }
 
-impl HalftoneDictionary {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> HalftoneDictionary<'a> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         dict.expect_type("Halftone", resolver, false)?;
 
         Ok(

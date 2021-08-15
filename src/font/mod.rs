@@ -25,18 +25,18 @@ mod type1;
 mod type3;
 
 #[derive(Debug)]
-pub enum Font {
-    Type1(Type1Font),
-    MmType1(MmType1Font),
-    TrueType(TrueTypeFont),
-    Type3(Type3Font),
-    Type0(Type0Font),
+pub enum Font<'a> {
+    Type1(Type1Font<'a>),
+    MmType1(MmType1Font<'a>),
+    TrueType(TrueTypeFont<'a>),
+    Type3(Type3Font<'a>),
+    Type0(Type0Font<'a>),
 }
 
-impl Font {
+impl<'a> Font<'a> {
     const TYPE: &'static str = "Font";
 
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         dict.expect_type(Self::TYPE, resolver, true)?;
 
         let subtype = FontSubtype::from_str(&dict.expect_name("Subtype", resolver)?)?;
@@ -53,7 +53,7 @@ impl Font {
 }
 
 #[derive(Debug)]
-pub struct BaseFontDict {
+pub struct BaseFontDict<'a> {
     /// The name by which this font is referenced in the Font subdictionary
     /// of the current resource dictionary.
     ///
@@ -67,11 +67,11 @@ pub struct BaseFontDict {
     /// For the standard 14 fonts, the entries `first_char`, `last_char`, `widths`, and
     /// `font_descriptor` shall either all be present or all be absent. Ordinarily, these
     /// dictionary keys may be absent; specifying them enables a standard font to be overridden.
-    pub font_descriptor: FontDescriptor,
+    pub font_descriptor: FontDescriptor<'a>,
 }
 
-impl BaseFontDict {
-    pub fn from_dict(dict: &mut Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> BaseFontDict<'a> {
+    pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let name = dict.get_name("Name", resolver)?;
         let first_char = dict.expect_unsigned_integer("FirstChar", resolver)?;
         let last_char = dict.expect_unsigned_integer("LastChar", resolver)?;

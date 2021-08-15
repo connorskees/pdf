@@ -12,7 +12,7 @@ use crate::{
 /// available shading types and is useful for shadings that cannot be adequately described with any of the other
 /// types
 #[derive(Debug)]
-pub struct FunctionBasedShading {
+pub struct FunctionBasedShading<'a> {
     /// An array of four numbers [xmin xmax ymin ymax] specifying the rectangular domain of coordinates
     /// over which the colour function(s) are defined
     ///
@@ -30,11 +30,11 @@ pub struct FunctionBasedShading {
     /// colour components in the shading dictionary's colour space). Each function's domain shall
     /// be a superset of that of the shading dictionary. If the value returned by the function for
     /// a given colour component is out of range, it shall be adjusted to the nearest valid value
-    function: Function,
+    function: Function<'a>,
 }
 
-impl FunctionBasedShading {
-    pub fn from_dict(dict: &mut Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> FunctionBasedShading<'a> {
+    pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let domain = dict
             .get_arr("Domain", resolver)?
             .map(|arr| FunctionDomain::from_arr(arr, resolver))
@@ -62,7 +62,7 @@ struct FunctionDomain {
 }
 
 impl FunctionDomain {
-    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_arr<'a>(mut arr: Vec<Object>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         assert_len(&arr, 4)?;
 
         let y_max = resolver.assert_number(arr.pop().unwrap())?;
