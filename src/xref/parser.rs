@@ -43,7 +43,7 @@ impl LexObject for XrefParser<'_> {
     }
 }
 
-impl<'a> Resolve for XrefParser<'a> {
+impl<'a> Resolve<'a> for XrefParser<'a> {
     fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object> {
         Ok(Object::Reference(reference))
     }

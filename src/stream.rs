@@ -118,7 +118,7 @@ fn get_filters(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Vec<FilterK
 
 impl StreamDict {
     #[track_caller]
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut impl Resolve) -> PdfResult<StreamDict> {
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<StreamDict> {
         let len = dict.expect_integer("Length", resolver)? as usize;
 
         let filter = dict

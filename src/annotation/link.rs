@@ -77,7 +77,7 @@ impl Default for HighlightingMode {
 impl LinkAnnotation {
     const TYPE: &'static str = "Link";
 
-    pub fn from_dict(dict: &mut Dictionary, resolver: &mut impl Resolve) -> PdfResult<Self> {
+    pub fn from_dict(dict: &mut Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         let a = dict
             .get_dict("A", resolver)?
             .map(|actions| Actions::from_dict(actions, resolver))

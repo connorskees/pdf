@@ -384,7 +384,7 @@ impl Lexer {
     }
 }
 
-impl Resolve for Lexer {
+impl<'a> Resolve<'a> for Lexer {
     fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object> {
         let init_pos = self.pos;
 

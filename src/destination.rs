@@ -22,7 +22,7 @@ pub enum Destination {
 }
 
 impl Destination {
-    pub fn from_obj(obj: Object, resolver: &mut impl Resolve) -> PdfResult<Self> {
+    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         let obj = resolver.resolve(obj)?;
 
         match obj {
@@ -45,7 +45,7 @@ pub struct ExplicitDestination {
 }
 
 impl ExplicitDestination {
-    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut impl Resolve) -> PdfResult<Self> {
+    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         if arr.len() < 2 {
             return Err(ParseError::ArrayOfInvalidLength {
                 expected: 2,
@@ -58,7 +58,7 @@ impl ExplicitDestination {
         let dimensions = vals
             .iter()
             .cloned()
-            .map(|obj| resolver.assert_or_null(obj, Resolve::assert_number))
+            .map(|obj| resolver.assert_number_or_null(obj))
             .collect::<PdfResult<Vec<Option<f32>>>>()?;
 
         let kind_str = resolver.assert_name(arr.pop().unwrap())?;

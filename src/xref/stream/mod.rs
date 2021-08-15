@@ -60,7 +60,7 @@ impl XrefStreamDict {
     pub fn from_dict(
         mut dict: Dictionary,
         is_previous: bool,
-        resolver: &mut impl Resolve,
+        resolver: &mut dyn Resolve,
     ) -> PdfResult<Self> {
         dict.expect_type(Self::TYPE, resolver, false)?;
 

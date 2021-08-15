@@ -12,7 +12,7 @@ impl AnnotationSubType {
     pub(crate) fn from_dict(
         dict: &mut Dictionary,
         base: &BaseAnnotation,
-        resolver: &mut impl Resolve,
+        resolver: &mut dyn Resolve,
     ) -> PdfResult<Self> {
         Ok(match base.subtype {
             AnnotationSubTypeKind::Text => {

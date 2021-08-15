@@ -54,7 +54,7 @@ pub struct StructTreeRoot {
 impl StructTreeRoot {
     const TYPE: &'static str = "StructTreeRoot";
 
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut impl Resolve) -> PdfResult<Self> {
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         dict.expect_type(Self::TYPE, resolver, true)?;
 
         let k = dict
@@ -170,7 +170,7 @@ struct StructureElement {
 impl StructureElement {
     const TYPE: &'static str = "StructElem";
 
-    pub fn from_obj(obj: Object, resolver: &mut impl Resolve) -> PdfResult<Vec<Self>> {
+    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Vec<Self>> {
         Ok(match resolver.resolve(obj)? {
             Object::Array(arr) => arr
                 .into_iter()
@@ -186,7 +186,7 @@ impl StructureElement {
         })
     }
 
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut impl Resolve) -> PdfResult<Self> {
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         dict.expect_type(Self::TYPE, resolver, false)?;
 
         let s = StructureType::from_str(dict.expect_name("S", resolver)?);
@@ -238,7 +238,7 @@ enum StructureElementChild {
 }
 
 impl StructureElementChild {
-    pub fn from_obj(obj: Object, resolver: &mut impl Resolve) -> PdfResult<Vec<Self>> {
+    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Vec<Self>> {
         Ok(match resolver.resolve(obj)? {
             Object::Integer(identifier) => {
                 vec![StructureElementChild::MarkedContentIdentifier(identifier)]
@@ -265,7 +265,7 @@ impl StructureElementChild {
         })
     }
 
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut impl Resolve) -> PdfResult<Self> {
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         let ty = dict.get_name("Type", resolver)?;
 
         Ok(match ty.as_deref() {

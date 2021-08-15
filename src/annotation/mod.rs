@@ -24,7 +24,7 @@ pub struct Annotation {
 }
 
 impl Annotation {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut impl Resolve) -> PdfResult<Self> {
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         let base = BaseAnnotation::from_dict(&mut dict, resolver)?;
         let sub_type = AnnotationSubType::from_dict(&mut dict, &base, resolver)?;
 

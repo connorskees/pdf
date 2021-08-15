@@ -33,7 +33,7 @@ enum FillRule {
 
 pub struct Renderer<'a, 'b> {
     content: &'b mut ContentLexer<'a>,
-    resolver: &'b mut dyn Resolve,
+    resolver: &'b mut dyn Resolve<'a>,
     canvas: Canvas,
     graphics_state_stack: Vec<GraphicsState>,
     operand_stack: Vec<Object>,
@@ -83,7 +83,7 @@ impl<'a, 'b> Renderer<'a, 'b> {
 impl<'a, 'b> Renderer<'a, 'b> {
     pub fn new(
         content: &'b mut ContentLexer<'a>,
-        resolver: &'b mut dyn Resolve,
+        resolver: &'b mut dyn Resolve<'a>,
         page: Rc<PageObject>,
     ) -> Self {
         Self {

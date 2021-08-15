@@ -6,7 +6,7 @@ use crate::{
     stream::Stream,
 };
 
-pub trait Resolve {
+pub trait Resolve<'a> {
     fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object>;
 
     fn assert_integer(&mut self, obj: Object) -> PdfResult<i32> {
@@ -146,6 +146,17 @@ pub trait Resolve {
                 self.resolve(obj)
             }
             obj => Ok(obj),
+        }
+    }
+
+    fn assert_number_or_null(&mut self, obj: Object) -> PdfResult<Option<f32>> {
+        match obj {
+            Object::Reference(r) => {
+                let obj = self.lex_object_from_reference(r)?;
+                self.assert_number_or_null(obj)
+            }
+            Object::Null => Ok(None),
+            obj => Some(self.assert_number(obj)).transpose(),
         }
     }
 

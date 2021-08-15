@@ -37,7 +37,7 @@ pub(crate) struct ObjectStreamDict {
 impl ObjectStreamDict {
     const TYPE: &'static str = "ObjStm";
 
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut impl Resolve) -> PdfResult<Self> {
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         dict.expect_type(Self::TYPE, resolver, true)?;
 
         let n = usize::try_from(dict.expect_unsigned_integer("N", resolver)?)?;

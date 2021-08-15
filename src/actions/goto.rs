@@ -11,7 +11,7 @@ pub struct GoToAction {
 }
 
 impl GoToAction {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut impl Resolve) -> PdfResult<Self> {
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         let d = Destination::from_obj(dict.expect_object("D", resolver)?, resolver)?;
 
         Ok(Self { d })
@@ -40,7 +40,7 @@ pub struct GoToRemoteAction {
 }
 
 impl GoToRemoteAction {
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut impl Resolve) -> PdfResult<Self> {
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         let f = FileSpecification::from_obj(dict.expect_object("F", resolver)?, resolver)?;
         let d = Destination::from_obj(dict.expect_object("D", resolver)?, resolver)?;
         let new_window = dict.get_bool("NewWindow", resolver)?;

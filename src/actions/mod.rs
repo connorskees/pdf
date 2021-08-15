@@ -32,7 +32,7 @@ enum Action {
 impl Actions {
     const TYPE: &'static str = "Action";
 
-    pub fn from_obj(obj: Object, resolver: &mut impl Resolve) -> PdfResult<Vec<Self>> {
+    pub fn from_obj(obj: Object, resolver: &mut dyn Resolve) -> PdfResult<Vec<Self>> {
         Ok(match resolver.resolve(obj)? {
             Object::Array(arr) => arr
                 .into_iter()
@@ -48,7 +48,7 @@ impl Actions {
         })
     }
 
-    pub fn from_dict(mut dict: Dictionary, resolver: &mut impl Resolve) -> PdfResult<Self> {
+    pub fn from_dict(mut dict: Dictionary, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         let action_type = ActionType::from_str(&dict.expect_name("S", resolver)?)?;
 
         let next = dict
