@@ -76,12 +76,14 @@ pub(crate) trait LexBase<'a> {
 
     /// `start` is inclusive, `end` is exclusive
     /// 0 indexed
-    fn get_byte_range(&self, start: usize, end: usize) -> &[u8] {
+    fn get_byte_range(&self, start: usize, end: usize) -> &'a [u8] {
         if start == end {
             return &[];
         }
 
-        &self.buffer()[start..end]
+        // SAFETY: this is only safe if we never modify the underlying buffer
+        // TODO: remove, we can't enforce that invariant
+        unsafe { &*(&self.buffer()[start..end] as *const _) }
     }
 
     /// Assumes the leading `%` has already been consumed
@@ -506,9 +508,8 @@ pub(crate) trait LexObject<'a>: LexBase<'a> {
         self.expect_bytes(b"stream")?;
         self.expect_eol()?;
 
-        let stream = self
-            .get_byte_range(self.cursor(), self.cursor() + stream_dict.len)
-            .to_vec();
+        let stream = self.get_byte_range(self.cursor(), self.cursor() + stream_dict.len);
+
         *self.cursor_mut() += stream_dict.len;
 
         self.skip_whitespace();
@@ -517,7 +518,7 @@ pub(crate) trait LexObject<'a>: LexBase<'a> {
         self.expect_eol()?;
 
         Ok(Stream {
-            stream: Cow::Owned(stream),
+            stream: Cow::Borrowed(stream),
             dict: stream_dict,
         })
     }

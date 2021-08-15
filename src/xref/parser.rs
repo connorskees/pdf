@@ -149,9 +149,8 @@ impl<'a> XrefParser<'a> {
         self.expect_bytes(b"stream")?;
         self.expect_eol()?;
 
-        let stream = self
-            .get_byte_range(self.cursor(), self.cursor() + stream_dict.stream_dict.len)
-            .to_vec();
+        let stream =
+            self.get_byte_range(self.cursor(), self.cursor() + stream_dict.stream_dict.len);
 
         *self.cursor_mut() += stream_dict.stream_dict.len;
 
@@ -162,7 +161,7 @@ impl<'a> XrefParser<'a> {
         self.expect_eol()?;
 
         Ok(XrefStream {
-            stream: Cow::Owned(stream),
+            stream: Cow::Borrowed(stream),
             dict: stream_dict,
         })
     }
