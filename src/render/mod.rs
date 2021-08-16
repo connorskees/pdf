@@ -3,7 +3,7 @@ pub(super) mod error;
 pub(crate) mod graphics_state;
 pub(crate) mod text_state;
 
-use std::rc::Rc;
+use std::{borrow::Cow, rc::Rc};
 
 use crate::{
     catalog::ColorSpace,
@@ -100,11 +100,8 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         }
     }
 
-    fn render_form_xobject(&mut self, form: FormXObject<'b>) -> PdfResult<()> {
-        // todo: decode this stream
-        // let content_buffer = decode_stream(&form.stream.stream, &form.stream.dict, self.resolver)?;
-
-        let mut form_content = ContentLexer::new(form.stream.stream);
+    fn render_form_xobject(&mut self, content_buffer: Cow<'b, [u8]>) -> PdfResult<()> {
+        let mut form_content = ContentLexer::new(content_buffer);
 
         std::mem::swap(self.content, &mut form_content);
 
@@ -815,8 +812,14 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
             match xobject {
                 Some(XObject::Image(image)) => self.canvas.draw_image(image, self.resolver)?,
                 Some(XObject::Form(form)) => {
-                    let form = FormXObject::clone(form);
-                    self.render_form_xobject(form)?
+                    let form: FormXObject<'b> = FormXObject::clone(form);
+                    let content_buffer: Cow<'b, [u8]> = decode_stream(
+                        unsafe { &*(&*form.stream.stream as *const _) },
+                        &form.stream.dict,
+                        self.resolver,
+                    )?;
+
+                    self.render_form_xobject(content_buffer)?
                 }
                 Some(XObject::PostScript(ps_obj)) => {
                     todo!("unimplemented postscript xobject {:#?}", ps_obj)
