@@ -149,6 +149,17 @@ pub trait Resolve<'a> {
         }
     }
 
+    fn assert_dict_or_null(&mut self, obj: Object<'a>) -> PdfResult<Option<Dictionary<'a>>> {
+        match obj {
+            Object::Reference(r) => {
+                let obj = self.lex_object_from_reference(r)?;
+                self.assert_dict_or_null(obj)
+            }
+            Object::Null => Ok(None),
+            obj => Some(self.assert_dict(obj)).transpose(),
+        }
+    }
+
     fn assert_number_or_null(&mut self, obj: Object) -> PdfResult<Option<f32>> {
         match obj {
             Object::Reference(r) => {

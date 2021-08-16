@@ -128,6 +128,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     PdfGraphicsOperator::Tf => self.set_font_and_size()?,
                     PdfGraphicsOperator::Td => self.move_text_position()?,
                     PdfGraphicsOperator::TJ => self.draw_text_adjusted()?,
+                    PdfGraphicsOperator::Tj => self.draw_text_unadjusted()?,
                     PdfGraphicsOperator::q => self.save_graphics_state()?,
                     PdfGraphicsOperator::Q => self.restore_graphics_state()?,
                     PdfGraphicsOperator::cm => self.transform_ctm()?,
@@ -143,7 +144,6 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     PdfGraphicsOperator::BDC => self.begin_marked_content_sequence()?,
                     PdfGraphicsOperator::EMC => self.end_marked_content_sequence()?,
                     PdfGraphicsOperator::Tm => self.set_text_matrix()?,
-                    PdfGraphicsOperator::Tj => self.draw_text()?,
                     PdfGraphicsOperator::gs => self.set_graphics_state_parameters()?,
                     PdfGraphicsOperator::f | PdfGraphicsOperator::F => {
                         self.fill_path(FillRule::NonZeroWindingNumber)?
@@ -640,20 +640,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         Ok(())
     }
 
-    /// Show one or more text strings, allowing individual glyph positioning.
-    ///
-    /// Each element of array shall be either a string or a number. If the element
-    /// is a string, this operator shall show the string. If it is a number,
-    /// the operator shall adjust the text position by that amount; that is, it
-    /// shall translate the text matrix, Tm. The number shall be expressed in
-    /// thousandths of a unit of text space. This amount shall be subtracted
-    /// from the current horizontal or vertical coordinate, depending on the
-    /// writing mode. In the default coordinate system, a positive adjustment has
-    /// the effect of moving the next glyph painted either to the left or down
-    /// by the given amount.
-    fn draw_text_adjusted(&mut self) -> PdfResult<()> {
-        let arr = self.pop_arr()?;
-
+    fn draw_text(&mut self, arr: Vec<Object<'b>>) -> PdfResult<()> {
         let (font_stream, widths) = match self.text_state.font.as_deref() {
             Some(Font::Type1(Type1Font { base, .. })) => (
                 base.font_descriptor
@@ -750,10 +737,30 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         Ok(())
     }
 
-    fn draw_text(&mut self) -> PdfResult<()> {
-        let _str = self.pop_string()?;
+    /// Show one or more text strings, allowing individual glyph positioning.
+    ///
+    /// Each element of array shall be either a string or a number. If the element
+    /// is a string, this operator shall show the string. If it is a number,
+    /// the operator shall adjust the text position by that amount; that is, it
+    /// shall translate the text matrix, Tm. The number shall be expressed in
+    /// thousandths of a unit of text space. This amount shall be subtracted
+    /// from the current horizontal or vertical coordinate, depending on the
+    /// writing mode. In the default coordinate system, a positive adjustment has
+    /// the effect of moving the next glyph painted either to the left or down
+    /// by the given amount.
+    fn draw_text_adjusted(&mut self) -> PdfResult<()> {
+        let arr = self.pop_arr()?;
 
-        todo!("unimplemented operator: draw text unadjusted")
+        self.draw_text(arr)?;
+        Ok(())
+    }
+
+    fn draw_text_unadjusted(&mut self) -> PdfResult<()> {
+        let s = self.pop_string()?;
+
+        self.draw_text(vec![Object::String(s)])?;
+
+        Ok(())
     }
 
     /// Save the current graphics state on the graphics state stack

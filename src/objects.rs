@@ -297,8 +297,9 @@ impl<'a> Dictionary<'a> {
     ) -> PdfResult<Option<Dictionary<'a>>> {
         self.dict
             .remove(key)
-            .map(|obj| resolver.assert_dict(obj))
+            .map(|obj| resolver.assert_dict_or_null(obj))
             .transpose()
+            .map(Option::flatten)
     }
 
     pub fn expect_dict(
