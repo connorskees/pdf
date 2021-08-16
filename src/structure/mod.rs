@@ -276,6 +276,9 @@ impl<'a> StructureElementChild<'a> {
             Some(MarkedContentReferenceDictionary::TYPE) => Self::MarkedContentReferenceDictionary(
                 MarkedContentReferenceDictionary::from_dict(dict, resolver)?,
             ),
+            Some(StructureElement::TYPE) => {
+                Self::StructureElement(Box::new(StructureElement::from_dict(dict, resolver)?))
+            }
             Some(v) => todo!("{:?}", v),
         })
     }
