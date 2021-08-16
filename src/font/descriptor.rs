@@ -22,10 +22,7 @@ pub struct FontDescriptor<'a> {
     /// specifier
     ///
     /// The specific interpretation of these values varies from font to font
-    ///
-    /// N.B.: Although the possible values of font weight are all positive integers, it is possible
-    /// for this value to be a float
-    font_weight: Option<FontWeight>,
+    font_weight: Option<f32>,
 
     /// A collection of flags defining various characteristics of the font
     flags: FontDescriptorFlags,
@@ -129,10 +126,7 @@ impl<'a> FontDescriptor<'a> {
             .as_deref()
             .map(FontStretch::from_str)
             .transpose()?;
-        let font_weight = dict
-            .get_number("FontWeight", resolver)?
-            .map(|n| FontWeight::from_integer(n as i32))
-            .transpose()?;
+        let font_weight = dict.get_number("FontWeight", resolver)?;
         let flags = FontDescriptorFlags(dict.expect_unsigned_integer("Flags", resolver)?);
         let font_bounding_box = dict.get_rectangle("FontBBox", resolver)?;
         let italic_angle = dict.expect_number("ItalicAngle", resolver)?;
@@ -264,28 +258,6 @@ impl FontDescriptorFlags {
         self.0 & Self::SMALL_CAP != 0
     }
 }
-
-pdf_enum!(
-    int
-    #[derive(Debug)]
-    enum FontWeight {
-        OneHundred = 100,
-        TwoHundred = 200,
-        ThreeHundred = 300,
-
-        /// Normal
-        FourHundred = 400,
-
-        FiveHundred = 500,
-        SixHundred = 600,
-
-        /// Bold
-        SevenHundred = 700,
-
-        EightHundred = 800,
-        NineHundred = 900,
-    }
-);
 
 pdf_enum!(
     #[derive(Debug)]
