@@ -60,30 +60,43 @@ pub struct BaseFontDict<'a> {
     /// This entry is obsolete and should not be used.
     name: Option<String>,
 
-    pub widths: Widths,
+    pub widths: Option<Widths>,
 
     /// A font descriptor describing the font's metrics other than its glyph widths.
     ///
     /// For the standard 14 fonts, the entries `first_char`, `last_char`, `widths`, and
     /// `font_descriptor` shall either all be present or all be absent. Ordinarily, these
     /// dictionary keys may be absent; specifying them enables a standard font to be overridden.
-    pub font_descriptor: FontDescriptor<'a>,
+    pub font_descriptor: Option<FontDescriptor<'a>>,
 }
 
 impl<'a> BaseFontDict<'a> {
     pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let name = dict.get_name("Name", resolver)?;
-        let first_char = dict.expect_unsigned_integer("FirstChar", resolver)?;
-        let last_char = dict.expect_unsigned_integer("LastChar", resolver)?;
+        let first_char = dict.get_unsigned_integer("FirstChar", resolver)?;
+        let last_char = dict.get_unsigned_integer("LastChar", resolver)?;
         let widths = dict
-            .expect_arr("Widths", resolver)?
-            .into_iter()
-            .map(|obj| resolver.assert_number(obj))
-            .collect::<PdfResult<Vec<f32>>>()?;
-        let font_descriptor =
-            FontDescriptor::from_dict(dict.expect_dict("FontDescriptor", resolver)?, resolver)?;
+            .get_arr("Widths", resolver)?
+            .map(|arr| {
+                arr.into_iter()
+                    .map(|obj| resolver.assert_number(obj))
+                    .collect::<PdfResult<Vec<f32>>>()
+            })
+            .transpose()?;
+        let font_descriptor = dict
+            .get_dict("FontDescriptor", resolver)?
+            .map(|dict| FontDescriptor::from_dict(dict, resolver))
+            .transpose()?;
 
-        let widths = Widths::new(widths, first_char, last_char, font_descriptor.missing_width);
+        let widths = Widths::new(
+            widths,
+            first_char,
+            last_char,
+            font_descriptor
+                .as_ref()
+                .map(|descriptor| descriptor.missing_width)
+                .unwrap_or(0.0),
+        );
 
         Ok(Self {
             name,
@@ -122,13 +135,18 @@ pub struct Widths {
 }
 
 impl Widths {
-    pub fn new(widths: Vec<f32>, first_char: u32, last_char: u32, missing_width: f32) -> Self {
-        Self {
-            widths,
-            first_char,
-            last_char,
+    pub fn new(
+        widths: Option<Vec<f32>>,
+        first_char: Option<u32>,
+        last_char: Option<u32>,
+        missing_width: f32,
+    ) -> Option<Self> {
+        Some(Self {
+            widths: widths?,
+            first_char: first_char?,
+            last_char: last_char?,
             missing_width,
-        }
+        })
     }
 
     pub fn get(&self, codepoint: u32) -> f32 {

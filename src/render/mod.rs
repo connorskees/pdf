@@ -7,6 +7,7 @@ use std::rc::Rc;
 
 use crate::{
     catalog::ColorSpace,
+    catalog::ColorSpaceName,
     content::{ContentLexer, ContentToken, PdfGraphicsOperator},
     data_structures::Matrix,
     error::PdfResult,
@@ -120,7 +121,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
             match token {
                 ContentToken::Object(obj) => self.operand_stack.push(obj),
-                ContentToken::Operator(op) => match dbg!(op) {
+                ContentToken::Operator(op) => match op {
                     PdfGraphicsOperator::G => self.set_stroking_gray()?,
                     PdfGraphicsOperator::g => self.set_nonstroking_gray()?,
                     PdfGraphicsOperator::BT => self.begin_text()?,
@@ -158,6 +159,10 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     PdfGraphicsOperator::c => self.curve_to()?,
                     PdfGraphicsOperator::v => self.curve_to_initial_replicated()?,
                     PdfGraphicsOperator::y => self.curve_to_final_replicated()?,
+                    PdfGraphicsOperator::CS => self.set_stroking_color_space()?,
+                    PdfGraphicsOperator::cs => self.set_nonstroking_color_space()?,
+                    PdfGraphicsOperator::SCN => self.set_stroking_color()?,
+                    PdfGraphicsOperator::scn => self.set_nonstroking_color()?,
                     _ => todo!("unimplemented operator: {:?}", op),
                 },
             }
@@ -170,6 +175,125 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         self.render_content_stream()?;
 
         self.canvas.draw();
+
+        Ok(())
+    }
+
+    fn get_color_space(&mut self, color_space_name: ColorSpaceName) -> PdfResult<ColorSpace> {
+        Ok(match color_space_name {
+            ColorSpaceName::Separation | ColorSpaceName::DeviceN | ColorSpaceName::ICCBased => {
+                todo!()
+            }
+            ColorSpaceName::Pattern => {
+                todo!()
+            }
+            ColorSpaceName::Indexed | ColorSpaceName::DeviceGray | ColorSpaceName::CalGray => {
+                todo!()
+            }
+            ColorSpaceName::DeviceRGB => {
+                let blue = self.pop_number()?;
+                let green = self.pop_number()?;
+                let red = self.pop_number()?;
+
+                ColorSpace::DeviceRGB { red, green, blue }
+            }
+            ColorSpaceName::Lab | ColorSpaceName::CalRGB => {
+                todo!()
+            }
+            ColorSpaceName::DeviceCMYK => {
+                let key = self.pop_number()?;
+                let yellow = self.pop_number()?;
+                let magenta = self.pop_number()?;
+                let cyan = self.pop_number()?;
+
+                ColorSpace::DeviceCMYK {
+                    cyan,
+                    magenta,
+                    yellow,
+                    key,
+                }
+            }
+        })
+    }
+
+    fn set_nonstroking_color(&mut self) -> PdfResult<()> {
+        let color_space = self.get_color_space(
+            self.graphics_state
+                .device_independent
+                .color_space
+                .nonstroking
+                .name(),
+        )?;
+
+        self.graphics_state
+            .device_independent
+            .color_space
+            .nonstroking = color_space;
+
+        Ok(())
+    }
+
+    fn set_stroking_color(&mut self) -> PdfResult<()> {
+        let color_space = self.get_color_space(
+            self.graphics_state
+                .device_independent
+                .color_space
+                .stroking
+                .name(),
+        )?;
+
+        self.graphics_state.device_independent.color_space.stroking = color_space;
+
+        Ok(())
+    }
+
+    /// Set the current colour space to use for stroking operations. The operand
+    /// name shall be a name object. If the colour space is one that can be
+    /// specified by a name and no additional parameters (DeviceGray, DeviceRGB,
+    /// DeviceCMYK, and certain cases of Pattern), the name may be specified
+    /// directly. Otherwise, it shall be a name defined in the ColorSpace subdictionary
+    /// of the current resource dictionary; the associated value shall be an
+    /// array describing the colour space
+    ///
+    /// The names DeviceGray, DeviceRGB, DeviceCMYK, and Pattern always identify
+    /// the corresponding colour spaces directly; they never refer to resources
+    /// in the ColorSpace subdictionary.
+    ///
+    /// The CS operator shall also set the current stroking colour to its initial
+    /// value, which depends on the colour space:
+    ///
+    /// In a DeviceGray, DeviceRGB, CalGray, or CalRGB colour space, the initial
+    /// colour shall have all components equal to 0.0.
+    ///
+    /// In a DeviceCMYK colour space, the initial colour shall be [0.0 0.0 0.0 1.0].
+    ///
+    /// In a Lab or ICCBased colour space, the initial colour shall have all
+    /// components equal to 0.0 unless that falls outside the intervals specified
+    /// by the space’s Range entry, in which case the nearest valid value shall
+    /// be substituted.
+    ///
+    /// In an Indexed colour space, the initial colour value shall be 0.
+    ///
+    /// In a Separation or DeviceN colour space, the initial tint value shall be
+    /// 1.0 for all colorants.
+    ///
+    /// In a Pattern colour space, the initial colour shall be a pattern object
+    /// that causes nothing to be painted.
+    fn set_stroking_color_space(&mut self) -> PdfResult<()> {
+        let name = ColorSpaceName::from_str(&self.pop_name()?)?;
+
+        self.graphics_state.device_independent.color_space.stroking = ColorSpace::init(name);
+
+        Ok(())
+    }
+
+    fn set_nonstroking_color_space(&mut self) -> PdfResult<()> {
+        let name = ColorSpaceName::from_str(&self.pop_name()?)?;
+
+        self.graphics_state
+            .device_independent
+            .color_space
+            .nonstroking = ColorSpace::init(name);
 
         Ok(())
     }
@@ -532,7 +656,12 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
         let (font_stream, widths) = match self.text_state.font.as_deref() {
             Some(Font::Type1(Type1Font { base, .. })) => (
-                base.font_descriptor.font_file.clone().unwrap(),
+                base.font_descriptor
+                    .as_ref()
+                    .unwrap()
+                    .font_file
+                    .clone()
+                    .unwrap(),
                 &base.widths,
             ),
             Some(font) => todo!("unimplement font type: {:#?}", font),
@@ -604,7 +733,8 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
                 self.canvas.refresh();
 
-                let mut x_transform = widths.get(c as u32) * self.text_state.font_size
+                let mut x_transform = widths.as_ref().unwrap().get(c as u32)
+                    * self.text_state.font_size
                     + self.text_state.character_spacing;
 
                 if c == ' ' {

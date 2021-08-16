@@ -592,19 +592,74 @@ pub enum ColorSpace {
     },
 
     // CIE-based
-    CalGray,
-    CalRGB,
-    Lab,
-    ICCBased,
+    CalGray {
+        a: f32,
+    },
+    CalRGB {
+        a: f32,
+        b: f32,
+        c: f32,
+    },
+    Lab {
+        a: f32,
+        b: f32,
+        c: f32,
+    },
+    ICCBased(Vec<f32>),
 
     // Special
-    Indexed,
+    Indexed(u32),
     Pattern,
     Separation,
-    DeviceN,
+    DeviceN(Vec<f32>),
 }
 
 impl ColorSpace {
+    pub fn init(name: ColorSpaceName) -> Self {
+        match name {
+            ColorSpaceName::DeviceGray => ColorSpace::DeviceGray(0.0),
+            ColorSpaceName::DeviceRGB => ColorSpace::DeviceRGB {
+                red: 0.0,
+                green: 0.0,
+                blue: 0.0,
+            },
+            ColorSpaceName::DeviceCMYK => ColorSpace::DeviceCMYK {
+                cyan: 0.0,
+                magenta: 0.0,
+                yellow: 0.0,
+                key: 1.0,
+            },
+            ColorSpaceName::CalGray => ColorSpace::CalGray { a: 0.0 },
+            ColorSpaceName::CalRGB => ColorSpace::CalRGB {
+                a: 0.0,
+                b: 0.0,
+                c: 0.0,
+            },
+            ColorSpaceName::Lab => todo!(),
+            ColorSpaceName::ICCBased => todo!(),
+            ColorSpaceName::Indexed => ColorSpace::Indexed(0),
+            ColorSpaceName::Pattern => todo!(),
+            ColorSpaceName::Separation => todo!(),
+            ColorSpaceName::DeviceN => todo!(),
+        }
+    }
+
+    pub fn name(&self) -> ColorSpaceName {
+        match self {
+            ColorSpace::DeviceGray(..) => ColorSpaceName::DeviceGray,
+            ColorSpace::DeviceRGB { .. } => ColorSpaceName::DeviceRGB,
+            ColorSpace::DeviceCMYK { .. } => ColorSpaceName::DeviceCMYK,
+            ColorSpace::CalGray { .. } => ColorSpaceName::CalGray,
+            ColorSpace::CalRGB { .. } => ColorSpaceName::CalRGB,
+            ColorSpace::Lab { .. } => ColorSpaceName::Lab,
+            ColorSpace::ICCBased(..) => ColorSpaceName::ICCBased,
+            ColorSpace::Indexed(..) => ColorSpaceName::Indexed,
+            ColorSpace::Pattern { .. } => ColorSpaceName::Pattern,
+            ColorSpace::Separation { .. } => ColorSpaceName::Separation,
+            ColorSpace::DeviceN(..) => ColorSpaceName::DeviceN,
+        }
+    }
+
     /// For the framebuffer we currently use, this appears to be in ARGB format
     ///
     /// This may change in the future
@@ -635,6 +690,23 @@ impl ColorSpace {
         }
     }
 }
+
+pdf_enum!(
+    #[derive(Debug, Clone, Copy)]
+    pub enum ColorSpaceName {
+        DeviceGray = "DeviceGray",
+        DeviceRGB = "DeviceRGB",
+        DeviceCMYK = "DeviceCMYK",
+        CalGray = "CalGray",
+        CalRGB = "CalRGB",
+        Lab = "Lab",
+        ICCBased = "ICCBased",
+        Indexed = "Indexed",
+        Pattern = "Pattern",
+        Separation = "Separation",
+        DeviceN = "DeviceN",
+    }
+);
 
 pdf_enum!(
     /// Specifies the page layout when the document is opened
