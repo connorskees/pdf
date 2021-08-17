@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{data_structures::Matrix, font::Font};
+use crate::{data_structures::Matrix, font::Font, pdf_enum};
 
 #[derive(Debug, Clone)]
 pub struct TextState<'a> {
@@ -123,14 +123,17 @@ impl Default for TextState<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum TextRenderingMode {
-    Fill,
-    Stroke,
-    FillThenStroke,
-    Invisible,
-    FillAndAddToClipping,
-    StrokeAndAddToClipping,
-    FillThenStrokeAndAddToClipping,
-    AddToClipping,
-}
+pdf_enum!(
+    int
+    #[derive(Debug, Clone, Copy)]
+    pub enum TextRenderingMode {
+        Fill = 0,
+        Stroke = 1,
+        FillThenStroke = 2,
+        Invisible = 3,
+        FillAndAddToClipping = 4,
+        StrokeAndAddToClipping = 5,
+        FillThenStrokeAndAddToClipping = 6,
+        AddToClipping = 7,
+    }
+);

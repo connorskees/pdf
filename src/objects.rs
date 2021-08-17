@@ -272,6 +272,10 @@ impl<'a> Dictionary<'a> {
         self.dict.is_empty()
     }
 
+    pub fn get_obj_cloned(&self, key: &str) -> Option<Object<'a>> {
+        self.dict.get(key).cloned()
+    }
+
     pub fn get_name(&mut self, key: &str, resolver: &mut dyn Resolve) -> PdfResult<Option<String>> {
         self.dict
             .remove(key)

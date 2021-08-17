@@ -18,6 +18,8 @@ use crate::{
     Lexer, Object, ParseError, PdfResult, Reference, Resolve,
 };
 
+pub use crate::color::{ColorSpace, ColorSpaceName};
+
 /// See module level documentation
 #[derive(Debug)]
 pub struct DocumentCatalog<'a> {
@@ -149,6 +151,8 @@ pub struct DocumentCatalog<'a> {
     ///
     /// Default value: false.
     needs_rendering: bool,
+
+    last_modified: Option<Date>,
 }
 
 impl<'a> DocumentCatalog<'a> {
@@ -213,6 +217,7 @@ impl<'a> DocumentCatalog<'a> {
         let requirements = None;
         let collection = None;
         let needs_rendering = dict.get_bool("NeedsRendering", lexer)?.unwrap_or(false);
+        let last_modified = dict.get_date("LastModified", lexer)?;
 
         assert_empty(dict);
 
@@ -245,6 +250,7 @@ impl<'a> DocumentCatalog<'a> {
             requirements,
             collection,
             needs_rendering,
+            last_modified,
         })
     }
 }
@@ -574,139 +580,6 @@ pub struct NavigationNode;
 pub struct Viewport;
 #[derive(Debug)]
 pub struct PropertyList;
-
-#[derive(Debug, Clone)]
-pub enum ColorSpace {
-    // Device
-    DeviceGray(f32),
-    DeviceRGB {
-        red: f32,
-        green: f32,
-        blue: f32,
-    },
-    DeviceCMYK {
-        cyan: f32,
-        magenta: f32,
-        yellow: f32,
-        key: f32,
-    },
-
-    // CIE-based
-    CalGray {
-        a: f32,
-    },
-    CalRGB {
-        a: f32,
-        b: f32,
-        c: f32,
-    },
-    Lab {
-        a: f32,
-        b: f32,
-        c: f32,
-    },
-    ICCBased(Vec<f32>),
-
-    // Special
-    Indexed(u32),
-    Pattern,
-    Separation,
-    DeviceN(Vec<f32>),
-}
-
-impl ColorSpace {
-    pub fn init(name: ColorSpaceName) -> Self {
-        match name {
-            ColorSpaceName::DeviceGray => ColorSpace::DeviceGray(0.0),
-            ColorSpaceName::DeviceRGB => ColorSpace::DeviceRGB {
-                red: 0.0,
-                green: 0.0,
-                blue: 0.0,
-            },
-            ColorSpaceName::DeviceCMYK => ColorSpace::DeviceCMYK {
-                cyan: 0.0,
-                magenta: 0.0,
-                yellow: 0.0,
-                key: 1.0,
-            },
-            ColorSpaceName::CalGray => ColorSpace::CalGray { a: 0.0 },
-            ColorSpaceName::CalRGB => ColorSpace::CalRGB {
-                a: 0.0,
-                b: 0.0,
-                c: 0.0,
-            },
-            ColorSpaceName::Lab => todo!(),
-            ColorSpaceName::ICCBased => todo!(),
-            ColorSpaceName::Indexed => ColorSpace::Indexed(0),
-            ColorSpaceName::Pattern => todo!(),
-            ColorSpaceName::Separation => todo!(),
-            ColorSpaceName::DeviceN => todo!(),
-        }
-    }
-
-    pub fn name(&self) -> ColorSpaceName {
-        match self {
-            ColorSpace::DeviceGray(..) => ColorSpaceName::DeviceGray,
-            ColorSpace::DeviceRGB { .. } => ColorSpaceName::DeviceRGB,
-            ColorSpace::DeviceCMYK { .. } => ColorSpaceName::DeviceCMYK,
-            ColorSpace::CalGray { .. } => ColorSpaceName::CalGray,
-            ColorSpace::CalRGB { .. } => ColorSpaceName::CalRGB,
-            ColorSpace::Lab { .. } => ColorSpaceName::Lab,
-            ColorSpace::ICCBased(..) => ColorSpaceName::ICCBased,
-            ColorSpace::Indexed(..) => ColorSpaceName::Indexed,
-            ColorSpace::Pattern { .. } => ColorSpaceName::Pattern,
-            ColorSpace::Separation { .. } => ColorSpaceName::Separation,
-            ColorSpace::DeviceN(..) => ColorSpaceName::DeviceN,
-        }
-    }
-
-    /// For the framebuffer we currently use, this appears to be in ARGB format
-    ///
-    /// This may change in the future
-    pub fn as_u32(&self) -> u32 {
-        match self {
-            // todo: argb
-            Self::DeviceGray(n) => *n as u32,
-            &Self::DeviceRGB { red, green, blue } => {
-                let r = red as u32;
-                let g = green as u32;
-                let b = blue as u32;
-
-                (0xff << 24) | (r << 16) | (g << 8) | b
-            }
-            &Self::DeviceCMYK {
-                cyan,
-                magenta,
-                yellow,
-                key,
-            } => {
-                let r = (255.0 * (1.0 - cyan) * (1.0 - key)) as u32;
-                let g = (255.0 * (1.0 - magenta) * (1.0 - key)) as u32;
-                let b = (255.0 * (1.0 - yellow) * (1.0 - key)) as u32;
-
-                (0xff << 24) | (r << 16) | (g << 8) | b
-            }
-            c => todo!("unimplemented color space: {:?}", c),
-        }
-    }
-}
-
-pdf_enum!(
-    #[derive(Debug, Clone, Copy)]
-    pub enum ColorSpaceName {
-        DeviceGray = "DeviceGray",
-        DeviceRGB = "DeviceRGB",
-        DeviceCMYK = "DeviceCMYK",
-        CalGray = "CalGray",
-        CalRGB = "CalRGB",
-        Lab = "Lab",
-        ICCBased = "ICCBased",
-        Indexed = "Indexed",
-        Pattern = "Pattern",
-        Separation = "Separation",
-        DeviceN = "DeviceN",
-    }
-);
 
 pdf_enum!(
     /// Specifies the page layout when the document is opened

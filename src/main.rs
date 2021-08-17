@@ -4,6 +4,7 @@
 mod actions;
 mod annotation;
 mod catalog;
+mod color;
 mod content;
 mod data_structures;
 mod date;

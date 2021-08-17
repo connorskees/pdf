@@ -6,8 +6,7 @@ pub(crate) mod text_state;
 use std::{borrow::Cow, rc::Rc};
 
 use crate::{
-    catalog::ColorSpace,
-    catalog::ColorSpaceName,
+    catalog::{ColorSpace, ColorSpaceName},
     content::{ContentLexer, ContentToken, PdfGraphicsOperator},
     data_structures::Matrix,
     error::PdfResult,
@@ -24,7 +23,11 @@ use crate::{
 
 use canvas::Canvas;
 
-use self::{error::PdfRenderError, graphics_state::GraphicsState, text_state::TextState};
+use self::{
+    error::PdfRenderError,
+    graphics_state::GraphicsState,
+    text_state::{TextRenderingMode, TextState},
+};
 
 #[derive(Debug)]
 enum FillRule {
@@ -60,6 +63,12 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         let obj = self.pop()?;
 
         self.resolver.assert_number(obj)
+    }
+
+    fn pop_integer(&mut self) -> PdfResult<i32> {
+        let obj = self.pop()?;
+
+        self.resolver.assert_integer(obj)
     }
 
     fn pop_name(&mut self) -> PdfResult<String> {
@@ -160,6 +169,14 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     PdfGraphicsOperator::cs => self.set_nonstroking_color_space()?,
                     PdfGraphicsOperator::SCN => self.set_stroking_color()?,
                     PdfGraphicsOperator::scn => self.set_nonstroking_color()?,
+                    PdfGraphicsOperator::i => self.set_flatness_tolerance()?,
+                    PdfGraphicsOperator::Tc => self.set_character_spacing()?,
+                    PdfGraphicsOperator::Tw => self.set_word_spacing()?,
+                    PdfGraphicsOperator::Ts => self.set_text_rise()?,
+                    PdfGraphicsOperator::Tz => self.set_horizontal_scaling()?,
+                    PdfGraphicsOperator::Tr => self.set_text_rendering_mode()?,
+                    PdfGraphicsOperator::TD => self.move_text_position_and_set_leading()?,
+                    PdfGraphicsOperator::T_star => self.move_to_next_line()?,
                     _ => todo!("unimplemented operator: {:?}", op),
                 },
             }
@@ -184,7 +201,10 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
             ColorSpaceName::Pattern => {
                 todo!()
             }
-            ColorSpaceName::Indexed | ColorSpaceName::DeviceGray | ColorSpaceName::CalGray => {
+            ColorSpaceName::Indexed => {
+                todo!()
+            }
+            ColorSpaceName::DeviceGray | ColorSpaceName::CalGray => {
                 todo!()
             }
             ColorSpaceName::DeviceRGB => {
@@ -244,6 +264,25 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         Ok(())
     }
 
+    /// Move to the start of the next line. This operator has the same effect
+    /// as the code
+    ///
+    /// 0 -Tl Td
+    ///
+    /// where Tl denotes the current leading parameter in the text state. The
+    /// negative of Tl is used here because Tl is the text leading expressed as
+    /// a positive number. Going to the next line entails decreasing the y
+    /// coordinate.
+    fn move_to_next_line(&mut self) -> PdfResult<()> {
+        let matrix = Matrix::new_translation(0.0, self.text_state.leading)
+            * self.text_state.text_line_matrix;
+
+        self.text_state.text_matrix = matrix;
+        self.text_state.text_line_matrix = matrix;
+
+        Ok(())
+    }
+
     /// Set the current colour space to use for stroking operations. The operand
     /// name shall be a name object. If the colour space is one that can be
     /// specified by a name and no additional parameters (DeviceGray, DeviceRGB,
@@ -277,20 +316,52 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     /// In a Pattern colour space, the initial colour shall be a pattern object
     /// that causes nothing to be painted.
     fn set_stroking_color_space(&mut self) -> PdfResult<()> {
-        let name = ColorSpaceName::from_str(&self.pop_name()?)?;
+        let name = self.pop_name()?;
+        let color_space = if let Ok(name) = ColorSpaceName::from_str(&name) {
+            ColorSpace::init(name)
+        } else {
+            let name = self
+                .page
+                .resources
+                .as_ref()
+                .unwrap()
+                .color_space
+                .as_ref()
+                .unwrap()
+                .get_obj_cloned("CS2")
+                .unwrap();
 
-        self.graphics_state.device_independent.color_space.stroking = ColorSpace::init(name);
+            ColorSpace::from_obj(name, self.resolver)?
+        };
+
+        self.graphics_state.device_independent.color_space.stroking = color_space;
 
         Ok(())
     }
 
     fn set_nonstroking_color_space(&mut self) -> PdfResult<()> {
-        let name = ColorSpaceName::from_str(&self.pop_name()?)?;
+        let name = self.pop_name()?;
+        let color_space = if let Ok(name) = ColorSpaceName::from_str(&name) {
+            ColorSpace::init(name)
+        } else {
+            let name = self
+                .page
+                .resources
+                .as_ref()
+                .unwrap()
+                .color_space
+                .as_ref()
+                .unwrap()
+                .get_obj_cloned("CS2")
+                .unwrap();
+
+            ColorSpace::from_obj(name, self.resolver)?
+        };
 
         self.graphics_state
             .device_independent
             .color_space
-            .nonstroking = ColorSpace::init(name);
+            .nonstroking = color_space;
 
         Ok(())
     }
@@ -355,6 +426,54 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         let leading = self.pop_number()?;
 
         self.text_state.leading = leading;
+
+        Ok(())
+    }
+
+    fn set_flatness_tolerance(&mut self) -> PdfResult<()> {
+        let tolerance = self.pop_number()?;
+
+        self.graphics_state.device_dependent.flatness_tolerance = tolerance;
+
+        Ok(())
+    }
+
+    fn set_character_spacing(&mut self) -> PdfResult<()> {
+        let spacing = self.pop_number()?;
+
+        self.text_state.character_spacing = spacing;
+
+        Ok(())
+    }
+
+    fn set_word_spacing(&mut self) -> PdfResult<()> {
+        let spacing = self.pop_number()?;
+
+        self.text_state.word_spacing = spacing;
+
+        Ok(())
+    }
+
+    fn set_text_rise(&mut self) -> PdfResult<()> {
+        let rise = self.pop_number()?;
+
+        self.text_state.rise = rise;
+
+        Ok(())
+    }
+
+    fn set_horizontal_scaling(&mut self) -> PdfResult<()> {
+        let horizontal_scaling = self.pop_number()?;
+
+        self.text_state.horizontal_scaling = horizontal_scaling;
+
+        Ok(())
+    }
+
+    fn set_text_rendering_mode(&mut self) -> PdfResult<()> {
+        let rendering_mode = self.pop_integer()?;
+
+        self.text_state.rendering_mode = TextRenderingMode::from_integer(rendering_mode)?;
 
         Ok(())
     }
@@ -628,6 +747,28 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     fn move_text_position(&mut self) -> PdfResult<()> {
         let t_y = self.pop_number()?;
         let t_x = self.pop_number()?;
+
+        let matrix = Matrix::new_translation(t_x, t_y) * self.text_state.text_line_matrix;
+
+        self.text_state.text_matrix = matrix;
+        self.text_state.text_line_matrix = matrix;
+
+        Ok(())
+    }
+
+    /// Move to the start of the next line, offset from the start of the current
+    /// line by (t_x, t_y). As a side effect, this operator shall set the leading
+    /// parameter in the text state. This operator shall have the same effect as
+    /// this code:
+    ///
+    /// −t_y TL
+    /// t_x t_y Td
+    ///
+    fn move_text_position_and_set_leading(&mut self) -> PdfResult<()> {
+        let t_y = self.pop_number()?;
+        let t_x = self.pop_number()?;
+
+        self.text_state.leading = -t_y;
 
         let matrix = Matrix::new_translation(t_x, t_y) * self.text_state.text_line_matrix;
 
