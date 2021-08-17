@@ -17,6 +17,7 @@ use crate::{
     page::PageObject,
     pdf_enum,
     postscript::{charstring::CharStringPainter, PostscriptInterpreter},
+    resources::graphics_state_parameters::{LineCapStyle, LineDashPattern},
     xobject::{FormXObject, XObject},
     Resolve,
 };
@@ -180,6 +181,8 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     PdfGraphicsOperator::TD => self.move_text_position_and_set_leading()?,
                     PdfGraphicsOperator::T_star => self.move_to_next_line()?,
                     PdfGraphicsOperator::BMC => self.begin_marked_content_sequence()?,
+                    PdfGraphicsOperator::J => self.set_line_cap_style()?,
+                    PdfGraphicsOperator::d => self.set_line_dash_pattern()?,
                     _ => todo!("unimplemented operator: {:?}", op),
                 },
             }
@@ -421,6 +424,31 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         if let Some(path) = self.current_path.as_mut() {
             path.cubic_curve_to(Point::new(x1, y1), Point::new(x2, y2), Point::new(x3, y3));
         }
+
+        Ok(())
+    }
+
+    /// Set the line dash pattern in the graphics state
+    fn set_line_dash_pattern(&mut self) -> PdfResult<()> {
+        let dash_phase = self.pop_integer()?;
+        let dash_array = self
+            .pop_arr()?
+            .into_iter()
+            .map(|obj| self.resolver.assert_integer(obj))
+            .collect::<PdfResult<Vec<i32>>>()?;
+
+        self.graphics_state.device_independent.line_dash_pattern =
+            LineDashPattern::new(dash_phase, dash_array);
+
+        Ok(())
+    }
+
+    /// Set the line cap style in the graphics state
+    fn set_line_cap_style(&mut self) -> PdfResult<()> {
+        let line_cap_style = self.pop_integer()?;
+
+        self.graphics_state.device_independent.line_cap_style =
+            LineCapStyle::from_integer(line_cap_style)?;
 
         Ok(())
     }
