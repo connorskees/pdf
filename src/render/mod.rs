@@ -147,7 +147,9 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     PdfGraphicsOperator::RG => self.set_stroking_rgb()?,
                     PdfGraphicsOperator::rg => self.set_nonstroking_rgb()?,
                     PdfGraphicsOperator::ET => self.end_text()?,
-                    PdfGraphicsOperator::BDC => self.begin_marked_content_sequence()?,
+                    PdfGraphicsOperator::BDC => {
+                        self.begin_marked_content_sequence_with_property_list()?
+                    }
                     PdfGraphicsOperator::EMC => self.end_marked_content_sequence()?,
                     PdfGraphicsOperator::Tm => self.set_text_matrix()?,
                     PdfGraphicsOperator::gs => self.set_graphics_state_parameters()?,
@@ -177,6 +179,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     PdfGraphicsOperator::Tr => self.set_text_rendering_mode()?,
                     PdfGraphicsOperator::TD => self.move_text_position_and_set_leading()?,
                     PdfGraphicsOperator::T_star => self.move_to_next_line()?,
+                    PdfGraphicsOperator::BMC => self.begin_marked_content_sequence()?,
                     _ => todo!("unimplemented operator: {:?}", op),
                 },
             }
@@ -1036,13 +1039,24 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         Ok(())
     }
 
+    /// Begin a marked-content sequence terminated by a balancing EMC operator.
+    /// tag shall be a name object indicating the role or significance of the
+    /// sequence.
+    fn begin_marked_content_sequence(&mut self) -> PdfResult<()> {
+        let tag = self.pop_name()?;
+
+        dbg!("unimplemented marked content operator: BDC {:?}", tag);
+
+        Ok(())
+    }
+
     /// Begin a marked-content sequence with an associated property list,
     /// terminated by a balancing EMC operator. tag shall be a name object
     /// indicating the role or significance of the sequence. properties shall be
     /// either an inline dictionary containing the property list or a name object
     /// associated with it in the Properties subdictionary of the current
     /// resource dictionary
-    fn begin_marked_content_sequence(&mut self) -> PdfResult<()> {
+    fn begin_marked_content_sequence_with_property_list(&mut self) -> PdfResult<()> {
         let _properties = self.pop()?;
         let _tag = self.pop_name()?;
 
