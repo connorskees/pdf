@@ -322,6 +322,13 @@ impl LineDashPattern {
         })
     }
 
+    pub fn new(dash_phase: i32, dash_array: Vec<i32>) -> Self {
+        Self {
+            dash_array,
+            dash_phase,
+        }
+    }
+
     pub fn solid() -> Self {
         Self {
             dash_array: Vec::new(),
