@@ -1,4 +1,4 @@
-use crate::data_structures::Matrix;
+use crate::{data_structures::Matrix, render::canvas::fuzzy_eq};
 
 use super::{point::Point, BoundingBox};
 
@@ -50,5 +50,9 @@ impl Line {
 
         f(other.start.x, other.start.y) * f(other.end.x, other.end.y) < 0.0
             && g(self.start.x, self.start.y) * g(self.end.x, self.end.y) < 0.0
+    }
+
+    pub fn is_horizontal(&self) -> bool {
+        fuzzy_eq(self.slope(), 0.0)
     }
 }

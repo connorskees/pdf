@@ -95,7 +95,11 @@ impl Path {
                         count += 1;
                     }
                 }
-                Subpath::Cubic(..) => todo!(),
+                Subpath::Cubic(curve) => {
+                    assert!(line.is_horizontal());
+
+                    count += curve.find_number_of_intersections(line);
+                }
             }
         }
 
