@@ -496,7 +496,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     fn set_horizontal_scaling(&mut self) -> PdfResult<()> {
         let horizontal_scaling = self.pop_number()?;
 
-        self.text_state.horizontal_scaling = horizontal_scaling;
+        self.text_state.horizontal_scaling = horizontal_scaling / 100.0;
 
         Ok(())
     }
