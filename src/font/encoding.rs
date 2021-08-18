@@ -67,9 +67,8 @@ pub struct FontEncodingDict {
     base_encoding: Option<BaseFontEncoding>,
 
     /// An array describing the differences from the encoding specified by BaseEncoding or,
-    /// if BaseEncoding is absent, from an implicit base encoding. The Differences array is
-    /// described in subsequent sub-clauses.
-    differences: FontDifferences,
+    /// if BaseEncoding is absent, from an implicit base encoding
+    differences: Option<FontDifferences>,
 }
 
 impl FontEncodingDict {
@@ -86,8 +85,10 @@ impl FontEncodingDict {
             .as_deref()
             .map(BaseFontEncoding::from_str)
             .transpose()?;
-        let differences =
-            FontDifferences::from_arr(dict.expect_arr("Differences", resolver)?, resolver)?;
+        let differences = dict
+            .get_arr("Differences", resolver)?
+            .map(|arr| FontDifferences::from_arr(arr, resolver))
+            .transpose()?;
 
         Ok(Self {
             base_encoding,
