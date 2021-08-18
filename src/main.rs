@@ -66,9 +66,8 @@ pub(crate) fn assert_empty(dict: Dictionary) {
 pub fn assert_reference(obj: Object) -> PdfResult<Reference> {
     match obj {
         Object::Reference(r) => Ok(r),
-        found => Err(ParseError::MismatchedObjectType {
+        _ => Err(ParseError::MismatchedObjectType {
             expected: ObjectType::Reference,
-            // found,
         }),
     }
 }

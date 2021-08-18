@@ -155,9 +155,8 @@ impl<'a> CidToGidMap<'a> {
         Ok(match resolver.resolve(obj)? {
             Object::Name(ref name) if name == "Identity" => Self::Identity,
             Object::Stream(stream) => Self::Stream(stream),
-            found => {
+            _ => {
                 return Err(crate::error::ParseError::MismatchedObjectTypeAny {
-                    // found,
                     expected: &[ObjectType::Name, ObjectType::Stream],
                 });
             }

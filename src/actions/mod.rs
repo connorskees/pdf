@@ -39,10 +39,9 @@ impl<'a> Actions<'a> {
                 .map(|obj| Actions::from_dict(resolver.assert_dict(obj)?, resolver))
                 .collect::<PdfResult<Vec<Actions>>>()?,
             Object::Dictionary(dict) => vec![Actions::from_dict(dict, resolver)?],
-            found => {
+            _ => {
                 return Err(ParseError::MismatchedObjectTypeAny {
                     expected: &[ObjectType::Array, ObjectType::Dictionary],
-                    // found,
                 });
             }
         })

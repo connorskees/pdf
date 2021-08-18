@@ -177,10 +177,9 @@ impl<'a> StructureElement<'a> {
                 .map(|obj| StructureElement::from_dict(resolver.assert_dict(obj)?, resolver))
                 .collect::<PdfResult<Vec<StructureElement>>>()?,
             Object::Dictionary(dict) => vec![StructureElement::from_dict(dict, resolver)?],
-            found => {
+            _ => {
                 return Err(ParseError::MismatchedObjectTypeAny {
                     expected: &[ObjectType::Array, ObjectType::Dictionary],
-                    // found,
                 });
             }
         })
@@ -252,14 +251,13 @@ impl<'a> StructureElementChild<'a> {
 
                     Ok(init)
                 })?,
-            found => {
+            _ => {
                 return Err(ParseError::MismatchedObjectTypeAny {
                     expected: &[
                         ObjectType::Array,
                         ObjectType::Dictionary,
                         ObjectType::Integer,
                     ],
-                    // found,
                 });
             }
         })

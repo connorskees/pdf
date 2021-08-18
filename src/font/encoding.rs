@@ -19,9 +19,8 @@ impl FontEncoding {
             Object::Dictionary(dict) => {
                 Self::Dictionary(FontEncodingDict::from_dict(dict, resolver)?)
             }
-            found => {
+            _ => {
                 return Err(ParseError::MismatchedObjectTypeAny {
-                    // found,
                     expected: &[ObjectType::Dictionary, ObjectType::Name],
                 });
             }
@@ -122,9 +121,8 @@ impl FontDifferences {
                     code_point = u32::try_from(i)?;
                 }
                 Object::Name(name) => names.push(name),
-                found => {
+                _ => {
                     return Err(ParseError::MismatchedObjectTypeAny {
-                        // found,
                         expected: &[ObjectType::Name, ObjectType::Integer],
                     });
                 }

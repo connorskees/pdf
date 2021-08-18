@@ -36,10 +36,9 @@ impl<'a> DecodeParams<'a> {
                 .map(|obj| resolver.assert_dict(obj))
                 .collect::<PdfResult<Vec<Dictionary>>>()?,
             Object::Dictionary(dict) => vec![dict],
-            found => {
+            _ => {
                 return Err(ParseError::MismatchedObjectTypeAny {
                     expected: &[ObjectType::Array, ObjectType::Dictionary],
-                    // found,
                 });
             }
         };

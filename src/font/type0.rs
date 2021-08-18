@@ -19,9 +19,8 @@ impl<'a> Type0FontEncoding<'a> {
         match resolver.resolve(obj)? {
             Object::Name(name) => Ok(Self::Predefined(PredefinedCjkCmapName::from_str(&name)?)),
             Object::Stream(stream) => Ok(Self::Stream(stream)),
-            found => Err(ParseError::MismatchedObjectTypeAny {
+            _ => Err(ParseError::MismatchedObjectTypeAny {
                 expected: &[ObjectType::Stream, ObjectType::Name],
-                // found,
             }),
         }
     }

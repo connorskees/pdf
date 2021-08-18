@@ -2,7 +2,7 @@ use crate::{
     catalog::MetadataStream,
     error::PdfResult,
     filter::flate::BitsPerComponent,
-    objects::{Dictionary, Object},
+    objects::Object,
     optional_content::{OptionalContent, OptionalContentGroup},
     resources::graphics_state_parameters::RenderingIntent,
     stream::Stream,

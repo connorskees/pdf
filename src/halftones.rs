@@ -22,10 +22,9 @@ impl<'a> Halftones<'a> {
             Object::Dictionary(dict) => {
                 Halftones::Dictionary(HalftoneDictionary::from_dict(dict, resolver)?)
             }
-            found => {
+            _ => {
                 return Err(ParseError::MismatchedObjectTypeAny {
                     expected: &[ObjectType::Name, ObjectType::Stream, ObjectType::Dictionary],
-                    // found,
                 });
             }
         })

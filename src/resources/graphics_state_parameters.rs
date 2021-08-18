@@ -199,9 +199,8 @@ impl BlendMode {
                     .map(|obj| lexer.assert_name(obj).map(Self::from_str))
                     .collect::<PdfResult<Vec<Self>>>()?,
             ),
-            found => {
+            _ => {
                 return Err(ParseError::MismatchedObjectTypeAny {
-                    // found,
                     expected: &[ObjectType::Array, ObjectType::Name],
                 });
             }

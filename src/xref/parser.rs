@@ -104,10 +104,9 @@ impl<'a> XrefParser<'a> {
 
         let xref_stream_dict = match self.lex_object()? {
             Object::Dictionary(dict) => XrefStreamDict::from_dict(dict, is_previous, self)?,
-            obj => {
+            _ => {
                 return Err(ParseError::MismatchedObjectType {
                     expected: ObjectType::Dictionary,
-                    // found: obj,
                 });
             }
         };

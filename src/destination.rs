@@ -30,8 +30,7 @@ impl Destination {
                 arr, resolver,
             )?)),
             Object::String(s) | Object::Name(s) => Ok(Destination::Named(s)),
-            found => Err(ParseError::MismatchedObjectTypeAny {
-                // found,
+            _ => Err(ParseError::MismatchedObjectTypeAny {
                 expected: &[ObjectType::Array, ObjectType::String, ObjectType::Name],
             }),
         }
@@ -47,10 +46,7 @@ pub struct ExplicitDestination {
 impl ExplicitDestination {
     pub fn from_arr<'a>(mut arr: Vec<Object>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         if arr.len() < 2 {
-            return Err(ParseError::ArrayOfInvalidLength {
-                expected: 2,
-                // found: arr,
-            });
+            return Err(ParseError::ArrayOfInvalidLength { expected: 2 });
         }
 
         let vals = arr.split_off(2);

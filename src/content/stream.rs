@@ -19,10 +19,9 @@ impl ContentStream {
                 .into_iter()
                 .map(|obj| resolver.assert_stream(obj))
                 .collect::<PdfResult<Vec<Stream>>>()?,
-            obj => {
+            _ => {
                 return Err(ParseError::MismatchedObjectTypeAny {
                     expected: &[ObjectType::Array, ObjectType::Stream],
-                    // found: obj,
                 });
             }
         };

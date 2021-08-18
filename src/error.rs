@@ -3,11 +3,7 @@ use std::{
     num::{ParseIntError, TryFromIntError},
 };
 
-use crate::{
-    objects::{Object, ObjectType},
-    postscript::PostScriptError,
-    render::error::PdfRenderError,
-};
+use crate::{objects::ObjectType, postscript::PostScriptError, render::error::PdfRenderError};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -23,22 +19,18 @@ pub enum ParseError {
     IoError(io::Error),
     MismatchedObjectType {
         expected: ObjectType,
-        // found: Object,
     },
     MismatchedObjectTypeAny {
         expected: &'static [ObjectType],
-        // found: Object,
     },
     InvalidDictionaryValueForKey {
         key: &'static str,
-        // found: Object,
     },
     MissingRequiredKey {
         key: &'static str,
     },
     ArrayOfInvalidLength {
         expected: usize,
-        // found: Vec<Object>,
     },
     UnrecognizedVariant {
         found: String,
