@@ -41,10 +41,12 @@ fn ident_token_from_bytes(bytes: &[u8]) -> PdfResult<PostScriptObject> {
         b"mark" => PostscriptOperator::Mark,
         b"closefile" => PostscriptOperator::CloseFile,
         b"findresource" => PostscriptOperator::FindResource,
+        b"for" => PostscriptOperator::For,
         literal => {
             // todo: only to detect unimplemented operators
             match literal {
-                b"StandardEncoding" | b"|" | b"|-" | b"-|" | b"systemdict" => {}
+                b"StandardEncoding" | b"|" | b"|-" | b"-|" | b"systemdict" | b"RD" | b"NP"
+                | b"ND" => {}
                 found => todo!("{:?}", String::from_utf8_lossy(found)),
             }
 
@@ -106,7 +108,7 @@ impl<'a> PostScriptLexer<'a> {
             }
             Some(b'<') => self.lex_gt()?,
             Some(b'-') => match self.peek_byte_offset(1) {
-                Some(b'0'..=b'9') => self.lex_number()?,
+                Some(b'0'..=b'9' | b'.') => self.lex_number()?,
                 _ => self.lex_operator()?,
             },
             Some(..) => self.lex_operator()?,

@@ -315,6 +315,8 @@ impl<'a> PostscriptInterpreter<'a> {
             PostscriptOperator::DefineFont => self.define_font(),
             PostscriptOperator::Mark => self.mark(),
             PostscriptOperator::CloseFile => self.close_file(),
+            PostscriptOperator::For => self.for_loop(),
+            PostscriptOperator::Add => self.add(),
             op
             @
             (PostscriptOperator::DefineResource
@@ -325,13 +327,64 @@ impl<'a> PostscriptInterpreter<'a> {
             | PostscriptOperator::ResourceForAll) => {
                 todo!("unimplemented resource operator {:?}", op)
             }
-            op @ (PostscriptOperator::Abs | PostscriptOperator::Add) => todo!("{:?}", op),
+            op @ PostscriptOperator::Abs => todo!("{:?}", op),
         }
     }
 
     fn execute_procedure(&mut self, proc: Procedure) -> PdfResult<()> {
         for tok in proc.inner {
             self.execute_token(tok)?;
+        }
+
+        Ok(())
+    }
+
+    fn add(&mut self) -> PdfResult<()> {
+        let n2 = self.pop()?;
+        let n1 = self.pop()?;
+
+        if n1.is_int() && n2.is_int() {
+            let n1 = n1.as_int()?;
+            let n2 = n2.as_int()?;
+
+            match n1.checked_add(n2) {
+                Some(sum) => self.push(PostScriptObject::Int(sum)),
+                None => self.push(PostScriptObject::Float(n1 as f32 + n2 as f32)),
+            }
+
+            return Ok(());
+        }
+
+        let n1 = n1.as_float()?;
+        let n2 = n2.as_float()?;
+
+        self.push(PostScriptObject::Float(n1 + n2));
+
+        Ok(())
+    }
+
+    fn for_loop(&mut self) -> PdfResult<()> {
+        let proc = self.pop_procedure()?;
+        let limit = self.pop_number()?;
+        let increment = self.pop_number()?;
+        let initial = self.pop_number()?;
+
+        let mut control = initial;
+
+        let should_terminate = |control: f32| {
+            if increment.is_sign_positive() {
+                control > limit
+            } else {
+                control < limit
+            }
+        };
+
+        while !should_terminate(control) {
+            self.push(PostScriptObject::Float(control));
+
+            self.execute_procedure(proc.clone())?;
+
+            control += increment;
         }
 
         Ok(())
@@ -498,13 +551,11 @@ impl<'a> PostscriptInterpreter<'a> {
 
         match composite_obj {
             PostScriptObject::String(s) => {
-                let idx = usize::try_from(match key_or_idx {
-                    PostScriptObject::Int(i) => i,
-                    _ => return Err(PostScriptError::TypeCheck.into()),
-                })?;
+                let idx = usize::try_from(key_or_idx.as_int()?)?;
 
                 let ch = u8::try_from(match value {
                     PostScriptObject::Int(i) => i,
+                    PostScriptObject::Float(f) => f.round() as i32,
                     _ => return Err(PostScriptError::TypeCheck.into()),
                 })?;
 
@@ -519,10 +570,7 @@ impl<'a> PostscriptInterpreter<'a> {
                 self.get_dict_mut(&dict).insert(key, value);
             }
             PostScriptObject::Array(arr) => {
-                let idx = usize::try_from(match key_or_idx {
-                    PostScriptObject::Int(i) => i,
-                    _ => return Err(PostScriptError::TypeCheck.into()),
-                })?;
+                let idx = usize::try_from(key_or_idx.as_int()?)?;
 
                 self.get_arr_mut(arr).put(idx, value);
             }
@@ -806,6 +854,7 @@ impl<'a> PostscriptInterpreter<'a> {
     fn pop_int(&mut self) -> PdfResult<i32> {
         match self.pop()? {
             PostScriptObject::Int(i) => Ok(i),
+            PostScriptObject::Float(f) => Ok(f.round() as i32),
             _ => Err(PostScriptError::TypeCheck.into()),
         }
     }
@@ -834,6 +883,14 @@ impl<'a> PostscriptInterpreter<'a> {
     fn pop_bool(&mut self) -> PdfResult<bool> {
         match self.pop()? {
             PostScriptObject::Bool(b) => Ok(b),
+            _ => Err(PostScriptError::TypeCheck.into()),
+        }
+    }
+
+    fn pop_number(&mut self) -> PdfResult<f32> {
+        match self.pop()? {
+            PostScriptObject::Int(n) => Ok(n as f32),
+            PostScriptObject::Float(n) => Ok(n),
             _ => Err(PostScriptError::TypeCheck.into()),
         }
     }
@@ -892,9 +949,17 @@ impl<'a> PostscriptInterpreter<'a> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(self) enum PostscriptOperator {
     Abs,
+
+    /// returns the sum of num1 and num2. If both operands are integers and the
+    /// result is within integer range, the result is an integer; otherwise, the
+    /// result is a real number
+    ///
+    /// Examples
+    ///    3 4 add ⇒ 7
+    ///    9.9 1.1 add ⇒ 11.0
     Add,
     Dict,
     Begin,
@@ -918,6 +983,23 @@ pub(self) enum PostscriptOperator {
     Exch,
     ReadString,
     Pop,
+
+    /// replaces a single element of the value of the first operand. If the first
+    /// operand is an array or a string, put treats the second operand as an index
+    /// and stores the third operand at the position identified by the index,
+    /// counting from 0. index must be in the range 0 to n − 1, where n is the
+    /// length of the array or string. If it is outside this range, a rangecheck error
+    /// occurs
+    ///
+    /// If the first operand is a dictionary, put uses the second operand as a
+    /// key and the third operand as a value, and stores this key-value pair into
+    /// dict. If key is already present as a key in dict, put simply replaces its
+    /// value by any; otherwise, put creates a new entry for key and associates
+    /// any with it. In LanguageLevel 1, if dict is already full, a dictfull error
+    /// occurs
+    ///
+    /// If the value of array or dict is in global VM and any is a composite
+    /// object whose value is in local VM, an invalidaccess error occurs
     Put,
     Known,
     Not,
@@ -959,6 +1041,49 @@ pub(self) enum PostscriptOperator {
     ///
     /// template proc scratch category `resourceforall` –
     ResourceForAll,
+
+    /// executes the procedure proc repeatedly, passing it a sequence of values
+    /// from initial by steps of increment to limit. The for operator expects
+    /// initial, increment, and limit to be numbers. It maintains a temporary
+    /// internal variable, known as the control variable, which it first sets to
+    /// initial. Then, before each repetition, it compares the control variable
+    /// to the termination value limit. If limit has not been exceeded, for pushes
+    /// the control variable on the operand stack, executes proc, and adds increment
+    /// to the control variable
+    ///
+    /// The termination condition depends on whether increment is positive or
+    /// negative. If increment is positive, for terminates when the control variable
+    /// becomes greater than limit. If increment is negative, for terminates when
+    /// the control variable becomes less than limit. If initial meets the termination
+    /// condition, for does not execute proc at all. If proc executes the exit
+    /// operator, for terminates prematurely
+    ///
+    /// Usually, proc will use the value on the operand stack for some purpose.
+    /// However, if proc does not remove the value, it will remain there. Successive
+    /// executions of proc will cause successive values of the control variable
+    /// to accumulate on the operand stack
+    ///
+    /// Examples
+    ///   0 1 1 4 {add} for ⇒ 10
+    ///   1 2 6 { } for ⇒ 1 3 5
+    ///   3 −.5 1 { } for ⇒ 3.0 2.5 2.0 1.5 1.0
+    ///
+    /// In the first example above, the value of the control variable is added
+    /// to whatever is on the stack, so 1, 2, 3, and 4 are added in turn to a
+    /// running sum whose initial value is 0. The second example has an empty
+    /// procedure, so the successive values of the control variable are left on
+    /// the stack. The last example counts backward from 3 to 1 by halves, leaving
+    /// the successive values on the stack
+    ///
+    /// Beware of using real numbers instead of integers for any of the first
+    /// three operands. Most real numbers are not represented exactly. This can
+    /// cause an error to accumulate in the value of the control variable, with
+    /// possibly surprising results. In particular, if the difference between
+    /// initial and limit is a multiple of increment, as in the last example,
+    /// the control variable may not achieve the limit value.
+    ///
+    /// initial increment limit proc `for` –
+    For,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1240,4 +1365,85 @@ pub(super) enum GraphicsOperator {
     /// path building command. The setcurrentpoint command is used only in
     /// conjunction with results from OtherSubrs procedures
     SetCurrentPoint,
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn add_two_integers() {
+        let mut interpreter = PostscriptInterpreter::new(b"1 2 add");
+
+        interpreter.run().unwrap();
+
+        assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Int(3));
+        assert!(interpreter.pop().is_err());
+    }
+
+    #[test]
+    fn add_two_floats() {
+        let mut interpreter = PostscriptInterpreter::new(b"1.0 2.0 add");
+
+        interpreter.run().unwrap();
+
+        assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Float(3.0));
+        assert!(interpreter.pop().is_err());
+    }
+
+    #[test]
+    fn add_int_and_float() {
+        let mut interpreter = PostscriptInterpreter::new(b"1 2.0 add");
+
+        interpreter.run().unwrap();
+
+        assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Float(3.0));
+        assert!(interpreter.pop().is_err());
+    }
+
+    #[test]
+    fn add_float_and_int() {
+        let mut interpreter = PostscriptInterpreter::new(b"1.0 2 add");
+
+        interpreter.run().unwrap();
+
+        assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Float(3.0));
+        assert!(interpreter.pop().is_err());
+    }
+
+    #[test]
+    fn for_loop_basic_add() {
+        let mut interpreter = PostscriptInterpreter::new(b"0 1 1 4 {add} for");
+
+        interpreter.run().unwrap();
+
+        assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Float(10.0));
+        assert!(interpreter.pop().is_err());
+    }
+
+    #[test]
+    fn for_loop_empty_proc() {
+        let mut interpreter = PostscriptInterpreter::new(b"1 2 6 { } for");
+
+        interpreter.run().unwrap();
+
+        assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Float(5.0));
+        assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Float(3.0));
+        assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Float(1.0));
+        assert!(interpreter.pop().is_err());
+    }
+
+    #[test]
+    fn for_loop_negative_and_decimal_incremental() {
+        let mut interpreter = PostscriptInterpreter::new(b"3 -.5 1 { } for");
+
+        interpreter.run().unwrap();
+
+        assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Float(1.0));
+        assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Float(1.5));
+        assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Float(2.0));
+        assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Float(2.5));
+        assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Float(3.0));
+        assert!(interpreter.pop().is_err());
+    }
 }

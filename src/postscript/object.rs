@@ -11,7 +11,7 @@ use super::{PostScriptError, PostScriptResult, PostscriptOperator};
 
 pub(super) type Name = PostScriptString;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(super) enum PostScriptObject {
     Null,
     Int(i32),
@@ -28,7 +28,33 @@ pub(super) enum PostScriptObject {
     Operator(PostscriptOperator),
 }
 
-#[derive(Debug, Clone)]
+impl PostScriptObject {
+    pub fn is_null(&self) -> bool {
+        matches!(self, Self::Null)
+    }
+
+    pub fn is_int(&self) -> bool {
+        matches!(self, Self::Int(..))
+    }
+
+    pub fn as_int(self) -> PostScriptResult<i32> {
+        match self {
+            PostScriptObject::Int(n) => Ok(n),
+            PostScriptObject::Float(f) => Ok(f.round() as i32),
+            _ => Err(PostScriptError::TypeCheck),
+        }
+    }
+
+    pub fn as_float(self) -> PostScriptResult<f32> {
+        match self {
+            PostScriptObject::Int(n) => Ok(n as f32),
+            PostScriptObject::Float(f) => Ok(f),
+            _ => Err(PostScriptError::TypeCheck),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Access {
     /// Normally, objects have unlimited access: all operations defined for that
     /// object are allowed. However, packed array objects always have read-only
@@ -55,7 +81,7 @@ impl Default for Access {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(super) struct Procedure {
     pub(super) inner: Vec<PostScriptObject>,
     access: Access,
@@ -216,6 +242,7 @@ impl PostScriptDictionary {
     pub fn get_integer(&self, key: &'static [u8]) -> PostScriptResult<Option<i32>> {
         match self.inner.get(&Name::from_bytes(key.to_vec())) {
             Some(PostScriptObject::Int(n)) => Ok(Some(*n)),
+            Some(PostScriptObject::Float(f)) => Ok(Some(f.round() as i32)),
             Some(..) => Err(PostScriptError::TypeCheck),
             None => Ok(None),
         }

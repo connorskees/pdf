@@ -94,6 +94,7 @@ impl Encoding {
             .iter()
             .map(|obj| match obj {
                 PostScriptObject::Null => Ok(None),
+                PostScriptObject::Name(name) => Ok(Some(name.clone())),
                 &PostScriptObject::String(s) => Ok(Some(interpreter.get_str(s).clone())),
                 _ => Err(PostScriptError::TypeCheck),
             })
@@ -392,6 +393,7 @@ impl Private {
             .map(|arr| {
                 arr.into_inner()
                     .into_iter()
+                    .filter(|obj| !obj.is_null())
                     .map(|obj| match obj {
                         PostScriptObject::String(s) => {
                             CharString::parse(interpreter.get_str(s).as_bytes())

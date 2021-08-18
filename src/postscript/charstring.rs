@@ -89,7 +89,11 @@ enum CharStringElement {
 
 impl CharString {
     pub fn parse(b: &[u8]) -> PostScriptResult<Self> {
-        let b = decrypt_charstring(b);
+        let mut b = decrypt_charstring(b);
+
+        if b.get(..4) == Some(&[0, 0, 0, 0]) {
+            b = b[4..].to_vec();
+        }
 
         let mut i = 0;
         let mut elems = Vec::new();
