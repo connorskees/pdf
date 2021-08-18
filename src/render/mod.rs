@@ -17,7 +17,7 @@ use crate::{
     page::PageObject,
     pdf_enum,
     postscript::{charstring::CharStringPainter, PostscriptInterpreter},
-    resources::graphics_state_parameters::{LineCapStyle, LineDashPattern},
+    resources::graphics_state_parameters::{LineCapStyle, LineDashPattern, LineJoinStyle},
     xobject::{FormXObject, XObject},
     Resolve,
 };
@@ -171,7 +171,9 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     PdfGraphicsOperator::CS => self.set_stroking_color_space()?,
                     PdfGraphicsOperator::cs => self.set_nonstroking_color_space()?,
                     PdfGraphicsOperator::SCN => self.set_stroking_color()?,
-                    PdfGraphicsOperator::scn => self.set_nonstroking_color()?,
+                    PdfGraphicsOperator::sc | PdfGraphicsOperator::scn => {
+                        self.set_nonstroking_color()?
+                    }
                     PdfGraphicsOperator::i => self.set_flatness_tolerance()?,
                     PdfGraphicsOperator::Tc => self.set_character_spacing()?,
                     PdfGraphicsOperator::Tw => self.set_word_spacing()?,
@@ -183,6 +185,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     PdfGraphicsOperator::BMC => self.begin_marked_content_sequence()?,
                     PdfGraphicsOperator::J => self.set_line_cap_style()?,
                     PdfGraphicsOperator::d => self.set_line_dash_pattern()?,
+                    PdfGraphicsOperator::j => self.set_line_join_style()?,
                     _ => todo!("unimplemented operator: {:?}", op),
                 },
             }
@@ -334,7 +337,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                 .color_space
                 .as_ref()
                 .unwrap()
-                .get_obj_cloned("CS2")
+                .get_obj_cloned(&name)
                 .unwrap();
 
             ColorSpace::from_obj(name, self.resolver)?
@@ -358,7 +361,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                 .color_space
                 .as_ref()
                 .unwrap()
-                .get_obj_cloned("CS2")
+                .get_obj_cloned(&name)
                 .unwrap();
 
             ColorSpace::from_obj(name, self.resolver)?
@@ -439,6 +442,16 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
         self.graphics_state.device_independent.line_dash_pattern =
             LineDashPattern::new(dash_phase, dash_array);
+
+        Ok(())
+    }
+
+    /// Set the line join style in the graphics state
+    fn set_line_join_style(&mut self) -> PdfResult<()> {
+        let line_join_style = self.pop_integer()?;
+
+        self.graphics_state.device_independent.line_join_style =
+            LineJoinStyle::from_integer(line_join_style)?;
 
         Ok(())
     }
@@ -660,7 +673,11 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     }
 
     fn fill_path(&mut self, fill_rule: FillRule) -> PdfResult<()> {
-        let mut path = self.current_path.take().unwrap();
+        let mut path = match self.current_path.take() {
+            Some(p) => p,
+            None => return Ok(()),
+        };
+
         let color = self
             .graphics_state
             .device_independent
@@ -1073,7 +1090,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     fn begin_marked_content_sequence(&mut self) -> PdfResult<()> {
         let tag = self.pop_name()?;
 
-        dbg!("unimplemented marked content operator: BDC {:?}", tag);
+        dbg!("unimplemented marked content operator: BDC", tag);
 
         Ok(())
     }

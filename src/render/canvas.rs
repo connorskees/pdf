@@ -59,11 +59,17 @@ impl Canvas {
 
                 if path.intersects_line_even_odd(Line::new(
                     point,
-                    Point::new(bbox.max.x + 1.0, bbox.max.y + 1.0),
+                    Point::new(point.x + bbox.max.x + 1.0, point.y),
                 )) {
                     self.paint_point(point, color);
                 }
             }
+        }
+    }
+
+    pub fn fill_outline_even_odd(&mut self, outline: &Outline, color: u32) {
+        for path in &outline.paths {
+            self.fill_path_even_odd(path, color);
         }
     }
 
@@ -144,7 +150,7 @@ impl Canvas {
 
             self.paint_point(p, color);
 
-            t += 0.0001;
+            t += 0.001;
         }
     }
 
