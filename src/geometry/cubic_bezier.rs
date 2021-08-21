@@ -72,6 +72,9 @@ impl CubicBezierCurve {
             }
         }
 
+        bbox.add_point(self.start);
+        bbox.add_point(self.end);
+
         bbox
     }
 
