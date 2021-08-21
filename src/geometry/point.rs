@@ -1,4 +1,4 @@
-use std::ops::{Add, Mul, Neg, Sub};
+use std::ops::{Add, Div, Mul, Neg, Sub};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Point {
@@ -63,6 +63,28 @@ impl Mul<Point> for f32 {
         Point {
             x: self * rhs.x,
             y: self * rhs.y,
+        }
+    }
+}
+
+impl Div<f32> for Point {
+    type Output = Point;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        Point {
+            x: self.x / rhs,
+            y: self.y / rhs,
+        }
+    }
+}
+
+impl Div<Point> for f32 {
+    type Output = Point;
+
+    fn div(self, rhs: Point) -> Self::Output {
+        Point {
+            x: self / rhs.x,
+            y: self / rhs.y,
         }
     }
 }

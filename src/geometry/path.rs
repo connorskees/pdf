@@ -40,6 +40,14 @@ impl Path {
         }
     }
 
+    pub const fn from_subpaths(subpaths: Vec<Subpath>) -> Self {
+        Self {
+            subpaths,
+            current_point: Point::new(0.0, 0.0),
+            start: Point::new(0.0, 0.0),
+        }
+    }
+
     pub fn close_path(&mut self) {
         self.line_to(self.start);
     }
@@ -96,9 +104,11 @@ impl Path {
                     }
                 }
                 Subpath::Cubic(curve) => {
-                    assert!(line.is_horizontal());
-
-                    count += curve.find_number_of_intersections(line);
+                    for line2 in curve.approximate_quadratic().subdivide(0.01) {
+                        if line2.intersects_line(line) {
+                            count += 1;
+                        }
+                    }
                 }
             }
         }

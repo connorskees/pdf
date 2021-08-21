@@ -59,7 +59,7 @@ impl Canvas {
 
                 if path.intersects_line_even_odd(Line::new(
                     point,
-                    Point::new(point.x + bbox.max.x + 1.0, point.y),
+                    Point::new(point.x + bbox.max.x + 1.0, point.y + bbox.max.y + 1.0),
                 )) {
                     self.paint_point(point, color);
                 }
@@ -68,9 +68,16 @@ impl Canvas {
     }
 
     pub fn fill_outline_even_odd(&mut self, outline: &Outline, color: u32) {
-        for path in &outline.paths {
-            self.fill_path_even_odd(path, color);
-        }
+        // todo: optimize to not require allocation or iteration
+        let subpaths = outline
+            .paths
+            .iter()
+            .flat_map(|path| path.subpaths.clone())
+            .collect();
+
+        let path = Path::from_subpaths(subpaths);
+
+        self.fill_path_even_odd(&path, color);
     }
 
     pub fn stroke_outline(&mut self, outline: &Outline, color: u32) {

@@ -55,4 +55,11 @@ impl Line {
     pub fn is_horizontal(&self) -> bool {
         fuzzy_eq(self.slope(), 0.0)
     }
+
+    pub fn x_axis() -> Self {
+        Self::new(
+            Point::new(f32::NEG_INFINITY, 0.0),
+            Point::new(f32::INFINITY, 0.0),
+        )
+    }
 }
