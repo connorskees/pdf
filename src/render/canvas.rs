@@ -1,4 +1,5 @@
 use crate::{
+    color::Color,
     error::PdfResult,
     filter::decode_stream,
     geometry::{CubicBezierCurve, Line, Outline, Path, Point, Subpath},
@@ -84,6 +85,19 @@ impl Canvas {
         for path in &outline.paths {
             self.stroke_path(path, color);
         }
+    }
+
+    /// Largely to assist in debugging
+    pub fn stroke_bounding_box(&mut self, outline: &Outline) {
+        let bbox = outline.bounding_box();
+
+        let mut path = Path::new(bbox.min);
+        path.line_to(Point::new(bbox.max.x, bbox.min.y));
+        path.line_to(bbox.max);
+        path.line_to(Point::new(bbox.min.x, bbox.max.y));
+        path.close_path();
+
+        self.stroke_path(&path, Color::RED);
     }
 
     pub fn stroke_path(&mut self, path: &Path, color: u32) {

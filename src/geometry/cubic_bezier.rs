@@ -2,6 +2,13 @@ use crate::data_structures::Matrix;
 
 use super::{point::Point, BoundingBox, QuadraticBezierCurve};
 
+fn solve_quadratic_formula(a: f32, b: f32, c: f32) -> [f32; 2] {
+    let sqrt = ((b * b) - (4.0 * a * c)).sqrt();
+    let a2 = 2.0 * a;
+
+    [(-b + sqrt) / a2, (-b - sqrt) / a2]
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct CubicBezierCurve {
     pub start: Point,
@@ -47,16 +54,22 @@ impl CubicBezierCurve {
     }
 
     pub fn bounding_box(&self) -> BoundingBox {
-        let mut t = 0.0;
-
         let mut bbox = BoundingBox::new();
 
-        while t < 1.0 {
-            let p = self.basis(t);
+        let a = -3.0 * self.start + 9.0 * self.first_control_point
+            - 9.0 * self.second_control_point
+            + 3.0 * self.end;
+        let b =
+            6.0 * self.start - 12.0 * self.first_control_point + 6.0 * self.second_control_point;
+        let c = -3.0 * self.start + 3.0 * self.first_control_point;
 
-            bbox.add_point(p);
+        let t_x = solve_quadratic_formula(a.x, b.x, c.x);
+        let t_y = solve_quadratic_formula(a.y, b.y, c.y);
 
-            t += 0.001;
+        for t in [t_x[0], t_x[1], t_y[0], t_y[1]] {
+            if t <= 1.0 && t >= 0.0 {
+                bbox.add_point(self.basis(t));
+            }
         }
 
         bbox

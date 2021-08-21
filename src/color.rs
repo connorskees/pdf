@@ -1,5 +1,14 @@
 use crate::{catalog::assert_len, error::PdfResult, objects::Object, pdf_enum, resolve::Resolve};
 
+pub struct Color;
+
+impl Color {
+    pub const BLACK: u32 = 0xff_00_00_00;
+    pub const RED: u32 = 0xff_ff_00_00;
+    pub const GREEN: u32 = 0xff_00_ff_00;
+    pub const BLUE: u32 = 0xff_00_00_ff;
+}
+
 #[derive(Debug, Clone)]
 pub enum ColorSpace {
     // Device

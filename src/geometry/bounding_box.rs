@@ -1,5 +1,5 @@
 use super::Point;
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BoundingBox {
     pub(crate) min: Point,
     pub(crate) max: Point,
