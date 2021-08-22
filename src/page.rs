@@ -60,6 +60,22 @@ impl<'a> PageNode<'a> {
             Self::Leaf(leaf) => leaf.crop_box(),
         }
     }
+
+    pub fn resources(&self) -> Option<Rc<Resources<'a>>> {
+        match self {
+            Self::Root(tree) => tree
+                .borrow()
+                .inheritable_page_fields
+                .resources
+                .as_ref()
+                .map(Rc::clone),
+            Self::Node(node) => match node.borrow().inheritable_page_fields.resources.as_ref() {
+                res @ Some(..) => res.map(Rc::clone),
+                None => return node.borrow().parent.resources(),
+            },
+            Self::Leaf(leaf) => leaf.resources(),
+        }
+    }
 }
 
 impl fmt::Debug for PageNode<'_> {
@@ -133,7 +149,7 @@ pub struct PageObject<'a> {
     /// resources shall be inherited from an ancestor node in the page tree.
     ///
     /// Inheritable
-    pub resources: Option<Resources<'a>>,
+    pub resources: Option<Rc<Resources<'a>>>,
 
     /// A rectangle, expressed in default user space units, that shall define
     /// the boundaries of the physical medium on which the page shall be displayed
@@ -294,6 +310,10 @@ impl<'a> PageObject<'a> {
             .or_else(|| self.parent.crop_box())
             .or(self.media_box)
     }
+
+    pub fn resources(&self) -> Option<Rc<Resources<'a>>> {
+        self.resources.as_ref().map(Rc::clone)
+    }
 }
 
 impl fmt::Debug for PageObject<'_> {
@@ -323,7 +343,7 @@ pdf_enum!(
 
 #[derive(Debug)]
 pub(crate) struct InheritablePageFields<'a> {
-    resources: Option<Resources<'a>>,
+    resources: Option<Rc<Resources<'a>>>,
     media_box: Option<Rectangle>,
     crop_box: Option<Rectangle>,
     rotate: Option<i32>,
@@ -343,7 +363,8 @@ impl<'a> InheritablePageFields<'a> {
         let resources = dict
             .get_dict("Resources", resolver)?
             .map(|dict| Resources::from_dict(dict, resolver))
-            .transpose()?;
+            .transpose()?
+            .map(Rc::new);
 
         let media_box = dict.get_rectangle("MediaBox", resolver)?;
         let crop_box = dict.get_rectangle("CropBox", resolver)?;
