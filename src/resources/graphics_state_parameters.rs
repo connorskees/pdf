@@ -297,8 +297,8 @@ pdf_enum!(
 
 #[derive(Debug, Clone)]
 pub struct LineDashPattern {
-    dash_array: Vec<i32>,
-    dash_phase: i32,
+    dash_array: Vec<f32>,
+    dash_phase: f32,
 }
 
 impl LineDashPattern {
@@ -308,12 +308,12 @@ impl LineDashPattern {
     ) -> PdfResult<Self> {
         assert_len(&arr, 2)?;
 
-        let dash_phase = resolver.assert_integer(arr.pop().unwrap())?;
+        let dash_phase = resolver.assert_number(arr.pop().unwrap())?;
         let dash_array = resolver
             .assert_arr(arr.pop().unwrap())?
             .into_iter()
-            .map(|obj| resolver.assert_integer(obj))
-            .collect::<PdfResult<Vec<i32>>>()?;
+            .map(|obj| resolver.assert_number(obj))
+            .collect::<PdfResult<Vec<_>>>()?;
 
         Ok(Self {
             dash_array,
@@ -321,7 +321,7 @@ impl LineDashPattern {
         })
     }
 
-    pub fn new(dash_phase: i32, dash_array: Vec<i32>) -> Self {
+    pub fn new(dash_phase: f32, dash_array: Vec<f32>) -> Self {
         Self {
             dash_array,
             dash_phase,
@@ -331,7 +331,7 @@ impl LineDashPattern {
     pub fn solid() -> Self {
         Self {
             dash_array: Vec::new(),
-            dash_phase: 0,
+            dash_phase: 0.0,
         }
     }
 }
