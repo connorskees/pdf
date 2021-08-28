@@ -4,7 +4,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-struct EmbeddedFontDictionary<'a> {
+pub(crate) struct EmbeddedFontDictionary<'a> {
     /// The length in bytes of the clear-text portion of the Type 1 font program, or the entire
     /// TrueType font program, after it has been decoded using the filters specified by the stream’s
     /// Filter entry, if any
@@ -62,10 +62,10 @@ impl<'a> Type1FontFile<'a> {
 
 /// TrueType font program, as described in the TrueType Reference Manual. This entry may appear in
 /// the font descriptor for a TrueType font dictionary or for a CIDFontType2 CIDFont dictionary
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TrueTypeFontFile<'a> {
-    dict: EmbeddedFontDictionary<'a>,
-    stream: Stream<'a>,
+    pub(crate) dict: EmbeddedFontDictionary<'a>,
+    pub(crate) stream: Stream<'a>,
 }
 
 impl<'a> TrueTypeFontFile<'a> {

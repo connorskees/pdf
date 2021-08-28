@@ -11,7 +11,7 @@ use crate::{
     data_structures::Matrix,
     error::PdfResult,
     filter::decode_stream,
-    font::{Font, Type1Font},
+    font::{Font, TrueTypeFont, Type1Font},
     geometry::{Path, Point},
     objects::Object,
     page::PageObject,
@@ -31,7 +31,7 @@ use self::{
 };
 
 #[derive(Debug)]
-enum FillRule {
+pub enum FillRule {
     EvenOdd,
     NonZeroWindingNumber,
 }
@@ -186,10 +186,47 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     PdfGraphicsOperator::J => self.set_line_cap_style()?,
                     PdfGraphicsOperator::d => self.set_line_dash_pattern()?,
                     PdfGraphicsOperator::j => self.set_line_join_style()?,
+                    PdfGraphicsOperator::B => {
+                        self.stroke_and_fill(FillRule::NonZeroWindingNumber)?
+                    }
+                    PdfGraphicsOperator::B_star => self.stroke_and_fill(FillRule::EvenOdd)?,
                     _ => todo!("unimplemented operator: {:?}", op),
                 },
             }
         }
+
+        Ok(())
+    }
+
+    fn stroke_and_fill(&mut self, fill_rule: FillRule) -> PdfResult<()> {
+        let path = self
+            .current_path
+            .get_or_insert_with(|| Path::new(Point::new(0.0, 0.0)));
+
+        let stroke_color = self
+            .graphics_state
+            .device_independent
+            .color_space
+            .stroking
+            .as_u32();
+
+        let fill_color = self
+            .graphics_state
+            .device_independent
+            .color_space
+            .nonstroking
+            .as_u32();
+
+        path.apply_transform(
+            self.graphics_state
+                .device_independent
+                .current_transformation_matrix,
+        );
+
+        self.canvas.stroke_path(&path, stroke_color);
+        self.canvas.fill_path(&path, fill_color, fill_rule);
+
+        self.current_path = None;
 
         Ok(())
     }
@@ -837,6 +874,27 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     .unwrap(),
                 &base.widths,
             ),
+            Some(Font::TrueType(TrueTypeFont { base, .. })) => {
+                let font_stream = base
+                    .font_descriptor
+                    .as_ref()
+                    .unwrap()
+                    .font_file_two
+                    .clone()
+                    .unwrap();
+
+                let stream = decode_stream(
+                    &font_stream.stream.stream,
+                    &font_stream.stream.dict,
+                    self.resolver,
+                )?;
+
+                // let parser = crate::font::true_type::parse::TrueTypeParser::new(&stream);
+
+                println!("{}", &String::from_utf8_lossy(&stream)[..8]);
+
+                todo!()
+            }
             Some(font) => todo!("unimplement font type: {:#?}", font),
             None => todo!("no font selected in text state"),
         };
@@ -895,7 +953,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
                 glyph.outline.apply_transform(trm);
 
-                self.canvas.stroke_outline(
+                self.canvas.fill_outline_even_odd(
                     &glyph.outline,
                     self.graphics_state
                         .device_independent
@@ -992,7 +1050,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     fn draw_xobject(&mut self) -> PdfResult<()> {
         let name = self.pop_name()?;
 
-        if let Some(resources) = &self.page.resources {
+        if let Some(resources) = &self.page.resources() {
             let xobject = resources
                 .xobject
                 .as_ref()

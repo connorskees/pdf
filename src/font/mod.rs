@@ -19,7 +19,7 @@ mod descriptor;
 mod embedded;
 mod encoding;
 mod glyph;
-mod true_type;
+pub mod true_type;
 mod type0;
 mod type1;
 mod type3;

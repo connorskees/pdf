@@ -93,7 +93,7 @@ pub struct FontDescriptor<'a> {
     pub font_file: Option<Type1FontFile<'a>>,
 
     /// A stream containing a TrueType font program
-    font_file_two: Option<TrueTypeFontFile<'a>>,
+    pub font_file_two: Option<TrueTypeFontFile<'a>>,
 
     /// A stream containing a font program whose format is specified by the Subtype entry in the
     /// stream dictionary

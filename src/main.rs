@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-// TODO: consider verifying the file header
 
 mod actions;
 mod annotation;
@@ -241,7 +240,8 @@ impl<'a> Lexer<'a> {
         let resources = dict
             .get_dict("Resources", self)?
             .map(|dict| Resources::from_dict(dict, self))
-            .transpose()?;
+            .transpose()?
+            .map(Rc::new);
         let media_box = dict.get_rectangle("MediaBox", self)?;
         let crop_box = dict.get_rectangle("CropBox", self)?;
         let bleed_box = dict.get_rectangle("BleedBox", self)?;
