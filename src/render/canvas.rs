@@ -1,3 +1,5 @@
+use std::mem;
+
 use crate::{
     color::Color,
     error::PdfResult,
@@ -8,6 +10,8 @@ use crate::{
 };
 
 use minifb::{Key, Window, WindowOptions};
+
+use super::FillRule;
 
 pub fn fuzzy_eq(a: f32, b: f32) -> bool {
     let a = a.abs();
@@ -68,6 +72,13 @@ impl Canvas {
         }
     }
 
+    pub fn fill_path(&mut self, path: &Path, color: u32, fill_rule: FillRule) {
+        match fill_rule {
+            FillRule::EvenOdd => self.fill_path_even_odd(path, color),
+            FillRule::NonZeroWindingNumber => self.fill_path_non_zero_winding_number(path, color),
+        }
+    }
+
     pub fn fill_outline_even_odd(&mut self, outline: &Outline, color: u32) {
         // todo: optimize to not require allocation or iteration
         let subpaths = outline
@@ -103,13 +114,136 @@ impl Canvas {
     pub fn stroke_path(&mut self, path: &Path, color: u32) {
         for &subpath in &path.subpaths {
             match subpath {
-                Subpath::Line(line) => self.draw_line(line, color),
+                Subpath::Line(line) => self.stroke_line(line, color),
                 Subpath::Cubic(curve) => self.draw_cubic_bezier_curve(curve, color),
             }
         }
     }
 
-    pub fn draw_line(&mut self, line: Line, color: u32) {
+    pub fn stroke_line_wu(&mut self, mut line: Line, color: u32) {
+        fn fractional_part(f: f32) -> f32 {
+            f - f.floor()
+        }
+
+        fn r_fractional_part(f: f32) -> f32 {
+            1.0 - fractional_part(f)
+        }
+
+        // todo: use framebuffer that supports alpha channel
+        fn apply_opacity(color: u32, opacity: f32) -> u32 {
+            assert!(opacity >= 0.0 && opacity <= 1.0);
+
+            color
+        }
+
+        let steep = (line.end.y - line.start.y).abs() > (line.end.x - line.start.x).abs();
+
+        if steep {
+            mem::swap(&mut line.start.x, &mut line.start.y);
+            mem::swap(&mut line.end.x, &mut line.end.y);
+        }
+
+        if line.start.x > line.end.x {
+            mem::swap(&mut line.start.x, &mut line.end.x);
+            mem::swap(&mut line.start.y, &mut line.end.y);
+        }
+
+        let dx = line.end.x - line.start.x;
+        let dy = line.end.y - line.start.y;
+
+        let gradient = if fuzzy_eq(dx, 0.0) { 1.0 } else { dy / dx };
+
+        let xend = line.start.x.round();
+        let yend = line.start.y + gradient * (xend - line.start.x);
+
+        let xgap = r_fractional_part(line.start.x + 0.5);
+
+        let xpxl1 = xend;
+        let ypxl1 = yend.floor();
+
+        if steep {
+            self.paint_point(
+                Point::new(ypxl1, xpxl1),
+                apply_opacity(color, r_fractional_part(yend) * xgap),
+            );
+
+            self.paint_point(
+                Point::new(ypxl1 + 1.0, xpxl1),
+                apply_opacity(color, fractional_part(yend) * xgap),
+            );
+        } else {
+            self.paint_point(
+                Point::new(xpxl1, ypxl1),
+                apply_opacity(color, r_fractional_part(yend) * xgap),
+            );
+
+            self.paint_point(
+                Point::new(xpxl1, ypxl1 + 1.0),
+                apply_opacity(color, fractional_part(yend) * xgap),
+            );
+        }
+
+        let mut intery = yend + gradient;
+
+        let xend = line.end.x.round();
+        let yend = line.end.y + gradient * (xend - line.end.x);
+
+        let xgap = fractional_part(line.end.x + 0.5);
+
+        let xpxl2 = xend;
+        let ypxl2 = yend.floor();
+
+        if steep {
+            self.paint_point(
+                Point::new(ypxl2, xpxl2),
+                apply_opacity(color, r_fractional_part(yend) * xgap),
+            );
+            self.paint_point(
+                Point::new(ypxl2 + 1.0, xpxl2),
+                apply_opacity(color, fractional_part(yend) * xgap),
+            );
+        } else {
+            self.paint_point(
+                Point::new(xpxl2, ypxl2),
+                apply_opacity(color, r_fractional_part(yend) * xgap),
+            );
+
+            self.paint_point(
+                Point::new(xpxl2, ypxl2 + 1.0),
+                apply_opacity(color, fractional_part(yend) * xgap),
+            );
+        }
+
+        if steep {
+            for x in (xpxl1 as i32 + 1)..(xpxl2 as i32 - 1) {
+                self.paint_point(
+                    Point::new(intery.floor(), x as f32),
+                    apply_opacity(color, r_fractional_part(intery)),
+                );
+                self.paint_point(
+                    Point::new(intery.floor() + 1.0, x as f32),
+                    apply_opacity(color, fractional_part(intery)),
+                );
+
+                intery += gradient
+            }
+        } else {
+            for x in (xpxl1 as i32 + 1)..(xpxl2 as i32 - 1) {
+                self.paint_point(
+                    Point::new(x as f32, intery.floor()),
+                    apply_opacity(color, r_fractional_part(intery)),
+                );
+                self.paint_point(
+                    Point::new(x as f32, intery.floor() + 1.0),
+                    apply_opacity(color, fractional_part(intery)),
+                );
+
+                intery += gradient
+            }
+        }
+    }
+
+    pub fn stroke_line(&mut self, line: Line, color: u32) {
         let mut start = (line.start.x as i32, line.start.y as i32);
         let end = (line.end.x as i32, line.end.y as i32);
 
@@ -200,7 +334,9 @@ impl Canvas {
             let image_start = i * image.width as usize;
             let image_end = image_start + (end - start);
 
-            if image_end > image.width as usize * image.height as usize {
+            if image_end > image.width as usize * image.height as usize
+                || image_end >= rgb_data.len()
+            {
                 break;
             }
 
