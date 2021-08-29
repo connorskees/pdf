@@ -18,6 +18,7 @@ use crate::{
     pdf_enum,
     postscript::{charstring::CharStringPainter, PostscriptInterpreter},
     resources::graphics_state_parameters::{LineCapStyle, LineDashPattern, LineJoinStyle},
+    shading::ShadingObject,
     xobject::{FormXObject, XObject},
     Resolve,
 };
@@ -122,6 +123,18 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         Ok(())
     }
 
+    fn stroking_color(&self) -> &ColorSpace {
+        &self.graphics_state.device_independent.color_space.stroking
+    }
+
+    fn non_stroking_color(&self) -> &ColorSpace {
+        &self
+            .graphics_state
+            .device_independent
+            .color_space
+            .nonstroking
+    }
+
     fn render_content_stream(&mut self) -> PdfResult<()> {
         while let Some(token) = self.content.next() {
             let token = token?;
@@ -190,6 +203,11 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                         self.stroke_and_fill(FillRule::NonZeroWindingNumber)?
                     }
                     PdfGraphicsOperator::B_star => self.stroke_and_fill(FillRule::EvenOdd)?,
+                    PdfGraphicsOperator::M => self.set_miter_limit()?,
+                    PdfGraphicsOperator::s => self.close_and_stroke_path()?,
+                    // compat section is handled in lexer
+                    PdfGraphicsOperator::BX | PdfGraphicsOperator::EX => {}
+                    PdfGraphicsOperator::sh => self.paint_using_shading_pattern()?,
                     _ => todo!("unimplemented operator: {:?}", op),
                 },
             }
@@ -198,24 +216,32 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         Ok(())
     }
 
+    fn paint_using_shading_pattern(&mut self) -> PdfResult<()> {
+        let name = self.pop_name()?;
+
+        if let Some(resources) = &self.page.resources() {
+            let shade = resources
+                .shading
+                .as_ref()
+                .and_then(|shading| shading.get(&name));
+
+            match shade {
+                Some(ShadingObject::Dictionary(dict)) => todo!("{:?}", dict),
+                Some(ShadingObject::Stream(stream)) => todo!("{:?}", stream),
+                None => todo!("unable to locate shade {:?}", name),
+            }
+        }
+
+        Ok(())
+    }
+
     fn stroke_and_fill(&mut self, fill_rule: FillRule) -> PdfResult<()> {
+        let stroke_color = self.stroking_color().as_u32();
+        let fill_color = self.non_stroking_color().as_u32();
+
         let path = self
             .current_path
             .get_or_insert_with(|| Path::new(Point::new(0.0, 0.0)));
-
-        let stroke_color = self
-            .graphics_state
-            .device_independent
-            .color_space
-            .stroking
-            .as_u32();
-
-        let fill_color = self
-            .graphics_state
-            .device_independent
-            .color_space
-            .nonstroking
-            .as_u32();
 
         path.apply_transform(
             self.graphics_state
@@ -470,12 +496,12 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
     /// Set the line dash pattern in the graphics state
     fn set_line_dash_pattern(&mut self) -> PdfResult<()> {
-        let dash_phase = self.pop_integer()?;
+        let dash_phase = self.pop_number()?;
         let dash_array = self
             .pop_arr()?
             .into_iter()
-            .map(|obj| self.resolver.assert_integer(obj))
-            .collect::<PdfResult<Vec<i32>>>()?;
+            .map(|obj| self.resolver.assert_number(obj))
+            .collect::<PdfResult<Vec<f32>>>()?;
 
         self.graphics_state.device_independent.line_dash_pattern =
             LineDashPattern::new(dash_phase, dash_array);
@@ -489,6 +515,14 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
         self.graphics_state.device_independent.line_join_style =
             LineJoinStyle::from_integer(line_join_style)?;
+
+        Ok(())
+    }
+
+    fn set_miter_limit(&mut self) -> PdfResult<()> {
+        let miter_limit = self.pop_number()?;
+
+        self.graphics_state.device_independent.miter_limit = miter_limit;
 
         Ok(())
     }
@@ -613,25 +647,45 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
             .and_then(|res| res.ext_g_state.as_ref())
             .and_then(|state_map| state_map.get(&dict_name));
 
-        graphics_state_parameters
-            .unwrap()
-            .update_graphics_state(&mut self.graphics_state, &mut self.text_state);
+        match graphics_state_parameters {
+            Some(gsp) => gsp.update_graphics_state(&mut self.graphics_state, &mut self.text_state),
+            None => todo!("{}", &dict_name),
+        }
 
         Ok(())
     }
 
     /// Stroke the path.
     fn stroke_path(&mut self) -> PdfResult<()> {
+        let color = self.stroking_color().as_u32();
+
         let path = self
             .current_path
             .get_or_insert_with(|| Path::new(Point::new(0.0, 0.0)));
 
-        let color = self
-            .graphics_state
-            .device_independent
-            .color_space
-            .stroking
-            .as_u32();
+        path.apply_transform(
+            self.graphics_state
+                .device_independent
+                .current_transformation_matrix,
+        );
+
+        self.canvas.stroke_path(&path, color);
+
+        self.current_path = None;
+
+        Ok(())
+    }
+
+    /// Close and stroke the path. This operator shall have the same effect as
+    /// the sequence `h S`.
+    fn close_and_stroke_path(&mut self) -> PdfResult<()> {
+        let color = self.stroking_color().as_u32();
+
+        let path = self
+            .current_path
+            .get_or_insert_with(|| Path::new(Point::new(0.0, 0.0)));
+
+        path.close_path();
 
         path.apply_transform(
             self.graphics_state
