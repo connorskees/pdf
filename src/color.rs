@@ -102,9 +102,9 @@ impl ColorSpace {
             // todo: argb
             Self::DeviceGray(n) => *n as u32,
             &Self::DeviceRGB { red, green, blue } => {
-                let r = red as u32;
-                let g = green as u32;
-                let b = blue as u32;
+                let r = (red * 255.0) as u32;
+                let g = (green * 255.0) as u32;
+                let b = (blue * 255.0) as u32;
 
                 (0xff << 24) | (r << 16) | (g << 8) | b
             }
