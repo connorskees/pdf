@@ -1,0 +1,21 @@
+<html>
+    <head>
+    </head>
+    <body>
+        <canvas height=500 width=500></canvas>
+
+        <script>
+            const canvas = document.querySelector("canvas");
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = "#f00";
+
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(20, 20);
+            ctx.stroke();
+
+            // ctx.fillRect(20.5, 20.5, 50, 50);
+        </script>
+    </body>
+</html>

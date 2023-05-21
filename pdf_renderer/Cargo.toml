@@ -1,0 +1,14 @@
+[package]
+name = "pdf_renderer"
+version = "0.1.0"
+edition = "2018"
+documentation = "https://docs.rs/pdf_renderer"
+readme = "README.md"
+repository = "https://github.com/connorskees/pdf/"
+license = "MIT"
+description = "PDF renderer"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+pdf_parser = { path = ".." }

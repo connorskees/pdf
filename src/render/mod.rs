@@ -943,11 +943,17 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     self.resolver,
                 )?;
 
-                // let parser = crate::font::true_type::parse::TrueTypeParser::new(&stream);
+                let mut file =
+                    crate::font::true_type::parse::TrueTypeFontFile::new(&stream).unwrap();
 
-                println!("{}", &String::from_utf8_lossy(&stream)[..8]);
+                dbg!(&file);
 
-                todo!()
+                file.glyphs();
+
+                // println!("{}", &String::from_utf8_lossy(&stream)[..8]);
+
+                return Ok(());
+                // todo!()
             }
             Some(font) => todo!("unimplement font type: {:#?}", font),
             None => todo!("no font selected in text state"),
@@ -1247,14 +1253,6 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
         Ok(())
     }
-}
-
-enum GraphicsObject {
-    Path,
-    Text,
-    XObject,
-    InlineImage,
-    Shading,
 }
 
 pdf_enum!(

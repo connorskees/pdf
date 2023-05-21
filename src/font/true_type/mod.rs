@@ -1,6 +1,8 @@
+mod error;
 mod instruction;
 pub(crate) mod parse;
 mod state;
+pub(crate) mod table;
 
 use crate::{error::PdfResult, objects::Dictionary, Resolve};
 
@@ -43,25 +45,34 @@ impl<'a> TrueTypeFont<'a> {
     }
 }
 
+/// 16-bit signed fraction
+struct ShortFraction(i16);
+
+/// 16.16-bit signed fixed-point number
+struct Fixed(i32);
+
 enum DataType {
     /// 16-bit signed fraction
-    ShortFraction(i16),
+    ShortFraction(ShortFraction),
 
     /// 16.16-bit signed fixed-point number
-    Fixed(i16, i16),
+    Fixed(i32),
 
     /// 16-bit signed integer that describes a quantity in FUnits, the smallest
     /// measurable distance in em space
-    FWord(i16),
+    FWord(FWord),
 
     /// 16-bit unsigned integer that describes a quantity in FUnits, the smallest
     /// measurable distance in em space
-    UnsignedFWord(i16),
+    UnsignedFWord(u16),
 
     /// 16-bit signed fixed number with the low 14 bits representing fraction.
-    F2Dot14(i16, i16),
+    F2Dot14(i16),
 
     /// The long internal format of a date in seconds since 12:00 midnight, January
     /// 1, 1904. It is represented as a signed 64-bit integer
-    LongDateTime(i64),
+    LongDateTime(LongDateTime),
 }
+
+pub struct LongDateTime(i64);
+pub struct FWord(i16);
