@@ -32,10 +32,7 @@ impl<'a> TrueTypeFont<'a> {
     pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let base = BaseFontDict::from_dict(&mut dict, resolver)?;
         let base_font = dict.expect_name("BaseFont", resolver)?;
-        let encoding = dict
-            .get_object("Encoding", resolver)?
-            .map(|obj| FontEncoding::from_obj(obj, resolver))
-            .transpose()?;
+        let encoding = dict.get::<FontEncoding>("Encoding", resolver)?;
 
         Ok(Self {
             base,

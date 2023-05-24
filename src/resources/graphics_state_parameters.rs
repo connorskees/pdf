@@ -347,58 +347,10 @@ fn graphics_state_parameters_font_from_obj<'a>(
     Ok((Rc::new(Font::from_dict(font_dict, resolver)?), size))
 }
 
-impl<'a> GraphicsStateParameters<'a> {
-    pub(crate) fn update_graphics_state(
-        &self,
-        graphics_state: &mut GraphicsState<'a>,
-        text_state: &mut TextState<'a>,
-    ) {
-        if let Some((font, size)) = self.font.clone() {
-            text_state.font = Some(font);
-            text_state.font_size = size;
-        }
+impl<'a> FromObj<'a> for GraphicsStateParameters<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut dict = resolver.assert_dict(obj)?;
 
-        macro_rules! update_field {
-            ($field:ident, $device:ident) => {
-                if let Some($field) = self.$field {
-                    graphics_state.$device.$field = $field;
-                }
-            };
-            (@clone $field:ident, $device:ident) => {
-                if let Some($field) = self.$field.clone() {
-                    graphics_state.$device.$field = $field;
-                }
-            };
-        }
-
-        update_field!(line_width, device_independent);
-        update_field!(line_cap_style, device_independent);
-        update_field!(line_join_style, device_independent);
-        update_field!(miter_limit, device_independent);
-        update_field!(@clone line_dash_pattern, device_independent);
-        update_field!(rendering_intent, device_independent);
-        update_field!(should_overprint_stroking, device_dependent);
-        update_field!(should_overprint, device_dependent);
-        update_field!(overprint_mode, device_dependent);
-        // todo: function fields
-        // update_field!(black_generation, device_dependent);
-        // update_field!(black_generation_two, device_dependent);
-        // update_field!(undercolor_removal, device_dependent);
-        // update_field!(undercolor_removal_two, device_dependent);
-        // update_field!(transfer, device_dependent);
-        // update_field!(transfer_two, device_dependent);
-        update_field!(@clone halftones, device_dependent);
-        update_field!(flatness_tolerance, device_dependent);
-        update_field!(smoothness_tolerance, device_dependent);
-        update_field!(stroke_adjustment, device_independent);
-        update_field!(@clone blend_mode, device_independent);
-        update_field!(@clone soft_mask, device_independent);
-        update_field!(stroking_alpha_constant, device_independent);
-        update_field!(nonstroking_alpha_constant, device_independent);
-        update_field!(alpha_source, device_independent);
-    }
-
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         dict.expect_type("ExtGState", resolver, false)?;
 
         let line_width = dict.get_number("LW", resolver)?;
@@ -500,6 +452,58 @@ impl<'a> GraphicsStateParameters<'a> {
             is_knockout,
             apple_antialiasing,
         })
+    }
+}
+
+impl<'a> GraphicsStateParameters<'a> {
+    pub(crate) fn update_graphics_state(
+        &self,
+        graphics_state: &mut GraphicsState<'a>,
+        text_state: &mut TextState<'a>,
+    ) {
+        if let Some((font, size)) = self.font.clone() {
+            text_state.font = Some(font);
+            text_state.font_size = size;
+        }
+
+        macro_rules! update_field {
+            ($field:ident, $device:ident) => {
+                if let Some($field) = self.$field {
+                    graphics_state.$device.$field = $field;
+                }
+            };
+            (@clone $field:ident, $device:ident) => {
+                if let Some($field) = self.$field.clone() {
+                    graphics_state.$device.$field = $field;
+                }
+            };
+        }
+
+        update_field!(line_width, device_independent);
+        update_field!(line_cap_style, device_independent);
+        update_field!(line_join_style, device_independent);
+        update_field!(miter_limit, device_independent);
+        update_field!(@clone line_dash_pattern, device_independent);
+        update_field!(rendering_intent, device_independent);
+        update_field!(should_overprint_stroking, device_dependent);
+        update_field!(should_overprint, device_dependent);
+        update_field!(overprint_mode, device_dependent);
+        // todo: function fields
+        // update_field!(black_generation, device_dependent);
+        // update_field!(black_generation_two, device_dependent);
+        // update_field!(undercolor_removal, device_dependent);
+        // update_field!(undercolor_removal_two, device_dependent);
+        // update_field!(transfer, device_dependent);
+        // update_field!(transfer_two, device_dependent);
+        update_field!(@clone halftones, device_dependent);
+        update_field!(flatness_tolerance, device_dependent);
+        update_field!(smoothness_tolerance, device_dependent);
+        update_field!(stroke_adjustment, device_independent);
+        update_field!(@clone blend_mode, device_independent);
+        update_field!(@clone soft_mask, device_independent);
+        update_field!(stroking_alpha_constant, device_independent);
+        update_field!(nonstroking_alpha_constant, device_independent);
+        update_field!(alpha_source, device_independent);
     }
 }
 

@@ -10,16 +10,18 @@ use crate::{
 
 use super::descriptor::FontDescriptor;
 
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct CidSystemInfo {
     /// A string identifying the issuer of the character collection
     ///
     /// For information about assigning a registry identifier, contact
     /// the Adobe Solutions Network or consult the ASN Web site
+    #[field("Registry")]
     registry: String,
 
     /// A string that uniquely names the character collection within the
     /// specified registry
+    #[field("Ordering")]
     ordering: String,
 
     /// The supplement number of the character collection. An original
@@ -28,24 +30,8 @@ pub struct CidSystemInfo {
     /// shall be increased. Supplements shall not alter the ordering of
     /// existing CIDs in the character collection. This value shall not
     /// be used in determining compatibility between character collections
+    #[field("Supplement")]
     supplement: i32,
-}
-
-impl CidSystemInfo {
-    pub fn from_dict<'a>(
-        mut dict: Dictionary<'a>,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Self> {
-        let registry = dict.expect_string("Registry", resolver)?;
-        let ordering = dict.expect_string("Ordering", resolver)?;
-        let supplement = dict.expect_integer("Supplement", resolver)?;
-
-        Ok(Self {
-            registry,
-            ordering,
-            supplement,
-        })
-    }
 }
 
 #[derive(Debug)]
@@ -104,8 +90,7 @@ pub struct CidFontDictionary<'a> {
 impl<'a> CidFontDictionary<'a> {
     pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let base_font = dict.expect_name("BaseFont", resolver)?;
-        let cid_system_info =
-            CidSystemInfo::from_dict(dict.expect_dict("CIDSystemInfo", resolver)?, resolver)?;
+        let cid_system_info = dict.expect::<CidSystemInfo>("CIDSystemInfo", resolver)?;
         let font_descriptor =
             FontDescriptor::from_dict(dict.expect_dict("FontDescriptor", resolver)?, resolver)?;
         let dw = dict.get_integer("DW", resolver)?.unwrap_or(1000);

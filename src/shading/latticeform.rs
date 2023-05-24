@@ -9,20 +9,23 @@ use super::freeform::BitsPerCoordinate;
 /// 4, but instead of using freeform geometry, their vertices are arranged in a
 /// pseudorectangular lattice, which is topologically equivalent to a rectangular
 /// grid. The vertices are organized into rows, which need not be geometrically linear
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
 pub struct LatticeformShading<'a> {
     /// The number of bits used to represent each vertex coordinate.
     ///
     /// The value shall be 1, 2, 4, 8, 12, 16, 24, or 32.
+    #[field("BitsPerCoordinate")]
     bits_per_coordinate: BitsPerCoordinate,
 
     /// The number of bits used to represent each colour component.
     ///
     /// The value shall be 1, 2, 4, 8, 12, or 16.
+    #[field("BitsPerComponent")]
     bits_per_component: BitsPerComponent,
 
     /// The number of vertices in each row of the lattice; the value shall be
     /// greater than or equal to 2. The number of rows need not be specified.
+    #[field("BitsPerFlag")]
     vertices_per_row: u32,
 
     /// An array of numbers specifying how to map vertex coordinates and colour
@@ -34,6 +37,7 @@ pub struct LatticeformShading<'a> {
     ///
     /// Only one pair of c values shall be specified if a Function entry is
     /// present
+    #[field("Decode")]
     decode: Vec<f32>,
 
     /// A 1-in, n-out function or an array of n 1-in, 1-out functions (where n is
@@ -49,6 +53,7 @@ pub struct LatticeformShading<'a> {
     /// shall be adjusted to the nearest valid value.
     ///
     /// This entry shall not be used with an Indexed colour space.
+    #[field("Function")]
     function: Option<Function<'a>>,
 }
 

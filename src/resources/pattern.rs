@@ -1,10 +1,10 @@
 use crate::{
     data_structures::{Matrix, Rectangle},
     error::PdfResult,
-    objects::{Dictionary, Object},
+    objects::Object,
     shading::ShadingObject,
     stream::Stream,
-    Resolve,
+    FromObj, Resolve,
 };
 
 use super::{graphics_state_parameters::GraphicsStateParameters, Resources};
@@ -24,8 +24,10 @@ pub enum Pattern<'a> {
 
 impl<'a> Pattern<'a> {
     const TYPE: &'static str = "Pattern";
+}
 
-    pub fn from_object(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for Pattern<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let obj = resolver.resolve(obj)?;
 
         Ok(
@@ -33,8 +35,7 @@ impl<'a> Pattern<'a> {
                 let dict = &mut stream.dict.other;
                 dict.expect_type(Self::TYPE, resolver, false)?;
 
-                let pattern_type =
-                    PatternType::from_integer(dict.expect_integer("PatternType", resolver)?)?;
+                let pattern_type = dict.expect::<PatternType>("PatternType", resolver)?;
 
                 assert_eq!(pattern_type, PatternType::Tiling);
 
@@ -43,12 +44,14 @@ impl<'a> Pattern<'a> {
                 let mut dict = resolver.assert_dict(obj)?;
                 dict.expect_type(Self::TYPE, resolver, false)?;
 
-                let pattern_type =
-                    PatternType::from_integer(dict.expect_integer("PatternType", resolver)?)?;
+                let pattern_type = dict.expect::<PatternType>("PatternType", resolver)?;
 
                 assert_eq!(pattern_type, PatternType::Shading);
 
-                Pattern::Shading(ShadingPattern::from_dict(dict, resolver)?)
+                Pattern::Shading(ShadingPattern::from_obj(
+                    Object::Dictionary(dict),
+                    resolver,
+                )?)
             },
         )
     }
@@ -113,42 +116,24 @@ impl<'a> TilingPattern<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
 pub struct ShadingPattern<'a> {
     /// A shading object defining the shading pattern's gradient fill
+    #[field("Shading")]
     shading: ShadingObject<'a>,
 
     /// An array of six numbers specifying the pattern matrix
     ///
     /// Default value: the identity matrix [1 0 0 1 0 0].
+    #[field("Matrix")]
     matrix: Matrix,
 
     /// A graphics state parameter dictionary containing graphics state parameters to be put
     /// into effect temporarily while the shading pattern is painted. Any parameters that are
     /// so specified shall be inherited from the graphics state that was in effect at the
     /// beginning of the content stream in which the pattern is defined as a resource
+    #[field("ExtGState")]
     ext_g_state: Option<GraphicsStateParameters<'a>>,
-}
-
-impl<'a> ShadingPattern<'a> {
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let shading = ShadingObject::from_obj(dict.expect_object("Shading", resolver)?, resolver)?;
-
-        let matrix = dict
-            .get::<Matrix>("Matrix", resolver)?
-            .unwrap_or_else(Matrix::identity);
-
-        let ext_g_state = dict
-            .get_dict("ExtGState", resolver)?
-            .map(|dict| GraphicsStateParameters::from_dict(dict, resolver))
-            .transpose()?;
-
-        Ok(Self {
-            shading,
-            matrix,
-            ext_g_state,
-        })
-    }
 }
 
 #[pdf_enum(Integer)]

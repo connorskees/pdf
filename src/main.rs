@@ -279,11 +279,7 @@ impl<'a> Lexer<'a> {
         let id = None;
         let pz = None;
         let separation_info = None;
-        let tabs = dict
-            .get_name("Tabs", self)?
-            .as_deref()
-            .map(TabOrder::from_str)
-            .transpose()?;
+        let tabs = dict.get::<TabOrder>("Tabs", self)?;
         let template_instantiated = None;
         let pres_steps = None;
         let user_unit = None;

@@ -7,7 +7,7 @@ use crate::{
     objects::Dictionary,
     resources::Resources,
     stream::Stream,
-    Resolve,
+    Resolve, FromObj
 };
 
 use super::{encoding::FontEncoding, BaseFontDict};

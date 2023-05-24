@@ -2,7 +2,7 @@ use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     assert_empty, error::PdfResult, font::Font, objects::Dictionary, shading::ShadingObject,
-    xobject::XObject, Resolve,
+    xobject::XObject, FromObj, Resolve,
 };
 
 use self::{graphics_state_parameters::GraphicsStateParameters, pattern::Pattern};
@@ -51,8 +51,7 @@ impl<'a> Resources<'a> {
             .map(|dict| {
                 dict.entries()
                     .map(|(key, value)| {
-                        let dict = resolver.assert_dict(value)?;
-                        let graphics = GraphicsStateParameters::from_dict(dict, resolver)?;
+                        let graphics = GraphicsStateParameters::from_obj(value, resolver)?;
 
                         Ok((key, graphics))
                     })
@@ -66,7 +65,7 @@ impl<'a> Resources<'a> {
             .get_dict("Pattern", resolver)?
             .map(|dict| {
                 dict.entries()
-                    .map(|(key, obj)| Ok((key, Pattern::from_object(obj, resolver)?)))
+                    .map(|(key, obj)| Ok((key, Pattern::from_obj(obj, resolver)?)))
                     .collect::<PdfResult<HashMap<String, Pattern>>>()
             })
             .transpose()?;

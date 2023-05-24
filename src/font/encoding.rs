@@ -2,8 +2,8 @@ use std::{collections::HashMap, convert::TryFrom, mem};
 
 use crate::{
     error::{ParseError, PdfResult},
-    objects::{Dictionary, Object, ObjectType},
-    Resolve,
+    objects::{Object, ObjectType},
+    FromObj, Resolve,
 };
 
 #[derive(Debug)]
@@ -12,12 +12,12 @@ pub enum FontEncoding {
     Dictionary(FontEncodingDict),
 }
 
-impl FontEncoding {
-    pub fn from_obj<'a>(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for FontEncoding {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         Ok(match resolver.resolve(obj)? {
             Object::Name(ref name) => Self::Base(BaseFontEncoding::from_str(name)?),
-            Object::Dictionary(dict) => {
-                Self::Dictionary(FontEncodingDict::from_dict(dict, resolver)?)
+            obj @ Object::Dictionary(..) => {
+                Self::Dictionary(FontEncodingDict::from_obj(obj, resolver)?)
             }
             _ => {
                 return Err(ParseError::MismatchedObjectTypeAny {
@@ -70,11 +70,12 @@ pub struct FontEncodingDict {
 
 impl FontEncodingDict {
     const TYPE: &'static str = "Encoding";
+}
 
-    pub fn from_dict<'a>(
-        mut dict: Dictionary<'a>,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for FontEncodingDict {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut dict = resolver.assert_dict(obj)?;
+
         dict.expect_type(Self::TYPE, resolver, false)?;
 
         let base_encoding = dict

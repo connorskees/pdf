@@ -3,7 +3,7 @@ use crate::{
     data_structures::Rectangle,
     error::PdfResult,
     objects::{Dictionary, Object},
-    Resolve,
+    FromObj, Resolve,
 };
 
 use self::{
@@ -26,8 +26,8 @@ pub enum ShadingObject<'a> {
     Stream(ShadingStream),
 }
 
-impl<'a> ShadingObject<'a> {
-    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for ShadingObject<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let obj = resolver.resolve(obj)?;
 
         Ok(
