@@ -94,7 +94,11 @@ impl ColorSpace {
         }
     }
 
-    /// For the framebuffer we currently use, this appears to be in ARGB format
+    fn blend(&self, background: Self) -> Self {
+        todo!()
+    }
+
+    /// For the framebuffer we currently use, this is in 0RGB format
     ///
     /// This may change in the future
     pub fn as_u32(&self) -> u32 {
