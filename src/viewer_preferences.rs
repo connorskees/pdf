@@ -1,22 +1,19 @@
-use crate::{
-    catalog::PageMode,
-    error::PdfResult,
-    objects::{Dictionary, Object},
-    Resolve,
-};
+use crate::{catalog::PageMode, error::PdfResult, objects::Object, FromObj, Resolve};
 
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct ViewerPreferences {
     /// A flag specifying whether to hide the conforming reader's tool bars when
     /// the document is active.
     ///
     /// Default value: false
+    #[field("HideToolbar", default = false)]
     hide_toolbar: bool,
 
     /// A flag specifying whether to hide the conforming reader's menu bar when
     /// the document is active.
     ///
     /// Default value: false
+    #[field("HideMenubar", default = false)]
     hide_menubar: bool,
 
     /// A flag specifying whether to hide user interface elements in the document's
@@ -24,18 +21,21 @@ pub struct ViewerPreferences {
     /// document's contents displayed.
     ///
     /// Default value: false
+    #[field("HideWindowUI", default = false)]
     hide_window_ui: bool,
 
     /// A flag specifying whether to resize the document's window to fit the size
     /// of the first displayed page.
     ///
     /// Default value: false
+    #[field("FitWindow", default = false)]
     fit_window: bool,
 
     /// A flag specifying whether to position the document's window in the center
     /// of the screen.
     ///
     /// Default value: false
+    #[field("CenterWindow", default = false)]
     center_window: bool,
 
     /// A flag specifying whether the window's title bar should display the document
@@ -44,6 +44,7 @@ pub struct ViewerPreferences {
     /// containing the document.
     ///
     /// Default value: false
+    #[field("DisplayDocTitle", default = false)]
     display_doc_title: bool,
 
     /// The document's page mode, specifying how to display the document on exiting
@@ -54,6 +55,7 @@ pub struct ViewerPreferences {
     /// it shall be ignored otherwise.
     ///
     /// Default value: UseNone.
+    #[field("NonFullScreenPageMode", default = PageMode::default())]
     non_full_screen_page_mode: PageMode,
 
     /// The predominant reading order for text
@@ -63,6 +65,7 @@ pub struct ViewerPreferences {
     /// side by side or printed n-up.
     ///
     /// Default value: L2R
+    #[field("Direction", default = TextDirection::default())]
     direction: TextDirection,
 
     /// The name of the page boundary representing the area of a page that shall
@@ -76,6 +79,7 @@ pub struct ViewerPreferences {
     /// This entry is intended primarily for use by prepress applications that
     /// interpret or manipulate the page boundaries. Most conforming readers
     /// disregard it
+    #[field("ViewArea", default = PageBoundary::default())]
     view_area: PageBoundary,
 
     /// The name of the page boundary to which the contents of a page shall be
@@ -89,6 +93,7 @@ pub struct ViewerPreferences {
     /// This entry is intended primarily for use by prepress applications that
     /// interpret or manipulate the page boundaries. Most conforming readers
     /// disregard it
+    #[field("ViewClip", default = PageBoundary::default())]
     view_clip: PageBoundary,
 
     /// The name of the page boundary representing the area of a page that shall
@@ -102,6 +107,7 @@ pub struct ViewerPreferences {
     /// This entry is intended primarily for use by prepress applications that
     /// interpret or manipulate the page boundaries. Most conforming readers
     /// disregard it
+    #[field("PrintArea", default = PageBoundary::default())]
     print_area: PageBoundary,
 
     /// The name of the page boundary to which the contents of a page shall be
@@ -114,6 +120,7 @@ pub struct ViewerPreferences {
     /// This entry is intended primarily for use by prepress applications that
     /// interpret or manipulate the page boundaries. Most conforming readers
     /// disregard it
+    #[field("PrintClip", default = PageBoundary::default())]
     print_clip: PageBoundary,
 
     /// The page scaling option that shall be selected when a print dialog is
@@ -129,10 +136,12 @@ pub struct ViewerPreferences {
     ///
     /// If the print dialog is suppressed and its parameters are provided from
     /// some other source, this entry nevertheless shall be honored
+    #[field("PrintScaling", default = PageScaling::default())]
     print_scaling: PageScaling,
 
     /// The paper handling option that shall be used when printing the file from
     /// the print dialog
+    #[field("Duplex")]
     duplex: Option<Duplex>,
 
     /// A flag specifying whether the PDF page size shall be used to select the
@@ -145,6 +154,7 @@ pub struct ViewerPreferences {
     /// ability to pick the input tray by size.
     ///
     /// Default value: as defined by the conforming reader
+    #[field("PickTrayByPDFSize", default = false)]
     pick_tray_by_pdf_size: bool,
 
     /// The page numbers used to initialize the print dialog box when the file
@@ -154,135 +164,41 @@ pub struct ViewerPreferences {
     /// be denoted by 1.
     ///
     /// Default value: as defined by the conforming reader
-    print_page_range: Option<Vec<PageRange>>,
+    #[field("PrintPageRange")]
+    print_page_range: Option<PageRanges>,
 
     /// The number of copies that shall be printed when the print dialog is opened
     /// for this file. Values outside this range shall be ignored.
     ///
     /// Default value: as defined by the conforming reader, but typically 1
+    #[field("NumCopies")]
     num_copies: Option<u32>,
 }
 
-impl ViewerPreferences {
-    pub fn from_dict<'a>(
-        mut dict: Dictionary<'a>,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Self> {
-        let hide_toolbar = dict.get_bool("HideToolbar", resolver)?.unwrap_or(false);
-        let hide_menubar = dict.get_bool("HideMenubar", resolver)?.unwrap_or(false);
-        let hide_window_ui = dict.get_bool("HideWindowUI", resolver)?.unwrap_or(false);
-        let fit_window = dict.get_bool("FitWindow", resolver)?.unwrap_or(false);
-        let center_window = dict.get_bool("CenterWindow", resolver)?.unwrap_or(false);
-        let display_doc_title = dict.get_bool("DisplayDocTitle", resolver)?.unwrap_or(false);
+#[repr(transparent)]
+#[derive(Debug, Clone)]
+struct PageRanges(Vec<PageRange>);
 
-        let non_full_screen_page_mode = dict
-            .get_name("NonFullScreenPageMode", resolver)?
-            .as_deref()
-            .map(PageMode::from_str)
-            .transpose()?
-            .unwrap_or_default();
-
-        let direction = dict
-            .get_name("Direction", resolver)?
-            .as_deref()
-            .map(TextDirection::from_str)
-            .transpose()?
-            .unwrap_or_default();
-
-        let view_area = dict
-            .get_name("ViewArea", resolver)?
-            .as_deref()
-            .map(PageBoundary::from_str)
-            .transpose()?
-            .unwrap_or_default();
-
-        let view_clip = dict
-            .get_name("ViewClip", resolver)?
-            .as_deref()
-            .map(PageBoundary::from_str)
-            .transpose()?
-            .unwrap_or_default();
-
-        let print_area = dict
-            .get_name("PrintArea", resolver)?
-            .as_deref()
-            .map(PageBoundary::from_str)
-            .transpose()?
-            .unwrap_or_default();
-
-        let print_clip = dict
-            .get_name("PrintClip", resolver)?
-            .as_deref()
-            .map(PageBoundary::from_str)
-            .transpose()?
-            .unwrap_or_default();
-
-        let print_scaling = dict
-            .get_name("PrintScaling", resolver)?
-            .as_deref()
-            .map(PageScaling::from_str)
-            .transpose()?
-            .unwrap_or_default();
-
-        let duplex = dict
-            .get_name("Duplex", resolver)?
-            .as_deref()
-            .map(Duplex::from_str)
-            .transpose()?;
-
-        let pick_tray_by_pdf_size = dict
-            .get_bool("PickTrayByPDFSize", resolver)?
-            .unwrap_or(false);
-
-        let print_page_range = dict
-            .get_arr("PrintPageRange", resolver)?
-            .map(|objs| {
-                objs.chunks_exact(2)
-                    .map(|objs| PageRange::from_objs(objs[0].clone(), objs[1].clone(), resolver))
-                    .collect::<PdfResult<Vec<PageRange>>>()
-            })
-            .transpose()?;
-
-        let num_copies = dict.get_unsigned_integer("NumCopies", resolver)?;
-
-        Ok(Self {
-            hide_toolbar,
-            hide_menubar,
-            hide_window_ui,
-            fit_window,
-            center_window,
-            display_doc_title,
-            non_full_screen_page_mode,
-            direction,
-            view_area,
-            view_clip,
-            print_area,
-            print_clip,
-            print_scaling,
-            duplex,
-            pick_tray_by_pdf_size,
-            print_page_range,
-            num_copies,
-        })
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 struct PageRange {
     first: u32,
     last: u32,
 }
 
-impl PageRange {
-    pub fn from_objs<'a>(
-        first: Object,
-        last: Object,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Self> {
-        let first = resolver.assert_unsigned_integer(first)?;
-        let last = resolver.assert_unsigned_integer(last)?;
+impl<'a> FromObj<'a> for PageRanges {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let arr = resolver.assert_arr(obj)?;
+        let ranges = arr
+            .chunks_exact(2)
+            .map(|objs| {
+                let first = resolver.assert_unsigned_integer(objs[0].clone())?;
+                let last = resolver.assert_unsigned_integer(objs[1].clone())?;
 
-        Ok(PageRange { first, last })
+                Ok(PageRange { first, last })
+            })
+            .collect::<PdfResult<Vec<PageRange>>>()?;
+
+        Ok(PageRanges(ranges))
     }
 }
 

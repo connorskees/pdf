@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{data_structures::Matrix, font::Font, };
+use crate::{data_structures::Matrix, font::Font};
 
 #[derive(Debug, Clone)]
 pub struct TextState<'a> {

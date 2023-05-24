@@ -1,4 +1,4 @@
-use crate::{error::PdfResult, objects::Dictionary, Resolve};
+use crate::{error::PdfResult, objects::Dictionary, FromObj, Resolve};
 
 use super::Function;
 

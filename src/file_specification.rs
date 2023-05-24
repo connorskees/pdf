@@ -3,7 +3,7 @@ use crate::{
     catalog::{assert_len, Collection},
     error::{ParseError, PdfResult},
     objects::{Dictionary, Object, ObjectType},
-    Resolve,
+    FromObj, Resolve,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -12,8 +12,8 @@ pub enum FileSpecification<'a> {
     Full(FullFileSpecification<'a>),
 }
 
-impl<'a> FileSpecification<'a> {
-    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for FileSpecification<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         match resolver.resolve(obj)? {
             Object::String(s) => Ok(FileSpecification::Simple(FileSpecificationString::new(s))),
             Object::Dictionary(dict) => Ok(FileSpecification::Full(
@@ -119,10 +119,7 @@ impl<'a> FullFileSpecification<'a> {
         dict.get_string("DOS", resolver)?;
         dict.get_string("Mac", resolver)?;
         dict.get_string("Unix", resolver)?;
-        let id = dict
-            .get_arr("UF", resolver)?
-            .map(|objs| FileIdentifier::from_arr(objs, resolver))
-            .transpose()?;
+        let id = dict.get::<FileIdentifier>("UF", resolver)?;
         let is_volatile = dict.get_bool("V", resolver)?.unwrap_or(false);
         let ef = dict.get_dict("EF", resolver)?;
         let rf = dict.get_dict("RF", resolver)?;
@@ -169,8 +166,9 @@ struct RelatedFilesArray;
 #[derive(Debug, Clone, PartialEq)]
 pub struct FileIdentifier(String, String);
 
-impl FileIdentifier {
-    pub fn from_arr<'a>(arr: Vec<Object>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for FileIdentifier {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let arr = resolver.assert_arr(obj)?;
         assert_len(&arr, 2)?;
 
         let mut iter = arr.into_iter().map(|obj| resolver.assert_string(obj));

@@ -1,31 +1,19 @@
-use crate::{
-    destination::Destination, error::PdfResult, file_specification::FileSpecification,
-    objects::Dictionary, Resolve,
-};
+use crate::{destination::Destination, file_specification::FileSpecification};
 
 /// A go-to action changes the view to a specified destination (page, location, and magnification factor)
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct GoToAction {
     /// The destination to jump to
+    #[field("D")]
     d: Destination,
-}
-
-impl GoToAction {
-    pub fn from_dict<'a>(
-        mut dict: Dictionary<'a>,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Self> {
-        let d = Destination::from_obj(dict.expect_object("D", resolver)?, resolver)?;
-
-        Ok(Self { d })
-    }
 }
 
 /// A remote go-to action is similar to an ordinary go-to action but jumps to a destination in
 /// another PDF file instead of the current file
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct GoToRemoteAction<'a> {
     /// The file in which the destination shall be located
+    #[field("F")]
     f: FileSpecification<'a>,
 
     /// The destination to jump to. If the value is an array defining an explicit destination, its
@@ -33,21 +21,13 @@ pub struct GoToRemoteAction<'a> {
     /// to a page object in the current document.
     ///
     /// The first page shall be numbered 0.
+    #[field("D")]
     d: Destination,
 
     /// A flag specifying whether to open the destination document in a new window.
     ///
     /// If this flag is false, the destination document replaces the current document in the same window.
     /// If this entry is absent, the conforming reader should behave in accordance with its preference
+    #[field("NewWindow")]
     new_window: Option<bool>,
-}
-
-impl<'a> GoToRemoteAction<'a> {
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let f = FileSpecification::from_obj(dict.expect_object("F", resolver)?, resolver)?;
-        let d = Destination::from_obj(dict.expect_object("D", resolver)?, resolver)?;
-        let new_window = dict.get_bool("NewWindow", resolver)?;
-
-        Ok(Self { f, d, new_window })
-    }
 }

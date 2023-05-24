@@ -128,10 +128,7 @@ impl<'a> StreamDict<'a> {
             .get_object("DecodeParms", resolver)?
             .map(|obj| DecodeParams::from_obj(obj, resolver))
             .transpose()?;
-        let f = dict
-            .get_object("F", resolver)?
-            .map(|obj| FileSpecification::from_obj(obj, resolver))
-            .transpose()?;
+        let f = dict.get::<FileSpecification>("F", resolver)?;
         let f_filter = dict
             .get_object("FFilter", resolver)?
             .map(|obj| get_filters(obj, resolver))

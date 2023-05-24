@@ -1,9 +1,7 @@
 use crate::{
-    assert_empty,
     error::PdfResult,
     objects::{Dictionary, Object},
-    
-    resolve::Resolve,
+    Resolve,
 };
 
 #[derive(Debug, Clone)]
@@ -17,53 +15,31 @@ impl OptionalContent {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct OptionalContentProperties<'a> {
     /// An array of indirect references to all the optional content groups in the
     /// document, in any order. Every optional content group shall be included
     /// in this array.
+    #[field("OCGs")]
     optional_content_groups: Vec<Object<'a>>,
 
     /// The default viewing optional content configuration dictionary
+    #[field("D")]
     default_config: OptionalContentConfiguration<'a>,
 
     /// An array of alternate optional content configuration dictionaries
+    #[field("Configs")]
     alternate_configs: Option<Vec<OptionalContentConfiguration<'a>>>,
 }
 
-impl<'a> OptionalContentProperties<'a> {
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let optional_content_groups = dict.expect_arr("OCGs", resolver)?;
-        let default_config =
-            OptionalContentConfiguration::from_dict(dict.expect_dict("D", resolver)?, resolver)?;
-        let alternate_configs = dict
-            .get_arr("Configs", resolver)?
-            .map(|objs| {
-                objs.into_iter()
-                    .map(|obj| {
-                        OptionalContentConfiguration::from_dict(
-                            resolver.assert_dict(obj)?,
-                            resolver,
-                        )
-                    })
-                    .collect::<PdfResult<Vec<OptionalContentConfiguration>>>()
-            })
-            .transpose()?;
-
-        Ok(Self {
-            optional_content_groups,
-            default_config,
-            alternate_configs,
-        })
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 struct OptionalContentConfiguration<'a> {
     /// A name for the configuration, suitable for presentation in a user interface.
+    #[field("Name")]
     name: Option<String>,
 
     /// Name of the application or feature that created this configuration dictionary.
+    #[field("Creator")]
     creator: Option<String>,
 
     /// Used to initialize the states of all the optional content groups in a
@@ -81,6 +57,7 @@ struct OptionalContentConfiguration<'a> {
     ///
     /// If BaseState is present in the document’s default configuration dictionary,
     /// its value shall be ON.
+    #[field("BaseState")]
     base_state: Option<OptionalContentBaseState>,
 
     /// An array of optional content groups whose state shall be set to ON when
@@ -88,6 +65,7 @@ struct OptionalContentConfiguration<'a> {
     ///
     /// If the BaseState entry is ON, this entry is redundant.
     // todo: Vec<OptionalContentGroup>
+    #[field("ON")]
     on: Option<Vec<Object<'a>>>,
 
     /// An array of optional content groups whose state shall be set to OFF when
@@ -95,6 +73,7 @@ struct OptionalContentConfiguration<'a> {
     ///
     /// If the BaseState entry is OFF, this entry is redundant.
     // todo: Vec<OptionalContentGroup>
+    #[field("OFF")]
     off: Option<Vec<Object<'a>>>,
 
     /// A single intent name or an array containing any combination of names. It
@@ -107,6 +86,7 @@ struct OptionalContentConfiguration<'a> {
     /// Default value: View.
     ///
     /// The value shall be View for the document’s default configuration.
+    #[field("Intent")]
     intent: Option<Intent>,
 
     /// An array of usage application dictionaries specifying which usage dictionary
@@ -115,6 +95,7 @@ struct OptionalContentConfiguration<'a> {
     /// the current system language or viewing magnification, and when they shall
     /// be applied.
     // todo: Vec<OptionalContentUsageApplication>
+    #[field("AS")]
     applications: Option<Vec<Object<'a>>>,
 
     /// An array specifying the order for presentation of optional content groups
@@ -144,10 +125,12 @@ struct OptionalContentConfiguration<'a> {
     /// Any groups not listed in this array shall not be presented in any user
     /// interface that uses the configuration.
     // todo: Vec<OptionalContentGroup>
+    #[field("Order")]
     order: Option<Vec<Object<'a>>>,
 
     /// A name specifying which optional content groups in the Order array shall
     /// be displayed to the user.
+    #[field("ListMode")]
     list_mode: Option<ListMode>,
 
     /// An array consisting of one or more arrays, each of which represents a
@@ -163,6 +146,7 @@ struct OptionalContentConfiguration<'a> {
     /// empty array; in other configuration dictionaries, the default is the
     /// RBGroups value from the default configuration dictionary.
     // todo: better type
+    #[field("RBGroups")]
     rb_groups: Option<Vec<Object<'a>>>,
 
     /// An array of optional content groups that shall be locked when this
@@ -177,54 +161,8 @@ struct OptionalContentConfiguration<'a> {
     /// being changed by means other than the user interface, such as JavaScript
     /// or items in the AS entry of a configuration dictionary.
     // todo: Vec<OptionalContentGroup>
+    #[field("Locked")]
     locked: Option<Vec<Object<'a>>>,
-}
-
-impl<'a> OptionalContentConfiguration<'a> {
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let name = dict.get_string("Name", resolver)?;
-        let creator = dict.get_string("Creator", resolver)?;
-        let base_state = dict
-            .get_name("BaseState", resolver)?
-            .as_deref()
-            .map(OptionalContentBaseState::from_str)
-            .transpose()?;
-        let on = dict.get_arr("ON", resolver)?;
-        let off = dict.get_arr("OFF", resolver)?;
-        let intent = dict
-            .get_name("Intent", resolver)?
-            .as_deref()
-            .map(Intent::from_str)
-            .transpose()?;
-
-        let applications = dict.get_arr("AS", resolver)?;
-        let order = dict.get_arr("Order", resolver)?;
-
-        let list_mode = dict
-            .get_name("ListMode", resolver)?
-            .as_deref()
-            .map(ListMode::from_str)
-            .transpose()?;
-
-        let rb_groups = dict.get_arr("RBGroups", resolver)?;
-        let locked = dict.get_arr("Locked", resolver)?;
-
-        assert_empty(dict);
-
-        Ok(Self {
-            name,
-            creator,
-            base_state,
-            on,
-            off,
-            intent,
-            applications,
-            order,
-            list_mode,
-            rb_groups,
-            locked,
-        })
-    }
 }
 
 #[derive(Debug, Clone)]

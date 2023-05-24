@@ -317,9 +317,7 @@ impl<'a> PostscriptInterpreter<'a> {
             PostscriptOperator::CloseFile => self.close_file(),
             PostscriptOperator::For => self.for_loop(),
             PostscriptOperator::Add => self.add(),
-            op
-            @
-            (PostscriptOperator::DefineResource
+            op @ (PostscriptOperator::DefineResource
             | PostscriptOperator::UndefineResource
             | PostscriptOperator::FindResource
             | PostscriptOperator::FindColorRendering

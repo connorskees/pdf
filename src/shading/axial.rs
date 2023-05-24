@@ -57,7 +57,7 @@ impl<'a> AxialShading<'a> {
             })
             .transpose()?
             .unwrap_or([0.0, 1.0]);
-        let function = dict.expect_function("Function", resolver)?;
+        let function = dict.expect::<Function>("Function", resolver)?;
         let extend = dict
             .get_arr("Extend", resolver)?
             .map(|arr| -> Result<_, ParseError> {

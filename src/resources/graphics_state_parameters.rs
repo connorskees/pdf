@@ -10,7 +10,7 @@ use crate::{
     objects::{Dictionary, Object, ObjectType},
     render::{graphics_state::GraphicsState, text_state::TextState},
     stream::Stream,
-    Resolve,
+    FromObj, Resolve,
 };
 
 #[derive(Debug, Clone)]
@@ -426,12 +426,12 @@ impl<'a> GraphicsStateParameters<'a> {
             .get_object("Font", resolver)?
             .map(|obj| graphics_state_parameters_font_from_obj(obj, resolver))
             .transpose()?;
-        let black_generation = dict.get_function("BG", resolver)?;
+        let black_generation = dict.get::<Function>("BG", resolver)?;
         let black_generation_two = dict
             .get_object("BG2", resolver)?
             .map(|obj| FunctionOrDefault::from_obj(obj, resolver))
             .transpose()?;
-        let undercolor_removal = dict.get_function("UCR", resolver)?;
+        let undercolor_removal = dict.get::<Function>("UCR", resolver)?;
         let undercolor_removal_two = dict
             .get_object("UCR2", resolver)?
             .map(|obj| FunctionOrDefault::from_obj(obj, resolver))

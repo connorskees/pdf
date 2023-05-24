@@ -1,9 +1,8 @@
 use crate::{
     error::{ParseError, PdfResult},
     objects::{Dictionary, Object, ObjectType},
-    
     stream::Stream,
-    Resolve,
+    FromObj, Resolve,
 };
 
 use self::{
@@ -59,10 +58,17 @@ impl<'a> StreamOrDict<'a> {
             Self::Stream(stream) => Ok(stream),
         }
     }
+
+    pub fn to_obj(self) -> Object<'a> {
+        match self {
+            Self::Dict(dict) => Object::Dictionary(dict),
+            Self::Stream(stream) => Object::Stream(stream),
+        }
+    }
 }
 
-impl<'a> Function<'a> {
-    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for Function<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let obj = resolver.resolve(obj)?;
 
         let mut stream_or_dict = if let Ok(stream) = resolver.assert_stream(obj.clone()) {
@@ -87,7 +93,7 @@ impl<'a> Function<'a> {
             })
             .transpose()?;
 
-        let subtype = FunctionSubtype::from_stream_or_dict(stream_or_dict, resolver)?;
+        let subtype = FunctionSubtype::from_obj(stream_or_dict.to_obj(), resolver)?;
 
         Ok(Self {
             domain,
@@ -105,11 +111,14 @@ enum FunctionSubtype<'a> {
     PostScriptCalculator(PostScriptCalculatorFunction),
 }
 
-impl<'a> FunctionSubtype<'a> {
-    pub fn from_stream_or_dict(
-        mut stream_or_dict: StreamOrDict<'a>,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for FunctionSubtype<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut stream_or_dict = match resolver.resolve(obj)? {
+            Object::Stream(stream) => StreamOrDict::Stream(stream),
+            Object::Dictionary(dict) => StreamOrDict::Dict(dict),
+            _ => todo!(),
+        };
+
         let dict = stream_or_dict.dict();
         let subtype = FunctionType::from_integer(dict.expect_integer("FunctionType", resolver)?)?;
 
@@ -148,8 +157,8 @@ pub enum SpotFunction<'a> {
     Function(Function<'a>),
 }
 
-impl<'a> SpotFunction<'a> {
-    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for SpotFunction<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         Ok(if let Object::Name(ref name) = obj {
             SpotFunction::Predefined(PredefinedSpotFunction::from_str(name)?)
         } else {
@@ -195,9 +204,9 @@ pub enum TransferFunction<'a> {
     },
 }
 
-impl<'a> TransferFunction<'a> {
+impl<'a> FromObj<'a> for TransferFunction<'a> {
     // todo: array, default
-    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         // todo: dont use this
         Ok(if obj.name_is("Identity") {
             TransferFunction::Identity

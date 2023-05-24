@@ -128,7 +128,7 @@ impl<'a> FontDescriptor<'a> {
             .transpose()?;
         let font_weight = dict.get_number("FontWeight", resolver)?;
         let flags = FontDescriptorFlags(dict.expect_unsigned_integer("Flags", resolver)?);
-        let font_bounding_box = dict.get_rectangle("FontBBox", resolver)?;
+        let font_bounding_box = dict.get::<Rectangle>("FontBBox", resolver)?;
         let italic_angle = dict.expect_number("ItalicAngle", resolver)?;
 
         let ascent = dict.get_number("Ascent", resolver)?;

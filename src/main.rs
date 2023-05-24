@@ -37,7 +37,10 @@ mod xref;
 
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, io, rc::Rc};
 
-pub(crate) use crate::resolve::Resolve;
+use data_structures::Rectangle;
+use date::Date;
+
+pub(crate) use crate::{objects::FromObj, resolve::Resolve};
 
 use crate::{
     annotation::Annotation,
@@ -238,27 +241,24 @@ impl<'a> Lexer<'a> {
         pages: &mut HashMap<Reference, PageNode<'a>>,
     ) -> PdfResult<()> {
         let parent = dict.expect_reference("Parent")?;
-        let last_modified = dict.get_date("LastModified", self)?;
+        let last_modified = dict.get::<Date>("LastModified", self)?;
         let resources = dict
             .get_dict("Resources", self)?
             .map(|dict| Resources::from_dict(dict, self))
             .transpose()?
             .map(Rc::new);
-        let media_box = dict.get_rectangle("MediaBox", self)?;
-        let crop_box = dict.get_rectangle("CropBox", self)?;
-        let bleed_box = dict.get_rectangle("BleedBox", self)?;
-        let trim_box = dict.get_rectangle("TrimBox", self)?;
-        let art_box = dict.get_rectangle("ArtBox", self)?;
+        let media_box = dict.get::<Rectangle>("MediaBox", self)?;
+        let crop_box = dict.get::<Rectangle>("CropBox", self)?;
+        let bleed_box = dict.get::<Rectangle>("BleedBox", self)?;
+        let trim_box = dict.get::<Rectangle>("TrimBox", self)?;
+        let art_box = dict.get::<Rectangle>("ArtBox", self)?;
         let box_color_info = None;
         let contents = dict
             .get_object("Contents", self)?
             .map(|obj| ContentStream::from_obj(obj, self))
             .transpose()?;
         let rotate = dict.get_integer("Rotate", self)?;
-        let group = dict
-            .get_dict("Group", self)?
-            .map(|dict| GroupAttributes::from_dict(dict, self))
-            .transpose()?;
+        let group = dict.get::<GroupAttributes>("Group", self)?;
         let thumb = dict.get_stream("Thumb", self)?;
         let b = None;
         let dur = None;
@@ -274,10 +274,7 @@ impl<'a> Lexer<'a> {
             .transpose()?;
         let aa = None;
         let metadata = None;
-        let piece_info = dict
-            .get_dict("PieceInfo", self)?
-            .map(|dict| PagePiece::from_dict(dict, self))
-            .transpose()?;
+        let piece_info = dict.get::<PagePiece>("PieceInfo", self)?;
         let struct_parents = dict.get_integer("StructParents", self)?;
         let id = None;
         let pz = None;
@@ -466,11 +463,11 @@ impl<'a> Parser<'a> {
     }
 
     pub fn info(&mut self) -> PdfResult<Option<InformationDictionary>> {
-        Ok(Some(InformationDictionary::from_dict(
-            self.lexer.assert_dict(match self.trailer.info {
+        Ok(Some(InformationDictionary::from_obj(
+            match self.trailer.info {
                 Some(r) => Object::Reference(r),
                 None => return Ok(None),
-            })?,
+            },
             &mut self.lexer,
         )?))
     }
@@ -511,13 +508,8 @@ impl<'a> Parser<'a> {
     }
 }
 
-pub trait FromObj: Sized {
-    fn from_obj<'a>(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self>;
-}
-
 fn main() -> PdfResult<()> {
     let mut parser = Parser::new("corpus/Christopher Smith Resume.pdf")?;
-    // dbg!(&parser.page_tree);
 
     for page in parser.pages() {
         let mut content = parser.page_contents(&*page).unwrap();

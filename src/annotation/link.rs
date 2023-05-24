@@ -3,7 +3,7 @@ use crate::{
     destination::Destination,
     error::PdfResult,
     objects::Dictionary,
-     Resolve,
+    Resolve,
 };
 
 use super::BorderStyle;
@@ -81,10 +81,7 @@ impl<'a> LinkAnnotation<'a> {
             .map(|actions| Actions::from_dict(actions, resolver))
             .transpose()?;
 
-        let dest = dict
-            .get_object("Dest", resolver)?
-            .map(|dest| Destination::from_obj(dest, resolver))
-            .transpose()?;
+        let dest = dict.get::<Destination>("Dest", resolver)?;
 
         let h = dict
             .get_name("H", resolver)?

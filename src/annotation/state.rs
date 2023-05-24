@@ -1,4 +1,4 @@
-use crate::{error::PdfResult, };
+use crate::error::PdfResult;
 
 #[derive(Debug)]
 pub(crate) enum StateModel {

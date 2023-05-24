@@ -1,4 +1,4 @@
-use crate::{error::PdfResult,  stream::Stream, Resolve};
+use crate::{error::PdfResult, stream::Stream, Resolve};
 
 /// Type 0 functions use a sequence of sample values (contained in a stream) to provide an
 /// approximation for functions whose domains and ranges are bounded. The samples are organized

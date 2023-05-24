@@ -1,13 +1,14 @@
 use crate::{
     error::PdfResult,
     file_specification::{FileIdentifier, FileSpecification},
-    objects::{Dictionary, Object},
-    Resolve,
+    objects::Object,
+    FromObj, Resolve,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
 pub struct ReferenceXObject<'a> {
     /// The file containing the target document
+    #[field("F")]
     f: FileSpecification<'a>,
 
     /// A page index or page label identifying the page of the target
@@ -15,6 +16,7 @@ pub struct ReferenceXObject<'a> {
     /// is a weak one and may be inadvertently invalidated if the referenced
     /// page is changed or replaced in the target document after the
     /// reference is created
+    #[field("Page")]
     page: PageIdentifier,
 
     /// An array of two byte strings constituting a file identifier for
@@ -22,6 +24,7 @@ pub struct ReferenceXObject<'a> {
     /// improves an reader's chances of finding the intended file and
     /// allows it to warn the user if the file has changed since the
     /// reference was created
+    #[field("ID")]
     id: Option<FileIdentifier>,
 }
 
@@ -31,8 +34,8 @@ enum PageIdentifier {
     Label(String),
 }
 
-impl PageIdentifier {
-    pub fn from_obj<'a>(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for PageIdentifier {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         Ok(if let Ok(name) = resolver.assert_string(obj.clone()) {
             PageIdentifier::Label(name)
         } else {
@@ -40,18 +43,5 @@ impl PageIdentifier {
 
             PageIdentifier::Index(idx as usize)
         })
-    }
-}
-
-impl<'a> ReferenceXObject<'a> {
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let f = FileSpecification::from_obj(dict.expect_object("F", resolver)?, resolver)?;
-        let page = PageIdentifier::from_obj(dict.expect_object("Page", resolver)?, resolver)?;
-        let id = dict
-            .get_arr("ID", resolver)?
-            .map(|objs| FileIdentifier::from_arr(objs, resolver))
-            .transpose()?;
-
-        Ok(Self { f, page, id })
     }
 }

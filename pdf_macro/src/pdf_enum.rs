@@ -51,7 +51,7 @@ impl Parse for PdfEnum {
 
 pub fn pdf_enum_inner(attr: TokenStream, item: TokenStream) -> TokenStream {
     let object_type = parse_macro_input!(attr as Option<Ident>)
-        .unwrap_or_else(|| Ident::new("String", Span::call_site()));
+        .unwrap_or_else(|| Ident::new("Name", Span::call_site()));
     let item = parse_macro_input!(item as PdfEnum);
 
     let PdfEnum {
@@ -67,7 +67,7 @@ pub fn pdf_enum_inner(attr: TokenStream, item: TokenStream) -> TokenStream {
     let field_values = variants.iter().map(|v| &v.value).collect::<Vec<_>>();
     
     // temporary method impl during transition to proc macros
-    let old_impl = if object_type == Ident::new("String", Span::call_site()) {
+    let old_impl = if object_type != Ident::new("Integer", Span::call_site()) {
         quote!(impl #name {
             pub fn from_str(s: &str) -> crate::PdfResult<Self> {
                 Ok(match s {
@@ -103,8 +103,8 @@ pub fn pdf_enum_inner(attr: TokenStream, item: TokenStream) -> TokenStream {
             )*
         }
 
-        impl crate::FromObj for #name {
-            fn from_obj<'a>(obj: crate::Object<'a>, resolver: &mut dyn crate::Resolve<'a>) -> crate::PdfResult<Self> {
+        impl<'a> crate::FromObj<'a> for #name {
+            fn from_obj(obj: crate::Object<'a>, resolver: &mut dyn crate::Resolve<'a>) -> crate::PdfResult<Self> {
                 Ok(match obj {
                     #(crate::Object::#object_type(v) if v == #field_values => Self::#field_names,)*
                     _ => todo!(),

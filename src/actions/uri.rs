@@ -19,7 +19,10 @@ pub struct UriAction {
 }
 
 impl UriAction {
-    pub fn from_dict<'a>(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+    pub fn from_dict<'a>(
+        mut dict: Dictionary<'a>,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         let uri = dict.expect_string("URI", resolver)?;
         let is_map = dict.get_bool("IsMap", resolver)?.unwrap_or(false);
 

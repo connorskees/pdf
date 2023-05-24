@@ -62,9 +62,9 @@ pub struct Type3Font<'a> {
 impl<'a> Type3Font<'a> {
     pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let base = BaseFontDict::from_dict(&mut dict, resolver)?;
-        let font_bounding_box = dict.expect_rectangle("FontBBox", resolver)?;
+        let font_bounding_box = dict.expect::<Rectangle>("FontBBox", resolver)?;
         let font_matrix = dict
-            .get_matrix("Matrix", resolver)?
+            .get::<Matrix>("Matrix", resolver)?
             .unwrap_or_else(|| Matrix::new(0.001, 0.0, 0.0, 0.001, 0.0, 0.0));
         let char_procs = dict
             .expect_dict("CharProcs", resolver)?

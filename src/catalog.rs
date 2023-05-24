@@ -13,9 +13,9 @@ document is opened.
 
 use crate::{
     actions::Actions, assert_empty, data_structures::NumberTree, date::Date,
-    destination::Destination, optional_content::OptionalContentProperties, stream::Stream,
-    structure::StructTreeRoot, viewer_preferences::ViewerPreferences, Dictionary, Lexer, Object,
-    ParseError, PdfResult, Reference, Resolve,
+    destination::Destination, objects::Name, optional_content::OptionalContentProperties,
+    stream::Stream, structure::StructTreeRoot, viewer_preferences::ViewerPreferences, Dictionary,
+    FromObj, Lexer, Object, ParseError, PdfResult, Reference, Resolve,
 };
 
 pub use crate::color::{ColorSpace, ColorSpaceName};
@@ -167,10 +167,7 @@ impl<'a> DocumentCatalog<'a> {
         let page_labels = None;
         let names = None;
         let dests = dict.get_reference("Dests")?;
-        let viewer_preferences = dict
-            .get_dict("ViewerPreferences", lexer)?
-            .map(|dict| ViewerPreferences::from_dict(dict, lexer))
-            .transpose()?;
+        let viewer_preferences = dict.get::<ViewerPreferences>("ViewerPreferences", lexer)?;
 
         let page_layout = dict
             .get_name("PageLayout", lexer)?
@@ -185,10 +182,7 @@ impl<'a> DocumentCatalog<'a> {
 
         let outlines = dict.get_reference("Outlines")?;
         let threads = dict.get_reference("Threads")?;
-        let open_action = dict
-            .get_object("OpenAction", lexer)?
-            .map(|obj| OpenAction::from_obj(obj, lexer))
-            .transpose()?;
+        let open_action = dict.get::<OpenAction>("OpenAction", lexer)?;
         let aa = None;
         let uri = None;
         let acro_form = None;
@@ -197,27 +191,18 @@ impl<'a> DocumentCatalog<'a> {
             .get_dict("StructTreeRoot", lexer)?
             .map(|dict| StructTreeRoot::from_dict(dict, lexer))
             .transpose()?;
-        let mark_info = dict
-            .get_dict("MarkInfo", lexer)?
-            .map(|dict| MarkInformationDictionary::from_dict(dict, lexer))
-            .transpose()?;
+        let mark_info = dict.get::<MarkInformationDictionary>("MarkInfo", lexer)?;
         let lang = dict.get_string("Lang", lexer)?;
         let spider_info = None;
         let output_intents = None;
-        let piece_info = dict
-            .get_dict("PieceInfo", lexer)?
-            .map(|dict| PagePiece::from_dict(dict, lexer))
-            .transpose()?;
-        let oc_properties = dict
-            .get_dict("OCProperties", lexer)?
-            .map(|dict| OptionalContentProperties::from_dict(dict, lexer))
-            .transpose()?;
+        let piece_info = dict.get::<PagePiece>("PieceInfo", lexer)?;
+        let oc_properties = dict.get::<OptionalContentProperties>("OCProperties", lexer)?;
         let perms = None;
         let legal = None;
         let requirements = None;
         let collection = None;
         let needs_rendering = dict.get_bool("NeedsRendering", lexer)?.unwrap_or(false);
-        let last_modified = dict.get_date("LastModified", lexer)?;
+        let last_modified = dict.get::<Date>("LastModified", lexer)?;
 
         assert_empty(dict);
 
@@ -257,74 +242,45 @@ impl<'a> DocumentCatalog<'a> {
 
 #[derive(Debug)]
 pub struct Encryption;
-#[derive(Debug)]
+
+#[derive(Debug, FromObj)]
 pub struct InformationDictionary<'a> {
+    #[field("Title")]
     title: Option<String>,
+    #[field("Author")]
     author: Option<String>,
+    #[field("Subject")]
     subject: Option<String>,
+    #[field("Keywords")]
     keywords: Option<String>,
 
     /// If the document was converted to PDF from
     /// another format, the name of the conforming
     /// product that created the original document
     /// from which it was converted
+    #[field("Creator")]
     creator: Option<String>,
 
     /// If the document was converted to PDF from
     /// another format, the name of the conforming
     /// product that converted it to PDF
+    #[field("Producer")]
     producer: Option<String>,
 
+    #[field("CreationDate")]
     creation_date: Option<Date>,
+    #[field("ModDate")]
     mod_date: Option<Date>,
+    #[field("Trapped", default = Trapped::default())]
     trapped: Trapped,
 
+    #[field("")]
     other: Dictionary<'a>,
 }
 
-impl<'a> InformationDictionary<'a> {
-    pub(crate) fn from_dict(mut dict: Dictionary<'a>, lexer: &mut Lexer) -> PdfResult<Self> {
-        let title = dict.get_string("Title", lexer)?;
-        let author = dict.get_string("Author", lexer)?;
-        let subject = dict.get_string("Subject", lexer)?;
-        let keywords = dict.get_string("Keywords", lexer)?;
-        let creator = dict.get_string("Creator", lexer)?;
-        let producer = dict.get_string("Producer", lexer)?;
-        let creation_date = dict
-            .get_string("CreationDate", lexer)?
-            .as_deref()
-            .map(Date::from_str)
-            .transpose()?;
-        let mod_date = dict
-            .get_string("ModDate", lexer)?
-            .as_deref()
-            .map(Date::from_str)
-            .transpose()?;
-        let trapped = dict
-            .get_name("Trapped", lexer)?
-            .as_deref()
-            .map(Trapped::from_str)
-            .transpose()?
-            .unwrap_or_default();
-
-        Ok(InformationDictionary {
-            title,
-            author,
-            subject,
-            keywords,
-            creator,
-            producer,
-            creation_date,
-            mod_date,
-            trapped,
-            other: dict,
-        })
-    }
-}
-
-#[pdf_enum]
 /// A name object indicating whether the document
 /// has been modified to include trapping information
+#[pdf_enum]
 pub enum Trapped {
     /// The document has been fully trapped; no further
     /// trapping shall be needed. This shall be the name
@@ -377,8 +333,8 @@ pub enum OpenAction<'a> {
     Actions(Actions<'a>),
 }
 
-impl<'a> OpenAction<'a> {
-    pub fn from_obj(obj: Object<'a>, lexer: &mut Lexer<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for OpenAction<'a> {
+    fn from_obj(obj: Object<'a>, lexer: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let obj = lexer.resolve(obj)?;
         Ok(match obj {
             Object::Dictionary(dict) => OpenAction::Actions(Actions::from_dict(dict, lexer)?),
@@ -418,53 +374,39 @@ impl<'a> MetadataStream<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct MarkInformationDictionary {
     /// A flag indicating whether the document conforms to Tagged PDF conventions.
     ///
     /// Default value: false.
     /// If Suspects is true, the document may not completely conform to Tagged PDF conventions.
+    #[field("Marked", default = false)]
     marked: bool,
 
     /// A flag indicating the presence of structure elements that contain user properties attributes
     ///
     /// Default value: false
+    #[field("UserProperties", default = false)]
     user_properties: bool,
 
     /// A flag indicating the presence of tag suspects
     ///
     /// Default value: false.
+    #[field("Suspects", default = false)]
     suspects: bool,
-}
-
-impl MarkInformationDictionary {
-    pub fn from_dict<'a>(
-        mut dict: Dictionary<'a>,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Self> {
-        let marked = dict.get_bool("Marked", resolver)?.unwrap_or(false);
-        let user_properties = dict.get_bool("UserProperties", resolver)?.unwrap_or(false);
-        let suspects = dict.get_bool("Suspects", resolver)?.unwrap_or(false);
-
-        assert_empty(dict);
-
-        Ok(Self {
-            marked,
-            user_properties,
-            suspects,
-        })
-    }
 }
 
 #[derive(Debug)]
 pub struct WebCapture;
 #[derive(Debug)]
 pub struct OutputIntent;
+
 #[derive(Debug, Clone)]
 pub struct PagePiece<'a>(Dictionary<'a>);
 
-impl<'a> PagePiece<'a> {
-    pub fn from_dict(dict: Dictionary<'a>, _resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for PagePiece<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let dict = resolver.assert_dict(obj)?;
         Ok(Self(dict))
     }
 }
@@ -480,8 +422,13 @@ pub struct Collection;
 #[derive(Debug)]
 pub struct BoxColorInfo;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
 pub struct GroupAttributes<'a> {
+    /// The group subtype, which identifies the type of group whose attributes
+    /// this dictionary describes. This is always "Transparency"
+    #[field("S")]
+    subtype: Name,
+
     /// The group colour space, which is used for the following purposes:
     ///
     ///  * As the colour space into which colours shall be converted when painted into the
@@ -519,6 +466,7 @@ pub struct GroupAttributes<'a> {
     /// For a transparency group XObject used as an annotation appearance, the default colour space
     /// shall be inherited from the page on which the annotation appears
     // todo: type
+    #[field("CS")]
     cs: Option<Object<'a>>,
 
     /// A flag specifying whether the transparency group is isolated.
@@ -535,6 +483,7 @@ pub struct GroupAttributes<'a> {
     /// be ignored. But if the page is in turn used as an element of some other page, it shall
     /// be treated as if it were a transparency group XObject; the I value shall be interpreted
     /// in the normal way to determine whether the page group is isolated.
+    #[field("I")]
     is_isolated: bool,
 
     /// A flag specifying whether the transparency group is a knockout group.
@@ -544,26 +493,8 @@ pub struct GroupAttributes<'a> {
     /// backdrop and shall overwrite ("knock out") any earlier overlapping objects.
     ///
     /// Default value: false.
+    #[field("K", default = false)]
     is_knockout: bool,
-}
-
-impl<'a> GroupAttributes<'a> {
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let s = dict.expect_name("S", resolver)?;
-        if s != "Transparency" {
-            todo!()
-        }
-
-        let cs = dict.get_object("CS", resolver)?;
-        let is_isolated = dict.get_bool("I", resolver)?.unwrap_or(false);
-        let is_knockout = dict.get_bool("K", resolver)?.unwrap_or(false);
-
-        Ok(GroupAttributes {
-            cs,
-            is_isolated,
-            is_knockout,
-        })
-    }
 }
 
 #[derive(Debug)]

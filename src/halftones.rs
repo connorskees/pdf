@@ -4,7 +4,7 @@ use crate::{
     function::{SpotFunction, TransferFunction},
     objects::{Dictionary, Object, ObjectType},
     stream::Stream,
-    Resolve,
+    FromObj, Resolve,
 };
 
 #[derive(Debug, Clone)]
@@ -14,8 +14,8 @@ pub enum Halftones<'a> {
     Stream(HalftoneStream),
 }
 
-impl<'a> Halftones<'a> {
-    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for Halftones<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         Ok(match obj {
             Object::Name(name) if name == "Default" => Halftones::Default,
             Object::Stream(stream) => Halftones::Stream(HalftoneStream::from_stream(stream)?),
@@ -49,6 +49,8 @@ pub enum HalftoneDictionary<'a> {
     Sixteen(HalftoneSixteen<'a>),
 }
 
+// todo: pdf_enum?
+#[pdf_enum(Integer)]
 enum HalftoneType {
     /// Defines a single halftone screen by a frequency, angle, and spot function
     One = 1,
@@ -71,42 +73,28 @@ enum HalftoneType {
     Sixteen = 16,
 }
 
-impl HalftoneType {
-    pub fn from_integer(i: i32) -> PdfResult<Self> {
-        Ok(match i {
-            1 => Self::One,
-            5 => Self::Five,
-            6 => Self::Six,
-            10 => Self::Ten,
-            16 => Self::Sixteen,
-            _ => {
-                return Err(ParseError::UnrecognizedVariant {
-                    ty: "HalftoneType",
-                    found: i.to_string(),
-                })
-            }
-        })
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
 pub struct HalftoneOne<'a> {
     /// The screen frequency, measured in halftone cells per inch in device space
+    #[field("Frequency")]
     frequency: f32,
 
     /// The screen angle, in degrees of rotation counterclockwise with respect to
     /// the device coordinate system
+    #[field("Angle")]
     angle: f32,
 
     /// A function object defining the order in which device pixels within a screen
     /// cell shall be adjusted for different gray levels, or the name of one of the
     /// predefined spot functions
+    #[field("SpotFunction")]
     spot_function: SpotFunction<'a>,
 
     /// A flag specifying whether to invoke a special halftone algorithm that is extremely
     /// precise but computationally expensive; see Note 1 for further discussion.
     ///
     /// Default value: false
+    #[field("AccurateScreens")]
     accurate_screens: Option<bool>,
 
     /// A transfer function, which overrides the current transfer function in the graphics
@@ -116,29 +104,8 @@ pub struct HalftoneOne<'a> {
     /// represents either a nonprimary or nonstandard primary colour component.
     ///
     /// The name Identity may be used to specify the identity function
+    #[field("TransferFunction")]
     transfer_function: Option<TransferFunction<'a>>,
-}
-
-impl<'a> HalftoneOne<'a> {
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let frequency = dict.expect_number("Frequency", resolver)?;
-        let angle = dict.expect_number("Angle", resolver)?;
-        let spot_function =
-            SpotFunction::from_obj(dict.expect_object("SpotFunction", resolver)?, resolver)?;
-        let accurate_screens = dict.get_bool("AccurateScreens", resolver)?;
-        let transfer_function = dict
-            .get_object("TransferFunction", resolver)?
-            .map(|obj| TransferFunction::from_obj(obj, resolver))
-            .transpose()?;
-
-        Ok(HalftoneOne {
-            frequency,
-            angle,
-            spot_function,
-            accurate_screens,
-            transfer_function,
-        })
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -147,70 +114,44 @@ pub struct HalftoneFive<'a> {
     default: Box<Halftones<'a>>,
 }
 
-impl<'a> HalftoneFive<'a> {
-    pub fn from_dict(mut _dict: Dictionary, _resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for HalftoneFive<'a> {
+    fn from_obj(_obj: Object<'a>, _resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         todo!()
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
 pub struct HalftoneSix<'a> {
+    #[field("Width")]
     width: i32,
+    #[field("Height")]
     height: i32,
+    #[field("TransferFunction")]
     transfer_function: Option<TransferFunction<'a>>,
 }
 
-impl<'a> HalftoneSix<'a> {
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let width = dict.expect_integer("Width", resolver)?;
-        let height = dict.expect_integer("Height", resolver)?;
-        let transfer_function = dict
-            .get_object("TransferFunction", resolver)?
-            .map(|obj| TransferFunction::from_obj(obj, resolver))
-            .transpose()?;
-
-        Ok(HalftoneSix {
-            width,
-            height,
-            transfer_function,
-        })
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
 pub struct HalftoneTen<'a> {
     /// The side of square X, in device pixels
+    #[field("Xsquare")]
     x_square: i32,
 
     /// The side of square Y, in device pixels
+    #[field("Ysquare")]
     y_square: i32,
 
+    #[field("TransferFunction")]
     transfer_function: Option<TransferFunction<'a>>,
 }
 
-impl<'a> HalftoneTen<'a> {
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let x_square = dict.expect_integer("Xsquare", resolver)?;
-        let y_square = dict.expect_integer("Ysquare", resolver)?;
-        let transfer_function = dict
-            .get_object("TransferFunction", resolver)?
-            .map(|obj| TransferFunction::from_obj(obj, resolver))
-            .transpose()?;
-
-        Ok(Self {
-            x_square,
-            y_square,
-            transfer_function,
-        })
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
 pub struct HalftoneSixteen<'a> {
     /// The width of the first (or only) rectangle in the threshold array, in device pixels.
+    #[field("Width")]
     width: i32,
 
     /// The height of the first (or only) rectangle in the threshold array, in device pixels.
+    #[field("Height")]
     height: i32,
 
     /// The width of the optional second rectangle in the threshold array, in device pixels.
@@ -218,57 +159,33 @@ pub struct HalftoneSixteen<'a> {
     /// If this entry is present, the Height2 entry shall be present as well.
     /// If this entry is absent, the Height2 entry shall also be absent, and the threshold array has
     /// only one rectangle
+    #[field("Width2")]
     width_two: Option<i32>,
 
     /// The height of the optional second rectangle in the threshold array, in device pixels
+    #[field("Height2")]
     height_two: Option<i32>,
 
+    #[field("TransferFunction")]
     transfer_function: Option<TransferFunction<'a>>,
-}
-
-impl<'a> HalftoneSixteen<'a> {
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let width = dict.expect_integer("Width", resolver)?;
-        let height = dict.expect_integer("Height", resolver)?;
-        let width_two = dict.get_integer("Width2", resolver)?;
-        let height_two = dict.get_integer("Height2", resolver)?;
-        let transfer_function = dict
-            .get_object("TransferFunction", resolver)?
-            .map(|obj| TransferFunction::from_obj(obj, resolver))
-            .transpose()?;
-
-        Ok(Self {
-            width,
-            height,
-            width_two,
-            height_two,
-            transfer_function,
-        })
-    }
 }
 
 impl<'a> HalftoneDictionary<'a> {
     pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         dict.expect_type("Halftone", resolver, false)?;
 
-        Ok(
-            match HalftoneType::from_integer(dict.expect_integer("HalftoneType", resolver)?)? {
-                HalftoneType::One => {
-                    HalftoneDictionary::One(HalftoneOne::from_dict(dict, resolver)?)
-                }
-                HalftoneType::Five => {
-                    HalftoneDictionary::Five(HalftoneFive::from_dict(dict, resolver)?)
-                }
-                HalftoneType::Six => {
-                    HalftoneDictionary::Six(HalftoneSix::from_dict(dict, resolver)?)
-                }
-                HalftoneType::Ten => {
-                    HalftoneDictionary::Ten(HalftoneTen::from_dict(dict, resolver)?)
-                }
-                HalftoneType::Sixteen => {
-                    HalftoneDictionary::Sixteen(HalftoneSixteen::from_dict(dict, resolver)?)
-                }
-            },
-        )
+        let halftone_type = dict.expect::<HalftoneType>("HalftoneType", resolver)?;
+
+        let obj = Object::Dictionary(dict);
+
+        Ok(match halftone_type {
+            HalftoneType::One => HalftoneDictionary::One(HalftoneOne::from_obj(obj, resolver)?),
+            HalftoneType::Five => HalftoneDictionary::Five(HalftoneFive::from_obj(obj, resolver)?),
+            HalftoneType::Six => HalftoneDictionary::Six(HalftoneSix::from_obj(obj, resolver)?),
+            HalftoneType::Ten => HalftoneDictionary::Ten(HalftoneTen::from_obj(obj, resolver)?),
+            HalftoneType::Sixteen => {
+                HalftoneDictionary::Sixteen(HalftoneSixteen::from_obj(obj, resolver)?)
+            }
+        })
     }
 }

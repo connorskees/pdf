@@ -1,4 +1,4 @@
-use crate::{error::PdfResult, objects::Dictionary,  stream::Stream, Resolve};
+use crate::{error::PdfResult, objects::Dictionary, stream::Stream, Resolve};
 
 pub use self::{form::FormXObject, image::ImageXObject, postscript::PostScriptXObject};
 

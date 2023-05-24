@@ -1,4 +1,4 @@
-use crate::{error::PdfResult, objects::Dictionary,  Resolve};
+use crate::{error::PdfResult, objects::Dictionary, Resolve};
 
 use super::{link::LinkAnnotation, text::TextAnnotation, BaseAnnotation};
 

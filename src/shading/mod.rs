@@ -169,7 +169,7 @@ impl<'a> BaseShadingDictionary<'a> {
             })
             .transpose()?;
 
-        let bbox = dict.get_rectangle("BBox", resolver)?;
+        let bbox = dict.get::<Rectangle>("BBox", resolver)?;
         let anti_alias = dict.get_bool("AntiAlias", resolver)?.unwrap_or(false);
 
         Ok(Self {

@@ -5,7 +5,6 @@ use crate::{
     error::{ParseError, PdfResult},
     objects::{Dictionary, Object, Reference},
     optional_content::OptionalContent,
-    
     resources::graphics_state_parameters::LineDashPattern,
     Resolve,
 };
@@ -233,7 +232,7 @@ impl MarkupAnnotation {
         let popup = dict.get_reference("Popup")?;
         let ca = dict.get_number("CA", resolver)?.unwrap_or(1.0);
         let rc = None;
-        let creation_date = dict.get_date("CreationDate", resolver)?;
+        let creation_date = dict.get::<Date>("CreationDate", resolver)?;
         let irt = dict.get_reference("IRT")?;
         let subj = dict.get_string("Subj", resolver)?;
         let rt = dict
@@ -273,7 +272,7 @@ impl BaseAnnotation {
 
         let subtype = AnnotationSubTypeKind::from_str(&dict.expect_name("Subtype", resolver)?)?;
 
-        let rect = dict.expect_rectangle("Rect", resolver)?;
+        let rect = dict.expect::<Rectangle>("Rect", resolver)?;
         let contents = dict.get_string("Contents", resolver)?;
         let p = dict.get_reference("P")?;
         let name = dict.get_string("NM", resolver)?;

@@ -1,6 +1,5 @@
 use crate::{
-    catalog::MetadataStream, error::PdfResult, objects::Dictionary, stream::Stream,
-    Resolve,
+    catalog::MetadataStream, error::PdfResult, objects::Dictionary, stream::Stream, Resolve,
 };
 
 #[derive(Debug, Clone)]

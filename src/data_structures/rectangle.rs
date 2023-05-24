@@ -1,4 +1,4 @@
-use crate::{catalog::assert_len, error::PdfResult, objects::Object, Resolve};
+use crate::{catalog::assert_len, error::PdfResult, objects::Object, FromObj, Resolve};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Rectangle {
@@ -6,6 +6,13 @@ pub struct Rectangle {
     lower_left_y: f32,
     upper_right_x: f32,
     upper_right_y: f32,
+}
+
+impl<'a> FromObj<'a> for Rectangle {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let arr = resolver.assert_arr(obj)?;
+        Self::from_arr(arr, resolver)
+    }
 }
 
 impl Rectangle {

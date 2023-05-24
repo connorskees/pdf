@@ -10,7 +10,6 @@ use crate::{
     date::Date,
     error::PdfResult,
     objects::Dictionary,
-    
     resources::Resources,
     stream::Stream,
     Reference, Resolve,
@@ -364,8 +363,8 @@ impl<'a> InheritablePageFields<'a> {
             .transpose()?
             .map(Rc::new);
 
-        let media_box = dict.get_rectangle("MediaBox", resolver)?;
-        let crop_box = dict.get_rectangle("CropBox", resolver)?;
+        let media_box = dict.get::<Rectangle>("MediaBox", resolver)?;
+        let crop_box = dict.get::<Rectangle>("CropBox", resolver)?;
 
         let rotate = dict.get_integer("Rotate", resolver)?;
 

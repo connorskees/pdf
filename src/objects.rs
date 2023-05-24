@@ -1,12 +1,8 @@
-use std::{collections::HashMap, convert::TryFrom, fmt, marker::PhantomData};
+use std::{collections::HashMap, convert::TryFrom, fmt};
 
 use crate::{
-    assert_reference,
-    data_structures::{Matrix, Rectangle},
-    date::Date,
-    function::Function,
-    stream::Stream,
-    ParseError, PdfResult, Resolve,
+    assert_reference, data_structures::Matrix, date::Date, stream::Stream, ParseError, PdfResult,
+    Resolve,
 };
 
 #[derive(Debug)]
@@ -25,7 +21,6 @@ pub enum ObjectType {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Object<'a> {
-    Phantom(PhantomData<&'a ()>),
     Null,
     True,
     False,
@@ -95,6 +90,28 @@ impl<'a> Dictionary<'a> {
 
     pub fn entries(self) -> impl Iterator<Item = (String, Object<'a>)> {
         self.dict.into_iter()
+    }
+
+    pub fn get<T: FromObj<'a>>(
+        &mut self,
+        key: &str,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Option<T>> {
+        self.dict
+            .remove(key)
+            .map(|obj| T::from_obj(obj, resolver))
+            .transpose()
+    }
+
+    pub fn expect<T: FromObj<'a>>(
+        &mut self,
+        key: &'static str,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<T> {
+        self.dict
+            .remove(key)
+            .map(|obj| T::from_obj(obj, resolver))
+            .ok_or(ParseError::MissingRequiredKey { key })?
     }
 
     pub fn get_stream(
@@ -351,78 +368,81 @@ impl<'a> Dictionary<'a> {
     }
 }
 
-/// Non-native objects
-impl<'a> Dictionary<'a> {
-    pub fn get_rectangle(
-        &mut self,
-        key: &str,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Option<Rectangle>> {
-        self.get_arr(key, resolver)?
-            .map(|objs| Rectangle::from_arr(objs, resolver))
-            .transpose()
-    }
+#[repr(transparent)]
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct Name(pub String);
 
-    pub fn expect_rectangle(
-        &mut self,
-        key: &'static str,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Rectangle> {
-        Rectangle::from_arr(self.expect_arr(key, resolver)?, resolver)
-    }
+pub trait FromObj<'a>: Sized {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self>;
+}
 
-    pub fn get_date(
-        &mut self,
-        key: &str,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Option<Date>> {
-        self.get_string(key, resolver)?
-            .as_deref()
-            .map(Date::from_str)
-            .transpose()
+impl<'a> FromObj<'a> for i32 {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        resolver.assert_integer(obj)
     }
+}
 
-    pub fn expect_date(
-        &mut self,
-        key: &'static str,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Date> {
-        Date::from_str(&self.expect_string(key, resolver)?)
+impl<'a> FromObj<'a> for u32 {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        resolver.assert_unsigned_integer(obj)
     }
+}
 
-    pub fn get_function(
-        &mut self,
-        key: &str,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Option<Function<'a>>> {
-        self.get_object(key, resolver)?
-            .map(|obj| Function::from_obj(obj, resolver))
-            .transpose()
+impl<'a> FromObj<'a> for f32 {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        resolver.assert_number(obj)
     }
+}
 
-    pub fn expect_function(
-        &mut self,
-        key: &'static str,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Function<'a>> {
-        Function::from_obj(self.expect_object(key, resolver)?, resolver)
+impl<'a> FromObj<'a> for bool {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        resolver.assert_bool(obj)
     }
+}
 
-    pub fn get_matrix(
-        &mut self,
-        key: &str,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Option<Matrix>> {
-        self.get_arr(key, resolver)?
-            .map(|obj| Matrix::from_arr(obj, resolver))
-            .transpose()
+impl<'a> FromObj<'a> for Name {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        Ok(Name(resolver.assert_name(obj)?))
     }
+}
 
-    pub fn expect_matrix(
-        &mut self,
-        key: &'static str,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Matrix> {
-        Matrix::from_arr(self.expect_arr(key, resolver)?, resolver)
+impl<'a> FromObj<'a> for String {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        resolver.assert_string(obj)
+    }
+}
+
+impl<'a> FromObj<'a> for Object<'a> {
+    fn from_obj(obj: Object<'a>, _resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        Ok(obj)
+    }
+}
+
+impl<'a> FromObj<'a> for Dictionary<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        resolver.assert_dict(obj)
+    }
+}
+
+impl<'a, T: FromObj<'a>> FromObj<'a> for Vec<T> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let arr = resolver.assert_arr(obj)?;
+        arr.into_iter()
+            .map(|obj| T::from_obj(obj, resolver))
+            .collect()
+    }
+}
+
+impl<'a> FromObj<'a> for Date {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let s = resolver.assert_string(obj)?;
+        Date::from_str(&s)
+    }
+}
+
+impl<'a> FromObj<'a> for Matrix {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let arr = resolver.assert_arr(obj)?;
+        Matrix::from_arr(arr, resolver)
     }
 }

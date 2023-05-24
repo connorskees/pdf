@@ -1,8 +1,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    error::PdfResult, filter::dct::DctDecoder, objects::Dictionary,  stream::StreamDict,
-    Resolve,
+    error::PdfResult, filter::dct::DctDecoder, objects::Dictionary, stream::StreamDict, Resolve,
 };
 
 use flate::{FlateDecoder, FlateDecoderParams};

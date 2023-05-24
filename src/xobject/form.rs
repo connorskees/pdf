@@ -100,9 +100,9 @@ impl<'a> FormXObject<'a> {
     pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let dict = &mut stream.dict.other;
 
-        let bbox = dict.expect_rectangle("BBox", resolver)?;
+        let bbox = dict.expect::<Rectangle>("BBox", resolver)?;
         let matrix = dict
-            .get_matrix("Matrix", resolver)?
+            .get::<Matrix>("Matrix", resolver)?
             .unwrap_or_else(Matrix::identity);
 
         let resources = dict
@@ -110,26 +110,17 @@ impl<'a> FormXObject<'a> {
             .map(|dict| Resources::from_dict(dict, resolver))
             .transpose()?;
 
-        let reference = dict
-            .get_dict("Ref", resolver)?
-            .map(|dict| ReferenceXObject::from_dict(dict, resolver))
-            .transpose()?;
-        let group = dict
-            .get_dict("Group", resolver)?
-            .map(|dict| GroupAttributes::from_dict(dict, resolver))
-            .transpose()?;
+        let reference = dict.get::<ReferenceXObject>("Ref", resolver)?;
+        let group = dict.get::<GroupAttributes>("Group", resolver)?;
 
         let metadata = dict
             .get_stream("Metadata", resolver)?
             .map(|stream| MetadataStream::from_stream(stream, resolver))
             .transpose()?;
 
-        let piece_info = dict
-            .get_dict("PieceInfo", resolver)?
-            .map(|dict| PagePiece::from_dict(dict, resolver))
-            .transpose()?;
+        let piece_info = dict.get::<PagePiece>("PieceInfo", resolver)?;
 
-        let last_modified = dict.get_date("LastModified", resolver)?;
+        let last_modified = dict.get::<Date>("LastModified", resolver)?;
         let struct_parent = dict.get_integer("StructParent", resolver)?;
         let struct_parents = dict.get_integer("StructParents", resolver)?;
         let opi = dict

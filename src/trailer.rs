@@ -75,10 +75,7 @@ impl Trailer {
         };
         // TODO: encryption dicts
         let encryption = None;
-        let id = dict
-            .get_arr("ID", resolver)?
-            .map(|objs| FileIdentifier::from_arr(objs, resolver))
-            .transpose()?;
+        let id = dict.get::<FileIdentifier>("ID", resolver)?;
         let info = dict.get_reference("Info")?;
         let doc_checksum = dict.get_name("DocChecksum", resolver)?;
 

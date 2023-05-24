@@ -4,7 +4,7 @@ use crate::{
     error::PdfResult,
     function::Function,
     objects::{Dictionary, Object},
-    Resolve,
+    FromObj, Resolve,
 };
 
 /// In Type 1 (function-based) shadings, the colour at every point in the domain is defined by a specified
@@ -36,14 +36,12 @@ pub struct FunctionBasedShading<'a> {
 impl<'a> FunctionBasedShading<'a> {
     pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let domain = dict
-            .get_arr("Domain", resolver)?
-            .map(|arr| FunctionDomain::from_arr(arr, resolver))
-            .transpose()?
+            .get::<FunctionDomain>("Domain", resolver)?
             .unwrap_or_default();
 
-        let matrix = dict.get_matrix("Matrix", resolver)?;
+        let matrix = dict.get::<Matrix>("Matrix", resolver)?;
 
-        let function = dict.expect_function("Function", resolver)?;
+        let function = dict.expect::<Function>("Function", resolver)?;
 
         Ok(Self {
             domain,
@@ -61,8 +59,9 @@ struct FunctionDomain {
     y_max: f32,
 }
 
-impl FunctionDomain {
-    pub fn from_arr<'a>(mut arr: Vec<Object>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for FunctionDomain {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut arr = resolver.assert_arr(obj)?;
         assert_len(&arr, 4)?;
 
         let y_max = resolver.assert_number(arr.pop().unwrap())?;

@@ -1,7 +1,7 @@
 use crate::{
     error::{ParseError, PdfResult},
     objects::{Dictionary, Object, ObjectType},
-   Resolve,
+    FromObj, Resolve,
 };
 
 use self::goto::GoToRemoteAction;
@@ -56,10 +56,13 @@ impl<'a> Actions<'a> {
             .transpose()?;
 
         let action = match action_type {
-            ActionType::GoTo => Action::GoTo(GoToAction::from_dict(dict, resolver)?),
-            ActionType::GoToRemote => {
-                Action::GoToRemote(GoToRemoteAction::from_dict(dict, resolver)?)
+            ActionType::GoTo => {
+                Action::GoTo(GoToAction::from_obj(Object::Dictionary(dict), resolver)?)
             }
+            ActionType::GoToRemote => Action::GoToRemote(GoToRemoteAction::from_obj(
+                Object::Dictionary(dict),
+                resolver,
+            )?),
             ActionType::Uri => Action::Uri(UriAction::from_dict(dict, resolver)?),
             _ => todo!(),
         };

@@ -3,7 +3,7 @@ use crate::{
     catalog::assert_len,
     error::{ParseError, PdfResult},
     objects::{Object, ObjectType, Reference},
-    Resolve,
+    FromObj, Resolve,
 };
 
 /// A destination defines a particular view of a document, consisting of the following items:
@@ -21,8 +21,8 @@ pub enum Destination {
     Named(String),
 }
 
-impl Destination {
-    pub fn from_obj<'a>(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for Destination {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let obj = resolver.resolve(obj)?;
 
         match obj {

@@ -64,7 +64,7 @@ impl<'a> LatticeformShading<'a> {
             .into_iter()
             .map(|obj| resolver.assert_number(obj))
             .collect::<PdfResult<Vec<f32>>>()?;
-        let function = dict.get_function("Function", resolver)?;
+        let function = dict.get::<Function>("Function", resolver)?;
 
         Ok(Self {
             bits_per_coordinate,

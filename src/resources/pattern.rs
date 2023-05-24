@@ -2,7 +2,6 @@ use crate::{
     data_structures::{Matrix, Rectangle},
     error::PdfResult,
     objects::{Dictionary, Object},
-    
     shading::ShadingObject,
     stream::Stream,
     Resolve,
@@ -94,12 +93,12 @@ impl<'a> TilingPattern<'a> {
         let mut dict = stream.dict.other;
         let paint_type = PaintType::from_integer(dict.expect_integer("PaintType", resolver)?)?;
         let tiling_type = TilingType::from_integer(dict.expect_integer("TilingType", resolver)?)?;
-        let bbox = dict.expect_rectangle("BBox", resolver)?;
+        let bbox = dict.expect::<Rectangle>("BBox", resolver)?;
         let x_step = dict.expect_number("XStep", resolver)?;
         let y_step = dict.expect_number("YStep", resolver)?;
         let resources = Resources::from_dict(dict.expect_dict("Resources", resolver)?, resolver)?;
         let matrix = dict
-            .get_matrix("Matrix", resolver)?
+            .get::<Matrix>("Matrix", resolver)?
             .unwrap_or_else(Matrix::identity);
 
         Ok(Self {
@@ -136,7 +135,7 @@ impl<'a> ShadingPattern<'a> {
         let shading = ShadingObject::from_obj(dict.expect_object("Shading", resolver)?, resolver)?;
 
         let matrix = dict
-            .get_matrix("Matrix", resolver)?
+            .get::<Matrix>("Matrix", resolver)?
             .unwrap_or_else(Matrix::identity);
 
         let ext_g_state = dict
