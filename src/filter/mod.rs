@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    error::PdfResult, filter::dct::DctDecoder, objects::Dictionary, pdf_enum, stream::StreamDict,
+    error::PdfResult, filter::dct::DctDecoder, objects::Dictionary,  stream::StreamDict,
     Resolve,
 };
 
@@ -58,49 +58,47 @@ pub(crate) fn decode_stream<'a, 'b>(
     Ok(Cow::Borrowed(stream))
 }
 
-pdf_enum!(
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    pub enum FilterKind {
-        /// Decodes data encoded in an ASCII hexadecimal representation, reproducing
-        /// the original binary data
-        AsciiHex = "ASCIIHexDecode",
+#[pdf_enum]
+pub enum FilterKind {
+    /// Decodes data encoded in an ASCII hexadecimal representation, reproducing
+    /// the original binary data
+    AsciiHex = "ASCIIHexDecode",
 
-        /// Decodes data encoded in an ASCII base-85 representation, reproducing the
-        /// original binary data
-        Ascii85 = "ASCII85Decode",
+    /// Decodes data encoded in an ASCII base-85 representation, reproducing the
+    /// original binary data
+    Ascii85 = "ASCII85Decode",
 
-        /// Decompresses data encoded using the LZW (Lempel-ZivWelch) adaptive compression
-        /// method, reproducing the original text or binary data
-        Lzw = "LZWDecode",
+    /// Decompresses data encoded using the LZW (Lempel-ZivWelch) adaptive compression
+    /// method, reproducing the original text or binary data
+    Lzw = "LZWDecode",
 
-        /// Decompresses data encoded using the zlib/deflate compression method,
-        /// reproducing the original text or binary data
-        Flate = "FlateDecode",
+    /// Decompresses data encoded using the zlib/deflate compression method,
+    /// reproducing the original text or binary data
+    Flate = "FlateDecode",
 
-        /// Decompresses data encoded using a byte-oriented run-length encoding algorithm,
-        /// reproducing the original text or binary data (typically monochrome image data,
-        /// or any data that contains frequent long runs of a single byte value)
-        RunLength = "RunLengthDecode",
+    /// Decompresses data encoded using a byte-oriented run-length encoding algorithm,
+    /// reproducing the original text or binary data (typically monochrome image data,
+    /// or any data that contains frequent long runs of a single byte value)
+    RunLength = "RunLengthDecode",
 
-        /// Decompresses data encoded using the CCITT facsimile standard, reproducing
-        /// the original data (typically monochrome image data at 1 bit per pixel)
-        CcittFax = "CCITTFaxDecode",
+    /// Decompresses data encoded using the CCITT facsimile standard, reproducing
+    /// the original data (typically monochrome image data at 1 bit per pixel)
+    CcittFax = "CCITTFaxDecode",
 
-        /// Decompresses data encoded using the JBIG2 standard, reproducing the original
-        /// monochrome (1 bit per pixel) image data (or an approximation of that data)
-        Jbig2 = "JBIG2Decode",
+    /// Decompresses data encoded using the JBIG2 standard, reproducing the original
+    /// monochrome (1 bit per pixel) image data (or an approximation of that data)
+    Jbig2 = "JBIG2Decode",
 
-        /// Decompresses data encoded using a DCT (discrete cosine transform) technique
-        /// based on the JPEG standard, reproducing image sample data that approximates
-        /// the original data
-        Dct = "DCTDecode",
+    /// Decompresses data encoded using a DCT (discrete cosine transform) technique
+    /// based on the JPEG standard, reproducing image sample data that approximates
+    /// the original data
+    Dct = "DCTDecode",
 
-        /// Decompresses data encoded using the waveletbased JPEG2000 standard, reproducing
-        /// the original image data
-        Jpx = "JPXDecode",
+    /// Decompresses data encoded using the waveletbased JPEG2000 standard, reproducing
+    /// the original image data
+    Jpx = "JPXDecode",
 
-        /// Decrypts data encrypted by a security handler, reproducing the data as it
-        /// was before encryption
-        Crypt = "Crypt",
-    }
-);
+    /// Decrypts data encrypted by a security handler, reproducing the data as it
+    /// was before encryption
+    Crypt = "Crypt",
+}

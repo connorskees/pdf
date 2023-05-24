@@ -1,7 +1,5 @@
 use std::borrow::Cow;
 
-use crate::pdf_enum;
-
 use crate::postscript::{PostScriptError, PostScriptResult};
 
 #[derive(Debug, Clone)]
@@ -19,60 +17,58 @@ pub(crate) enum PostScriptFunctionToken {
     CloseCurlyBrace,
 }
 
-pdf_enum!(
-    #[derive(Debug)]
-    pub(crate) enum PostScriptFunctionOperator {
-        // Arithmetic
-        Abs = "abs",
-        Add = "add",
-        Atan = "atan",
-        Ceiling = "ceiling",
-        Cos = "cos",
-        Cvi = "cvi",
-        Cvr = "cvr",
-        Div = "div",
-        Exp = "exp",
-        Floor = "floor",
-        Idiv = "idiv",
-        Ln = "ln",
-        Log = "log",
-        Mod = "mod",
-        Mul = "mul",
-        Neg = "neg",
-        Round = "round",
-        Sin = "sin",
-        Sqrt = "sqrt",
-        Sub = "sub",
-        Truncate = "truncate",
+#[pdf_enum]
+pub(crate) enum PostScriptFunctionOperator {
+    // Arithmetic
+    Abs = "abs",
+    Add = "add",
+    Atan = "atan",
+    Ceiling = "ceiling",
+    Cos = "cos",
+    Cvi = "cvi",
+    Cvr = "cvr",
+    Div = "div",
+    Exp = "exp",
+    Floor = "floor",
+    Idiv = "idiv",
+    Ln = "ln",
+    Log = "log",
+    Mod = "mod",
+    Mul = "mul",
+    Neg = "neg",
+    Round = "round",
+    Sin = "sin",
+    Sqrt = "sqrt",
+    Sub = "sub",
+    Truncate = "truncate",
 
-        // Relational, boolean, and bitwise
-        And = "and",
-        Bitshift = "bitshift",
-        Eq = "eq",
-        False = "false",
-        Ge = "ge",
-        Gt = "gt",
-        Le = "le",
-        Lt = "lt",
-        Ne = "ne",
-        Not = "not",
-        Or = "or",
-        True = "true",
-        Xor = "xor",
+    // Relational, boolean, and bitwise
+    And = "and",
+    Bitshift = "bitshift",
+    Eq = "eq",
+    False = "false",
+    Ge = "ge",
+    Gt = "gt",
+    Le = "le",
+    Lt = "lt",
+    Ne = "ne",
+    Not = "not",
+    Or = "or",
+    True = "true",
+    Xor = "xor",
 
-        // Conditional
-        If = "if",
-        Ifelse = "ifelse",
+    // Conditional
+    If = "if",
+    Ifelse = "ifelse",
 
-        // Stack
-        Copy = "copy",
-        Dup = "dup",
-        Exch = "exch",
-        Index = "index",
-        Pop = "pop",
-        Roll = "roll",
-    }
-);
+    // Stack
+    Copy = "copy",
+    Dup = "dup",
+    Exch = "exch",
+    Index = "index",
+    Pop = "pop",
+    Roll = "roll",
+}
 
 // todo: case sensitive?
 fn ident_token_from_bytes(bytes: &[u8]) -> PostScriptResult<PostScriptFunctionToken> {

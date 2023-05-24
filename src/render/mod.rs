@@ -15,7 +15,6 @@ use crate::{
     geometry::{Path, Point},
     objects::Object,
     page::PageObject,
-    pdf_enum,
     postscript::{charstring::CharStringPainter, PostscriptInterpreter},
     resources::graphics_state_parameters::{LineCapStyle, LineDashPattern, LineJoinStyle},
     shading::ShadingObject,
@@ -1257,11 +1256,8 @@ enum GraphicsObject {
     Shading,
 }
 
-pdf_enum!(
-    int
-    #[derive(Debug)]
-    enum OverprintMode {
-        Zero = 0,
-        NonZero = 1,
-    }
-);
+#[pdf_enum(Integer)]
+enum OverprintMode {
+    Zero = 0,
+    NonZero = 1,
+}

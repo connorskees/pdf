@@ -1,7 +1,7 @@
 use crate::{
     error::{ParseError, PdfResult},
     objects::{Dictionary, Object, ObjectType},
-    pdf_enum, Resolve,
+   Resolve,
 };
 
 use self::goto::GoToRemoteAction;
@@ -68,63 +68,61 @@ impl<'a> Actions<'a> {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug)]
-    pub enum ActionType {
-        /// Go to a destination in the current document
-        GoTo = "GoTo",
+#[pdf_enum]
+pub enum ActionType {
+    /// Go to a destination in the current document
+    GoTo = "GoTo",
 
-        /// Go to a destination in another document
-        GoToRemote = "GoToR",
+    /// Go to a destination in another document
+    GoToRemote = "GoToR",
 
-        /// Go to a destination in an embedded file
-        GoToEmbedded = "GoToE",
+    /// Go to a destination in an embedded file
+    GoToEmbedded = "GoToE",
 
-        /// Launch an application, usually to open a file
-        Launch = "Launch",
+    /// Launch an application, usually to open a file
+    Launch = "Launch",
 
-        /// Begin reading an article thread
-        Thread = "Thread",
+    /// Begin reading an article thread
+    Thread = "Thread",
 
-        /// Resolve a uniform resource identifier
-        Uri = "URI",
+    /// Resolve a uniform resource identifier
+    Uri = "URI",
 
-        /// Play a sound
-        Sound = "Sound",
+    /// Play a sound
+    Sound = "Sound",
 
-        /// Play a movie
-        Movie = "Movie",
+    /// Play a movie
+    Movie = "Movie",
 
-        /// Set an annotation's Hidden flag
-        Hide = "Hide",
+    /// Set an annotation's Hidden flag
+    Hide = "Hide",
 
-        /// Execute an action predefined by the conforming reader
-        Named = "Named",
+    /// Execute an action predefined by the conforming reader
+    Named = "Named",
 
-        /// Send data to a uniform resource locator
-        SubmitForm = "SubmitForm",
+    /// Send data to a uniform resource locator
+    SubmitForm = "SubmitForm",
 
-        /// Set fields to their default values
-        ResetForm = "ResetForm",
+    /// Set fields to their default values
+    ResetForm = "ResetForm",
 
-        /// Import field values from a file
-        ImportData = "ImportData",
+    /// Import field values from a file
+    ImportData = "ImportData",
 
-        /// Execute a JavaScript script
-        JavaScript = "JavaScript",
+    /// Execute a JavaScript script
+    JavaScript = "JavaScript",
 
-        /// Set the states of optional content groups
-        ///
-        /// NOTE: This action is considered obsolete and should not be used
-        SetOptionalContentGroupState = "SetOCGState",
+    /// Set the states of optional content groups
+    ///
+    /// NOTE: This action is considered obsolete and should not be used
+    SetOptionalContentGroupState = "SetOCGState",
 
-        /// Controls the playing of multimedia content
-        Rendition = "Rendition",
+    /// Controls the playing of multimedia content
+    Rendition = "Rendition",
 
-        /// Updates the display of a document, using a transition dictionary
-        Trans = "Trans",
+    /// Updates the display of a document, using a transition dictionary
+    Trans = "Trans",
 
-        /// Set the current view of a 3D annotation
-        GoTo3DView = "GoTo3DView",
-    }
-);
+    /// Set the current view of a 3D annotation
+    GoTo3DView = "GoTo3DView",
+}

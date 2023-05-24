@@ -1,5 +1,8 @@
 #![allow(dead_code)]
 
+#[macro_use]
+extern crate pdf_macro;
+
 mod actions;
 mod annotation;
 mod catalog;
@@ -16,7 +19,6 @@ mod function;
 mod geometry;
 mod halftones;
 mod lex;
-mod macros;
 mod object_stream;
 mod objects;
 mod optional_content;
@@ -509,7 +511,12 @@ impl<'a> Parser<'a> {
     }
 }
 
+pub trait FromObj: Sized {
+    fn from_obj<'a>(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self>;
+}
+
 fn main() -> PdfResult<()> {
+    let mut parser = Parser::new("corpus/Christopher Smith Resume.pdf")?;
     // dbg!(&parser.page_tree);
 
     for page in parser.pages() {

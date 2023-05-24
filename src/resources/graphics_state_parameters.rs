@@ -8,7 +8,6 @@ use crate::{
     function::{Function, TransferFunction},
     halftones::Halftones,
     objects::{Dictionary, Object, ObjectType},
-    pdf_enum,
     render::{graphics_state::GraphicsState, text_state::TextState},
     stream::Stream,
     Resolve,
@@ -284,16 +283,14 @@ impl<'a> SoftMaskDictionary<'a> {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug, Clone, Copy)]
-    enum SoftMaskSubtype {
-        /// The group's computed alpha shall be used, disregarding its colour
-        Alpha = "Alpha",
+#[pdf_enum]
+enum SoftMaskSubtype {
+    /// The group's computed alpha shall be used, disregarding its colour
+    Alpha = "Alpha",
 
-        /// The group's computed colour shall be converted to a single-component luminosity value
-        Luminosity = "Luminosity",
-    }
-);
+    /// The group's computed colour shall be converted to a single-component luminosity value
+    Luminosity = "Luminosity",
+}
 
 #[derive(Debug, Clone)]
 pub struct LineDashPattern {
@@ -506,58 +503,50 @@ impl<'a> GraphicsStateParameters<'a> {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug, Clone, Copy)]
-    pub enum RenderingIntent {
-        AbsoluteColorimetric = "AbsoluteColorimetric",
-        RelativeColorimetric = "RelativeColorimetric",
-        Saturation = "Saturation",
-        Perceptual = "Perceptual",
-    }
-);
+#[pdf_enum]
+pub enum RenderingIntent {
+    AbsoluteColorimetric = "AbsoluteColorimetric",
+    RelativeColorimetric = "RelativeColorimetric",
+    Saturation = "Saturation",
+    Perceptual = "Perceptual",
+}
 
-pdf_enum!(
-    int
-    /// The line join style shall specify the shape to be used at the corners of
-    /// paths that are stroked. Join styles shall be significant only at points
-    /// where consecutive segments of a path connect at an angle; segments that
-    /// meet or intersect fortuitously shall receive no special treatment.
-    #[derive(Debug, Clone, Copy)]
-    pub enum LineJoinStyle {
-        /// The outer edges of the strokes for the two segments shall be extended
-        /// until they meet at an angle, as in a picture frame. If the segments
-        /// meet at too sharp an angle, a bevel join shall be used instead.
-        Miter = 0,
+#[pdf_enum(Integer)]
+/// The line join style shall specify the shape to be used at the corners of
+/// paths that are stroked. Join styles shall be significant only at points
+/// where consecutive segments of a path connect at an angle; segments that
+/// meet or intersect fortuitously shall receive no special treatment.
+pub enum LineJoinStyle {
+    /// The outer edges of the strokes for the two segments shall be extended
+    /// until they meet at an angle, as in a picture frame. If the segments
+    /// meet at too sharp an angle, a bevel join shall be used instead.
+    Miter = 0,
 
-        /// An arc of a circle with a diameter equal to the line width shall be
-        /// drawn around the point where the two segments meet, connecting the
-        /// outer edges of the strokes for the two segments. This pieslice-shaped
-        /// figure shall be filled in, producing a rounded corner.
-        Round = 1,
+    /// An arc of a circle with a diameter equal to the line width shall be
+    /// drawn around the point where the two segments meet, connecting the
+    /// outer edges of the strokes for the two segments. This pieslice-shaped
+    /// figure shall be filled in, producing a rounded corner.
+    Round = 1,
 
-        /// The two segments shall be finished with butt caps and the resulting
-        /// notch beyond the ends of the segments shall be filled with a triangle.
-        Bevel = 2,
-    }
-);
+    /// The two segments shall be finished with butt caps and the resulting
+    /// notch beyond the ends of the segments shall be filled with a triangle.
+    Bevel = 2,
+}
 
-pdf_enum!(
-    int
-    /// The line cap style shall specify the shape that shall be used at the
-    /// ends of open subpaths (and dashes, if any) when they are stroked.
-    #[derive(Debug, Clone, Copy)]
-    pub enum LineCapStyle {
-        /// Butt cap. The stroke shall be squared off at the endpoint of the
-        /// path. There shall be no projection beyond the end of the path.
-        Butt = 0,
+#[pdf_enum(Integer)]
+/// The line cap style shall specify the shape that shall be used at the
+/// ends of open subpaths (and dashes, if any) when they are stroked.
+pub enum LineCapStyle {
+    /// Butt cap. The stroke shall be squared off at the endpoint of the
+    /// path. There shall be no projection beyond the end of the path.
+    Butt = 0,
 
-        /// Round cap. A semicircular arc with a diameter equal to the line
-        /// width shall be drawn around the endpoint and shall be filled in.
-        Round = 1,
+    /// Round cap. A semicircular arc with a diameter equal to the line
+    /// width shall be drawn around the endpoint and shall be filled in.
+    Round = 1,
 
-        /// Projecting square cap. The stroke shall continue beyond the
-        /// endpoint of the path for a distance equal to half the line width
-        /// and shall be squared off.
-        ProjectingSquare = 2,
-    }
-);
+    /// Projecting square cap. The stroke shall continue beyond the
+    /// endpoint of the path for a distance equal to half the line width
+    /// and shall be squared off.
+    ProjectingSquare = 2,
+}

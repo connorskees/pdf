@@ -1,8 +1,8 @@
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    assert_empty, error::PdfResult, font::Font, objects::Dictionary, pdf_enum,
-    shading::ShadingObject, xobject::XObject, Resolve,
+    assert_empty, error::PdfResult, font::Font, objects::Dictionary, shading::ShadingObject,
+    xobject::XObject, Resolve,
 };
 
 use self::{graphics_state_parameters::GraphicsStateParameters, pattern::Pattern};
@@ -136,13 +136,11 @@ impl<'a> Resources<'a> {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug, Clone, Copy)]
-    pub enum ProcedureSet {
-        Pdf = "PDF",
-        Text = "Text",
-        ImageB = "ImageB",
-        ImageC = "ImageC",
-        ImageI = "ImageI",
-    }
-);
+#[pdf_enum]
+pub enum ProcedureSet {
+    Pdf = "PDF",
+    Text = "Text",
+    ImageB = "ImageB",
+    ImageC = "ImageC",
+    ImageI = "ImageI",
+}

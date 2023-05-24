@@ -2,7 +2,7 @@ use crate::{
     data_structures::{Matrix, Rectangle},
     error::PdfResult,
     objects::{Dictionary, Object},
-    pdf_enum,
+    
     shading::ShadingObject,
     stream::Stream,
     Resolve,
@@ -152,54 +152,45 @@ impl<'a> ShadingPattern<'a> {
     }
 }
 
-pdf_enum!(
-    int
-    #[derive(Debug, PartialEq, Eq)]
-    enum PatternType {
-        Tiling = 1,
-        Shading = 2,
-    }
-);
+#[pdf_enum(Integer)]
+enum PatternType {
+    Tiling = 1,
+    Shading = 2,
+}
 
-pdf_enum!(
-    int
-    #[derive(Debug, Clone, Copy)]
-    enum PaintType {
-        /// The pattern's content stream shall specify the colours used to paint the pattern
-        /// cell. When the content stream begins execution, the current colour is the one
-        /// that was initially in effect in the pattern's parent content stream. This is
-        /// similar to the definition of the pattern matrix
-        Colored = 1,
+#[pdf_enum(Integer)]
+enum PaintType {
+    /// The pattern's content stream shall specify the colours used to paint the pattern
+    /// cell. When the content stream begins execution, the current colour is the one
+    /// that was initially in effect in the pattern's parent content stream. This is
+    /// similar to the definition of the pattern matrix
+    Colored = 1,
 
-        /// The pattern's content stream shall not specify any colour information. Instead,
-        /// the entire pattern cell is painted with a separately specified colour each time
-        /// the pattern is used. Essentially, the content stream describes a stencil
-        /// through which the current colour shall be poured. The content stream shall not
-        /// invoke operators that specify colours or other colourrelated parameters in the
-        /// graphics state; otherwise, an error occurs. The content stream may paint an
-        /// image mask, however, since it does not specify any colour information
-        Uncolored = 2,
-    }
-);
+    /// The pattern's content stream shall not specify any colour information. Instead,
+    /// the entire pattern cell is painted with a separately specified colour each time
+    /// the pattern is used. Essentially, the content stream describes a stencil
+    /// through which the current colour shall be poured. The content stream shall not
+    /// invoke operators that specify colours or other colourrelated parameters in the
+    /// graphics state; otherwise, an error occurs. The content stream may paint an
+    /// image mask, however, since it does not specify any colour information
+    Uncolored = 2,
+}
 
-pdf_enum!(
-    int
-    #[derive(Debug, Clone, Copy)]
-    enum TilingType {
-        /// Pattern cells shall be spaced consistently -- that is, by a multiple of a device
-        /// pixel. To achieve this, the conforming reader may need to distort the pattern
-        /// cell slightly by making small adjustments to XStep, YStep, and the transformation
-        /// matrix. The amount of distortion shall not exceed 1 device pixel
-        ConstantSpacing = 1,
+#[pdf_enum(Integer)]
+enum TilingType {
+    /// Pattern cells shall be spaced consistently -- that is, by a multiple of a device
+    /// pixel. To achieve this, the conforming reader may need to distort the pattern
+    /// cell slightly by making small adjustments to XStep, YStep, and the transformation
+    /// matrix. The amount of distortion shall not exceed 1 device pixel
+    ConstantSpacing = 1,
 
-        /// The pattern cell shall not be distorted, but the spacing between pattern cells
-        /// may vary by as much as 1 device pixel, both horizontally and vertically, when
-        /// the pattern is painted. This achieves the spacing requested by XStep and YStep
-        /// on average but not necessarily for each individual pattern cell
-        NoDistortion = 2,
+    /// The pattern cell shall not be distorted, but the spacing between pattern cells
+    /// may vary by as much as 1 device pixel, both horizontally and vertically, when
+    /// the pattern is painted. This achieves the spacing requested by XStep and YStep
+    /// on average but not necessarily for each individual pattern cell
+    NoDistortion = 2,
 
-        /// Pattern cells shall be spaced consistently as in tiling type 1 but with additional
-        /// distortion permitted to enable a more efficient implementation
-        ConstantSpacingAndFasterTiling = 3,
-    }
-);
+    /// Pattern cells shall be spaced consistently as in tiling type 1 but with additional
+    /// distortion permitted to enable a more efficient implementation
+    ConstantSpacingAndFasterTiling = 3,
+}

@@ -5,7 +5,7 @@ use crate::{
     error::{ParseError, PdfResult},
     objects::{Dictionary, Object, Reference},
     optional_content::OptionalContent,
-    pdf_enum,
+    
     resources::graphics_state_parameters::LineDashPattern,
     Resolve,
 };
@@ -218,13 +218,11 @@ impl ExternalDataDictionary {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug)]
-    enum ReplyType {
-        R = "R",
-        Group = "Group",
-    }
-);
+#[pdf_enum]
+enum ReplyType {
+    R = "R",
+    Group = "Group",
+}
 
 impl MarkupAnnotation {
     pub fn from_dict<'a>(

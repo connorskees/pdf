@@ -3,7 +3,7 @@ use crate::{
     data_structures::{NameTree, NumberTree},
     error::{ParseError, PdfResult},
     objects::{Dictionary, Object, ObjectType, Reference},
-    pdf_enum, Resolve,
+    Resolve,
 };
 
 #[derive(Debug)]
@@ -364,73 +364,71 @@ impl StructureType {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug)]
-    enum StandardStructureType {
-        /// A complete document. This is the root element of any structure tree containing
-        /// multiple parts or multiple articles
-        Document = "Document",
+#[pdf_enum]
+enum StandardStructureType {
+    /// A complete document. This is the root element of any structure tree containing
+    /// multiple parts or multiple articles
+    Document = "Document",
 
-        /// A large-scale division of a document. This type of element is appropriate for
-        /// grouping articles or sections.
-        Part = "Part",
+    /// A large-scale division of a document. This type of element is appropriate for
+    /// grouping articles or sections.
+    Part = "Part",
 
-        /// A relatively self-contained body of text constituting a single narrative or
-        /// exposition. Articles should be disjoint; that is, they should not contain other
-        /// articles as constituent elements
-        Article = "Art",
+    /// A relatively self-contained body of text constituting a single narrative or
+    /// exposition. Articles should be disjoint; that is, they should not contain other
+    /// articles as constituent elements
+    Article = "Art",
 
-        /// A container for grouping related content elements
-        ///
-        /// For example, a section might contain a heading, several introductory paragraphs,
-        /// and two or more other sections nested within it as subsections.
-        Section = "Sect",
+    /// A container for grouping related content elements
+    ///
+    /// For example, a section might contain a heading, several introductory paragraphs,
+    /// and two or more other sections nested within it as subsections.
+    Section = "Sect",
 
-        /// A generic block-level element or group of elements
-        Division = "Div",
+    /// A generic block-level element or group of elements
+    Division = "Div",
 
-        /// A portion of text consisting of one or more paragraphs attributed to someone
-        /// other than the author of the surrounding text.
-        BlockQuote = "BlockQuote",
+    /// A portion of text consisting of one or more paragraphs attributed to someone
+    /// other than the author of the surrounding text.
+    BlockQuote = "BlockQuote",
 
-        /// A brief portion of text describing a table or figure
-        Caption = "Caption",
+    /// A brief portion of text describing a table or figure
+    Caption = "Caption",
 
-        /// A list made up of table of contents item entries (structure type TOCI) and/or
-        /// other nested table of contents entries (TOC)
-        ///
-        /// A TOC entry that includes only TOCI entries represents a flat hierarchy. A TOC
-        /// entry that includes other nested TOC entries (and possibly TOCI entries) represents
-        /// a more complex hierarchy. Ideally, the hierarchy of a top level TOC entry reflects
-        /// the structure of the main body of the document.
-        TableOfContents = "TOC",
+    /// A list made up of table of contents item entries (structure type TOCI) and/or
+    /// other nested table of contents entries (TOC)
+    ///
+    /// A TOC entry that includes only TOCI entries represents a flat hierarchy. A TOC
+    /// entry that includes other nested TOC entries (and possibly TOCI entries) represents
+    /// a more complex hierarchy. Ideally, the hierarchy of a top level TOC entry reflects
+    /// the structure of the main body of the document.
+    TableOfContents = "TOC",
 
-        /// An individual member of a table of contents. This entry's children may be any of
-        /// the following structure types:
-        ///   * Lbl - A label
-        ///   * Reference - A reference to the title and the page number
-        ///   * NonStruct - Non-structure elements for wrapping a leader artifact
-        ///   * P - Descriptive text
-        ///   * TOC - Table of content elements for hierarchical tables of content, as described
-        ///           for the TOC entry
-        TableOfContentsItem = "TOCI",
+    /// An individual member of a table of contents. This entry's children may be any of
+    /// the following structure types:
+    ///   * Lbl - A label
+    ///   * Reference - A reference to the title and the page number
+    ///   * NonStruct - Non-structure elements for wrapping a leader artifact
+    ///   * P - Descriptive text
+    ///   * TOC - Table of content elements for hierarchical tables of content, as described
+    ///           for the TOC entry
+    TableOfContentsItem = "TOCI",
 
-        /// A sequence of entries containing identifying text accompanied by reference elements
-        /// (structure type Reference) that point out occurrences of the specified text in the main
-        /// body of a document.
-        Index = "Index",
+    /// A sequence of entries containing identifying text accompanied by reference elements
+    /// (structure type Reference) that point out occurrences of the specified text in the main
+    /// body of a document.
+    Index = "Index",
 
-        /// A grouping element having no inherent structural significance; it serves solely for
-        /// grouping purposes. This type of element differs from a division (structure type Div)
-        /// in that it shall not be interpreted or exported to other document formats; however,
-        /// its descendants shall be processed normally.
-        NonStructuralElement = "NonStruct",
+    /// A grouping element having no inherent structural significance; it serves solely for
+    /// grouping purposes. This type of element differs from a division (structure type Div)
+    /// in that it shall not be interpreted or exported to other document formats; however,
+    /// its descendants shall be processed normally.
+    NonStructuralElement = "NonStruct",
 
-        /// A grouping element containing private content belonging to the application producing it.
-        /// The structural significance of this type of element is unspecified and shall be determined
-        /// entirely by the conforming writer. Neither the Private element nor any of its descendants
-        /// shall be interpreted or exported to other document formats.
-        Private = "Private",
-        // todo: rest of std structure types
-    }
-);
+    /// A grouping element containing private content belonging to the application producing it.
+    /// The structural significance of this type of element is unspecified and shall be determined
+    /// entirely by the conforming writer. Neither the Private element nor any of its descendants
+    /// shall be interpreted or exported to other document formats.
+    Private = "Private",
+    // todo: rest of std structure types
+}

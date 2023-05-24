@@ -1,4 +1,4 @@
-use crate::{error::PdfResult, objects::Dictionary, pdf_enum, Resolve};
+use crate::{error::PdfResult, objects::Dictionary,  Resolve};
 
 use super::{link::LinkAnnotation, text::TextAnnotation, BaseAnnotation};
 
@@ -26,37 +26,35 @@ impl<'a> AnnotationSubType<'a> {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug)]
-    pub(super) enum AnnotationSubTypeKind {
-        Text = "Text",
-        Link = "Link",
-        FreeText = "FreeText",
-        Line = "Line",
-        Square = "Square",
-        Circle = "Circle",
-        Polygon = "Polygon",
-        PolyLine = "PolyLine",
-        Highlight = "Highlight",
-        Underline = "Underline",
-        Squiggly = "Squiggly",
-        StrikeOut = "StrikeOut",
-        Stamp = "Stamp",
-        Caret = "Caret",
-        Ink = "Ink",
-        Popup = "Popup",
-        FileAttachment = "FileAttachment",
-        Sound = "Sound",
-        Movie = "Movie",
-        Widget = "Widget",
-        Screen = "Screen",
-        PrinterMark = "PrinterMark",
-        TrapNet = "TrapNet",
-        Watermark = "Watermark",
-        ThreeD = "3D",
-        Redact = "Redact",
-    }
-);
+#[pdf_enum]
+pub(super) enum AnnotationSubTypeKind {
+    Text = "Text",
+    Link = "Link",
+    FreeText = "FreeText",
+    Line = "Line",
+    Square = "Square",
+    Circle = "Circle",
+    Polygon = "Polygon",
+    PolyLine = "PolyLine",
+    Highlight = "Highlight",
+    Underline = "Underline",
+    Squiggly = "Squiggly",
+    StrikeOut = "StrikeOut",
+    Stamp = "Stamp",
+    Caret = "Caret",
+    Ink = "Ink",
+    Popup = "Popup",
+    FileAttachment = "FileAttachment",
+    Sound = "Sound",
+    Movie = "Movie",
+    Widget = "Widget",
+    Screen = "Screen",
+    PrinterMark = "PrinterMark",
+    TrapNet = "TrapNet",
+    Watermark = "Watermark",
+    ThreeD = "3D",
+    Redact = "Redact",
+}
 
 impl AnnotationSubTypeKind {
     pub fn is_markup(&self) -> bool {

@@ -3,7 +3,7 @@ use std::{collections::HashMap, convert::TryFrom, mem};
 use crate::{
     error::{ParseError, PdfResult},
     objects::{Dictionary, Object, ObjectType},
-    pdf_enum, Resolve,
+    Resolve,
 };
 
 #[derive(Debug)]
@@ -28,31 +28,29 @@ impl FontEncoding {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug)]
-    pub enum BaseFontEncoding {
-        /// Mac OS standard encoding for Latin text in Western writing systems.
-        ///
-        /// Conforming readers shall have a predefined encoding named MacRomanEncoding that may be used with
-        /// both Type 1 and TrueType fonts.
-        MacRomanEncoding = "MacRomanEncoding",
+#[pdf_enum]
+pub enum BaseFontEncoding {
+    /// Mac OS standard encoding for Latin text in Western writing systems.
+    ///
+    /// Conforming readers shall have a predefined encoding named MacRomanEncoding that may be used with
+    /// both Type 1 and TrueType fonts.
+    MacRomanEncoding = "MacRomanEncoding",
 
-        /// An encoding for use with expert fonts-ones containing the expert character set.
-        ///
-        /// Conforming readers shall have a predefined encoding named MacExpertEncoding. Despite its
-        /// name, it is not a platform specific encoding; however, only certain fonts have the
-        /// appropriate character set for use with this encoding. No such fonts are among the
-        /// standard 14 predefined fonts.
-        MacExpertEncoding = "MacExpertEncoding",
+    /// An encoding for use with expert fonts-ones containing the expert character set.
+    ///
+    /// Conforming readers shall have a predefined encoding named MacExpertEncoding. Despite its
+    /// name, it is not a platform specific encoding; however, only certain fonts have the
+    /// appropriate character set for use with this encoding. No such fonts are among the
+    /// standard 14 predefined fonts.
+    MacExpertEncoding = "MacExpertEncoding",
 
-        /// Windows Code Page 1252, often called the "Windows ANSI" encoding.
-        ///
-        /// This is the standard Windows encoding for Latin text in Western writing systems. Conforming
-        /// readers shall have a predefined encoding named WinAnsiEncoding that may be used with both
-        /// Type 1 and TrueType fonts.
-        WinAnsiEncoding = "WinAnsiEncoding",
-    }
-);
+    /// Windows Code Page 1252, often called the "Windows ANSI" encoding.
+    ///
+    /// This is the standard Windows encoding for Latin text in Western writing systems. Conforming
+    /// readers shall have a predefined encoding named WinAnsiEncoding that may be used with both
+    /// Type 1 and TrueType fonts.
+    WinAnsiEncoding = "WinAnsiEncoding",
+}
 
 #[derive(Debug)]
 pub struct FontEncodingDict {

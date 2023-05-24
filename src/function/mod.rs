@@ -1,7 +1,7 @@
 use crate::{
     error::{ParseError, PdfResult},
     objects::{Dictionary, Object, ObjectType},
-    pdf_enum,
+    
     stream::Stream,
     Resolve,
 };
@@ -134,16 +134,13 @@ impl<'a> FunctionSubtype<'a> {
     }
 }
 
-pdf_enum!(
-    int
-    #[derive(Debug, Clone, Copy)]
-    enum FunctionType {
-        Sampled = 0,
-        ExponentialInterpolation = 2,
-        Stitching = 3,
-        PostScriptCalculator = 4,
-    }
-);
+#[pdf_enum(Integer)]
+enum FunctionType {
+    Sampled = 0,
+    ExponentialInterpolation = 2,
+    Stitching = 3,
+    PostScriptCalculator = 4,
+}
 
 #[derive(Debug, Clone)]
 pub enum SpotFunction<'a> {
@@ -161,31 +158,29 @@ impl<'a> SpotFunction<'a> {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug, Clone, Copy)]
-    pub enum PredefinedSpotFunction {
-        SimpleDot = "SimpleDot",
-        InvertedSimpleDot = "InvertedSimpleDot",
-        DoubleDot = "DoubleDot",
-        InvertedDoubleDot = "InvertedDoubleDot",
-        CosineDot = "CosineDot",
-        Double = "Double",
-        Line = "Line",
-        LineX = "LineX",
-        LineY = "LineY",
-        Round = "Round",
-        Ellipse = "Ellipse",
-        EllipseA = "EllipseA",
-        InvertedEllipseA = "InvertedEllipseA",
-        EllipseB = "EllipseB",
-        EllipseC = "EllipseC",
-        InvertedEllipseC = "InvertedEllipseC",
-        Square = "Square",
-        Cross = "Cross",
-        Rhomboid = "Rhomboid",
-        Diamond = "Diamond",
-    }
-);
+#[pdf_enum]
+pub enum PredefinedSpotFunction {
+    SimpleDot = "SimpleDot",
+    InvertedSimpleDot = "InvertedSimpleDot",
+    DoubleDot = "DoubleDot",
+    InvertedDoubleDot = "InvertedDoubleDot",
+    CosineDot = "CosineDot",
+    Double = "Double",
+    Line = "Line",
+    LineX = "LineX",
+    LineY = "LineY",
+    Round = "Round",
+    Ellipse = "Ellipse",
+    EllipseA = "EllipseA",
+    InvertedEllipseA = "InvertedEllipseA",
+    EllipseB = "EllipseB",
+    EllipseC = "EllipseC",
+    InvertedEllipseC = "InvertedEllipseC",
+    Square = "Square",
+    Cross = "Cross",
+    Rhomboid = "Rhomboid",
+    Diamond = "Diamond",
+}
 
 #[derive(Debug, Clone)]
 pub enum TransferFunction<'a> {

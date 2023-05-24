@@ -1,6 +1,6 @@
 use crate::{
     error::PdfResult, filter::flate::BitsPerComponent, function::Function, objects::Dictionary,
-    pdf_enum, Resolve,
+    Resolve,
 };
 
 /// Type 4 shadings (free-form Gouraud-shaded triangle meshes) are commonly used to
@@ -65,27 +65,19 @@ impl<'a> FreeformShading<'a> {
     }
 }
 
-pdf_enum!(
-    int
-    #[derive(Debug, Clone, Copy)]
-    pub enum BitsPerCoordinate {
-        One = 1,
-        Two = 2,
-        Four = 4,
-        Eight = 8,
-        Sixteen = 16,
-        ThirtyTwo = 32,
-    }
+#[pdf_enum(Integer)]
+pub enum BitsPerCoordinate {
+    One = 1,
+    Two = 2,
+    Four = 4,
+    Eight = 8,
+    Sixteen = 16,
+    ThirtyTwo = 32,
+}
 
-);
-
-pdf_enum!(
-    int
-    #[derive(Debug, Clone, Copy)]
-    pub enum BitsPerFlag {
-        Two = 2,
-        Four = 4,
-        Eight = 8,
-    }
-
-);
+#[pdf_enum(Integer)]
+pub enum BitsPerFlag {
+    Two = 2,
+    Four = 4,
+    Eight = 8,
+}

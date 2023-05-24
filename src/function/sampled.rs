@@ -1,4 +1,4 @@
-use crate::{error::PdfResult, pdf_enum, stream::Stream, Resolve};
+use crate::{error::PdfResult,  stream::Stream, Resolve};
 
 /// Type 0 functions use a sequence of sample values (contained in a stream) to provide an
 /// approximation for functions whose domains and ranges are bounded. The samples are organized
@@ -80,14 +80,11 @@ impl<'a> SampledFunction<'a> {
     }
 }
 
-pdf_enum!(
-    int
-    #[derive(Debug, Clone, Copy)]
-    enum InterpolationOrder {
-        Linear = 1,
-        Cubic = 3,
-    }
-);
+#[pdf_enum(Integer)]
+enum InterpolationOrder {
+    Linear = 1,
+    Cubic = 3,
+}
 
 impl Default for InterpolationOrder {
     fn default() -> Self {
@@ -95,17 +92,14 @@ impl Default for InterpolationOrder {
     }
 }
 
-pdf_enum!(
-    int
-    #[derive(Debug, Clone, Copy)]
-    enum BitsPerSample {
-        One = 1,
-        Two = 2,
-        Four = 4,
-        Eight = 8,
-        Twelve = 12,
-        Sixteen = 16,
-        TwentyFour = 24,
-        ThirtyTwo = 32,
-    }
-);
+#[pdf_enum(Integer)]
+enum BitsPerSample {
+    One = 1,
+    Two = 2,
+    Four = 4,
+    Eight = 8,
+    Twelve = 12,
+    Sixteen = 16,
+    TwentyFour = 24,
+    ThirtyTwo = 32,
+}

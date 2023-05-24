@@ -3,7 +3,7 @@ use crate::{
     data_structures::Rectangle,
     error::PdfResult,
     objects::{Dictionary, Object},
-    pdf_enum, Resolve,
+    Resolve,
 };
 
 use self::{
@@ -182,20 +182,17 @@ impl<'a> BaseShadingDictionary<'a> {
     }
 }
 
-pdf_enum!(
-    int
-    #[derive(Debug, Clone, Copy)]
-    pub enum ShadingType {
-        FunctionBased = 1,
-        Axial = 2,
-        Radial = 3,
+#[pdf_enum(Integer)]
+pub enum ShadingType {
+    FunctionBased = 1,
+    Axial = 2,
+    Radial = 3,
 
-        /// Free-form Gouraud-shaded triangle mesh
-        Freeform = 4,
+    /// Free-form Gouraud-shaded triangle mesh
+    Freeform = 4,
 
-        /// Lattice-form Gouraud-shaded triangle mesh
-        Latticeform = 5,
-        CoonsPatchMesh = 6,
-        TensorProductPatchMesh = 7,
-    }
-);
+    /// Lattice-form Gouraud-shaded triangle mesh
+    Latticeform = 5,
+    CoonsPatchMesh = 6,
+    TensorProductPatchMesh = 7,
+}

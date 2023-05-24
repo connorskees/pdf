@@ -3,7 +3,7 @@ use std::{borrow::Cow, cmp::min, io::Read, usize};
 use crate::{
     error::{ParseError, PdfResult},
     objects::Dictionary,
-    pdf_enum, Resolve,
+    Resolve,
 };
 
 use flate2::read::ZlibDecoder;
@@ -130,17 +130,14 @@ impl Predictor {
     }
 }
 
-pdf_enum!(
-    int
-    #[derive(Debug, Clone, Copy)]
-    pub enum BitsPerComponent {
-        One = 1,
-        Two = 2,
-        Four = 4,
-        Eight = 8,
-        Sixteen = 16,
-    }
-);
+#[pdf_enum(Integer)]
+pub enum BitsPerComponent {
+    One = 1,
+    Two = 2,
+    Four = 4,
+    Eight = 8,
+    Sixteen = 16,
+}
 
 impl FlateDecoder {
     pub fn new(buffer: Cow<[u8]>, params: FlateDecoderParams) -> Self {

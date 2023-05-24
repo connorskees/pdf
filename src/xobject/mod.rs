@@ -1,4 +1,4 @@
-use crate::{error::PdfResult, objects::Dictionary, pdf_enum, stream::Stream, Resolve};
+use crate::{error::PdfResult, objects::Dictionary,  stream::Stream, Resolve};
 
 pub use self::{form::FormXObject, image::ImageXObject, postscript::PostScriptXObject};
 
@@ -17,13 +17,12 @@ pub enum XObject<'a> {
     PostScript(PostScriptXObject<'a>),
 }
 
-pdf_enum!(
-    enum XObjectSubtype {
-        PostScript = "PS",
-        Image = "Image",
-        Form = "Form",
-    }
-);
+#[pdf_enum]
+enum XObjectSubtype {
+    PostScript = "PS",
+    Image = "Image",
+    Form = "Form",
+}
 
 impl<'a> XObject<'a> {
     const TYPE: &'static str = "XObject";

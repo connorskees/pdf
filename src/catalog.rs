@@ -13,9 +13,9 @@ document is opened.
 
 use crate::{
     actions::Actions, assert_empty, data_structures::NumberTree, date::Date,
-    destination::Destination, optional_content::OptionalContentProperties, pdf_enum,
-    stream::Stream, structure::StructTreeRoot, viewer_preferences::ViewerPreferences, Dictionary,
-    Lexer, Object, ParseError, PdfResult, Reference, Resolve,
+    destination::Destination, optional_content::OptionalContentProperties, stream::Stream,
+    structure::StructTreeRoot, viewer_preferences::ViewerPreferences, Dictionary, Lexer, Object,
+    ParseError, PdfResult, Reference, Resolve,
 };
 
 pub use crate::color::{ColorSpace, ColorSpaceName};
@@ -322,26 +322,24 @@ impl<'a> InformationDictionary<'a> {
     }
 }
 
-pdf_enum!(
-    /// A name object indicating whether the document
-    /// has been modified to include trapping information
-    #[derive(Debug)]
-    pub enum Trapped {
-        /// The document has been fully trapped; no further
-        /// trapping shall be needed. This shall be the name
-        /// "True", not the boolean value true.
-        True = "True",
+#[pdf_enum]
+/// A name object indicating whether the document
+/// has been modified to include trapping information
+pub enum Trapped {
+    /// The document has been fully trapped; no further
+    /// trapping shall be needed. This shall be the name
+    /// "True", not the boolean value true.
+    True = "True",
 
-        /// The document has not yet been trapped. This shall
-        /// be the name "False", not the boolean value false
-        False = "False",
+    /// The document has not yet been trapped. This shall
+    /// be the name "False", not the boolean value false
+    False = "False",
 
-        /// Either it is unknown whether the document has been
-        /// trapped or it has been partly but not yet fully
-        /// trapped; some additional trapping may still be needed
-        Unknown = "Unknown",
-    }
-);
+    /// Either it is unknown whether the document has been
+    /// trapped or it has been partly but not yet fully
+    /// trapped; some additional trapping may still be needed
+    Unknown = "Unknown",
+}
 
 impl Default for Trapped {
     fn default() -> Self {
@@ -401,12 +399,10 @@ pub struct MetadataStream<'a> {
     subtype: MetadataStreamSubtype,
 }
 
-pdf_enum!(
-    #[derive(Debug, Clone, Copy)]
-    enum MetadataStreamSubtype {
-        Xml = "XML",
-    }
-);
+#[pdf_enum]
+enum MetadataStreamSubtype {
+    Xml = "XML",
+}
 
 impl<'a> MetadataStream<'a> {
     const TYPE: &'static str = "Metadata";
@@ -581,33 +577,31 @@ pub struct Viewport;
 #[derive(Debug)]
 pub struct PropertyList;
 
-pdf_enum!(
-    /// Specifies the page layout when the document is opened
-    #[derive(Debug)]
-    enum PageLayout {
-        /// Display one page at a time
-        SinglePage = "SinglePage",
+#[pdf_enum]
+/// Specifies the page layout when the document is opened
+enum PageLayout {
+    /// Display one page at a time
+    SinglePage = "SinglePage",
 
-        /// Display the pages in one column
-        OneColumn = "OneColumn",
+    /// Display the pages in one column
+    OneColumn = "OneColumn",
 
-        /// Display the pages in two columns,
-        /// with odd-numbered pages on the left
-        TwoColumnLeft = "TwoColumnLeft",
+    /// Display the pages in two columns,
+    /// with odd-numbered pages on the left
+    TwoColumnLeft = "TwoColumnLeft",
 
-        /// Display the pages in two columns,
-        /// with odd-numbered pages on the right
-        TwoColumnRight = "TwoColumnRight",
+    /// Display the pages in two columns,
+    /// with odd-numbered pages on the right
+    TwoColumnRight = "TwoColumnRight",
 
-        /// Display the pages two at a time,
-        /// with odd-numbered pages on the left
-        TwoPageLeft = "TwoPageLeft",
+    /// Display the pages two at a time,
+    /// with odd-numbered pages on the left
+    TwoPageLeft = "TwoPageLeft",
 
-        /// Display the pages two at a time,
-        /// with odd-numbered pages on the right
-        TwoPageRight = "TwoPageRight",
-    }
-);
+    /// Display the pages two at a time,
+    /// with odd-numbered pages on the right
+    TwoPageRight = "TwoPageRight",
+}
 
 impl Default for PageLayout {
     fn default() -> Self {
@@ -615,32 +609,30 @@ impl Default for PageLayout {
     }
 }
 
-pdf_enum!(
-    /// A name object specifying how the document shall be
-    /// displayed when opened
-    #[derive(Debug)]
-    pub enum PageMode {
-        /// Neither document outline nor thumbnail
-        /// images visible
-        UseNone = "UseNone",
+#[pdf_enum]
+/// A name object specifying how the document shall be
+/// displayed when opened
+pub enum PageMode {
+    /// Neither document outline nor thumbnail
+    /// images visible
+    UseNone = "UseNone",
 
-        /// Document outline visible
-        UseOutlines = "UseOutlines",
+    /// Document outline visible
+    UseOutlines = "UseOutlines",
 
-        /// Thumbnail images visible
-        UseThumbs = "UseThumbs",
+    /// Thumbnail images visible
+    UseThumbs = "UseThumbs",
 
-        /// Full-screen mode, with no menu bar, window
-        /// controls, or any other window visible
-        FullScreen = "FullScreen",
+    /// Full-screen mode, with no menu bar, window
+    /// controls, or any other window visible
+    FullScreen = "FullScreen",
 
-        /// Optional content group panel visible
-        UseOc = "UseOc",
+    /// Optional content group panel visible
+    UseOc = "UseOc",
 
-        /// Attachments panel visible
-        UseAttachments = "UseAttachments",
-    }
-);
+    /// Attachments panel visible
+    UseAttachments = "UseAttachments",
+}
 
 impl Default for PageMode {
     fn default() -> Self {

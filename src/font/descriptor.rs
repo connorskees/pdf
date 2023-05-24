@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{data_structures::Rectangle, error::PdfResult, objects::Dictionary, pdf_enum, Resolve};
+use crate::{data_structures::Rectangle, error::PdfResult, objects::Dictionary, Resolve};
 
 use super::embedded::{TrueTypeFontFile, Type1FontFile, Type3FontFile};
 
@@ -259,17 +259,15 @@ impl FontDescriptorFlags {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug)]
-    enum FontStretch {
-        UltraCondensed = "UltraCondensed",
-        ExtraCondensed = "ExtraCondensed",
-        Condensed = "Condensed",
-        SemiCondensed = "SemiCondensed",
-        Normal = "Normal",
-        SemiExpanded = "SemiExpanded",
-        Expanded = "Expanded",
-        ExtraExpanded = "ExtraExpanded",
-        UltraExpanded = "UltraExpanded",
-    }
-);
+#[pdf_enum]
+enum FontStretch {
+    UltraCondensed = "UltraCondensed",
+    ExtraCondensed = "ExtraCondensed",
+    Condensed = "Condensed",
+    SemiCondensed = "SemiCondensed",
+    Normal = "Normal",
+    SemiExpanded = "SemiExpanded",
+    Expanded = "Expanded",
+    ExtraExpanded = "ExtraExpanded",
+    UltraExpanded = "UltraExpanded",
+}

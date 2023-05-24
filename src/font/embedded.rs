@@ -1,5 +1,5 @@
 use crate::{
-    catalog::MetadataStream, error::PdfResult, objects::Dictionary, pdf_enum, stream::Stream,
+    catalog::MetadataStream, error::PdfResult, objects::Dictionary, stream::Stream,
     Resolve,
 };
 
@@ -128,13 +128,12 @@ pub struct OpenTypeFontFile<'a> {
     stream: Stream<'a>,
 }
 
-pdf_enum!(
-    enum Type3Subtype {
-        Type1C = "Type1C",
-        CIDFontType0C = "CIDFontType0C",
-        OpenType = "OpenType",
-    }
-);
+#[pdf_enum]
+enum Type3Subtype {
+    Type1C = "Type1C",
+    CIDFontType0C = "CIDFontType0C",
+    OpenType = "OpenType",
+}
 
 impl<'a> Type3FontFile<'a> {
     pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {

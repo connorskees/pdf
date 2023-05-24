@@ -1,6 +1,6 @@
 use type0::Type0Font;
 
-use crate::{error::PdfResult, objects::Dictionary, pdf_enum, Resolve};
+use crate::{error::PdfResult, objects::Dictionary, Resolve};
 
 pub use self::{
     descriptor::FontDescriptor,
@@ -162,29 +162,27 @@ impl Widths {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug, Clone, Copy)]
-    enum FontSubtype {
-        /// A composite font -- a font composed of glyphs from a descendant CIDFont
-        Type0 = "Type0",
+#[pdf_enum]
+enum FontSubtype {
+    /// A composite font -- a font composed of glyphs from a descendant CIDFont
+    Type0 = "Type0",
 
-        /// A font that defines glyph shapes using Type 1 font technology
-        Type1 = "Type1",
+    /// A font that defines glyph shapes using Type 1 font technology
+    Type1 = "Type1",
 
-        /// A multiple master font -- an extension of the Type 1 font that allows
-        /// the generation of a wide variety of typeface styles from a single font
-        MmType1 = "MMType1",
+    /// A multiple master font -- an extension of the Type 1 font that allows
+    /// the generation of a wide variety of typeface styles from a single font
+    MmType1 = "MMType1",
 
-        /// A font that defines glyphs with streams of PDF graphics operators
-        Type3 = "Type3",
+    /// A font that defines glyphs with streams of PDF graphics operators
+    Type3 = "Type3",
 
-        /// A font based on the TrueType font format
-        TrueType = "TrueType",
+    /// A font based on the TrueType font format
+    TrueType = "TrueType",
 
-        /// A CIDFont whose glyph descriptions are based on Type 1 font technology
-        CidFontType0 = "CIDFontType0",
+    /// A CIDFont whose glyph descriptions are based on Type 1 font technology
+    CidFontType0 = "CIDFontType0",
 
-        /// A CIDFont whose glyph descriptions are based on TrueType font technology
-        CidFontType2 = "CIDFontType2",
-    }
-);
+    /// A CIDFont whose glyph descriptions are based on TrueType font technology
+    CidFontType2 = "CIDFontType2",
+}

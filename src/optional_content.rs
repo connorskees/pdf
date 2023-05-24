@@ -2,7 +2,7 @@ use crate::{
     assert_empty,
     error::PdfResult,
     objects::{Dictionary, Object},
-    pdf_enum,
+    
     resolve::Resolve,
 };
 
@@ -240,17 +240,15 @@ struct OptionalContentUsage;
 #[derive(Debug)]
 struct OptionalContentUsageApplication;
 
-pdf_enum!(
-    #[derive(Debug)]
-    enum ListMode {
-        /// Display all groups in the Order array.
-        AllPages = "AllPages",
+#[pdf_enum]
+enum ListMode {
+    /// Display all groups in the Order array.
+    AllPages = "AllPages",
 
-        /// Display only those groups in the Order array that are referenced by
-        /// one or more visible pages.
-        VisiblePages = "VisiblePages",
-    }
-);
+    /// Display only those groups in the Order array that are referenced by
+    /// one or more visible pages.
+    VisiblePages = "VisiblePages",
+}
 
 impl Default for ListMode {
     fn default() -> Self {
@@ -258,14 +256,12 @@ impl Default for ListMode {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug)]
-    enum OptionalContentBaseState {
-        On = "ON",
-        Off = "OFF",
-        Unchanged = "Unchanged",
-    }
-);
+#[pdf_enum]
+enum OptionalContentBaseState {
+    On = "ON",
+    Off = "OFF",
+    Unchanged = "Unchanged",
+}
 
 impl Default for OptionalContentBaseState {
     fn default() -> Self {
@@ -273,19 +269,17 @@ impl Default for OptionalContentBaseState {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug)]
-    enum Intent {
-        /// Used for interactive use by document consumers
-        View = "View",
+#[pdf_enum]
+enum Intent {
+    /// Used for interactive use by document consumers
+    View = "View",
 
-        /// Used to represent a document designer’s structural organization of artwork,
-        Design = "Design",
+    /// Used to represent a document designer’s structural organization of artwork,
+    Design = "Design",
 
-        /// Indicates the set of all intents, including those not yet defined
-        All = "All",
-    }
-);
+    /// Indicates the set of all intents, including those not yet defined
+    All = "All",
+}
 
 impl Default for Intent {
     fn default() -> Self {

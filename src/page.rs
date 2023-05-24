@@ -10,7 +10,7 @@ use crate::{
     date::Date,
     error::PdfResult,
     objects::Dictionary,
-    pdf_enum,
+    
     resources::Resources,
     stream::Stream,
     Reference, Resolve,
@@ -332,14 +332,12 @@ impl fmt::Debug for PageObject<'_> {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug)]
-    pub enum TabOrder {
-        Row = "R",
-        Column = "C",
-        Structure = "S",
-    }
-);
+#[pdf_enum]
+pub enum TabOrder {
+    Row = "R",
+    Column = "C",
+    Structure = "S",
+}
 
 #[derive(Debug)]
 pub(crate) struct InheritablePageFields<'a> {

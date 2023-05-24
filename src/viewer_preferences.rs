@@ -2,7 +2,7 @@ use crate::{
     catalog::PageMode,
     error::PdfResult,
     objects::{Dictionary, Object},
-    pdf_enum, Resolve,
+    Resolve,
 };
 
 #[derive(Debug)]
@@ -164,7 +164,10 @@ pub struct ViewerPreferences {
 }
 
 impl ViewerPreferences {
-    pub fn from_dict<'a>(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+    pub fn from_dict<'a>(
+        mut dict: Dictionary<'a>,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         let hide_toolbar = dict.get_bool("HideToolbar", resolver)?.unwrap_or(false);
         let hide_menubar = dict.get_bool("HideMenubar", resolver)?.unwrap_or(false);
         let hide_window_ui = dict.get_bool("HideWindowUI", resolver)?.unwrap_or(false);
@@ -283,16 +286,14 @@ impl PageRange {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug)]
-    enum TextDirection {
-        LeftToRight = "L2R",
+#[pdf_enum]
+enum TextDirection {
+    LeftToRight = "L2R",
 
-        /// Right to left (including vertical writing systems, such as Chinese,
-        /// Japanese, and Korean)
-        RightToLeft = "R2L",
-    }
-);
+    /// Right to left (including vertical writing systems, such as Chinese,
+    /// Japanese, and Korean)
+    RightToLeft = "R2L",
+}
 
 impl Default for TextDirection {
     fn default() -> Self {
@@ -300,13 +301,11 @@ impl Default for TextDirection {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug)]
-    enum PageScaling {
-        AppDefault = "AppDefault",
-        None = "None",
-    }
-);
+#[pdf_enum]
+enum PageScaling {
+    AppDefault = "AppDefault",
+    None = "None",
+}
 
 impl Default for PageScaling {
     fn default() -> Self {
@@ -314,30 +313,26 @@ impl Default for PageScaling {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug)]
-    enum Duplex {
-        /// Print single-sided
-        Simplex = "Simplex",
+#[pdf_enum]
+enum Duplex {
+    /// Print single-sided
+    Simplex = "Simplex",
 
-        /// Duplex and flip on the short edge of the sheet
-        DuplexFlipShortEdge = "DuplexFlipShortEdge",
+    /// Duplex and flip on the short edge of the sheet
+    DuplexFlipShortEdge = "DuplexFlipShortEdge",
 
-        /// Duplex and flip on the long edge of the sheet
-        DuplexFlipLongEdge = "DuplexFlipLongEdge",
-    }
-);
+    /// Duplex and flip on the long edge of the sheet
+    DuplexFlipLongEdge = "DuplexFlipLongEdge",
+}
 
-pdf_enum!(
-    #[derive(Debug)]
-    enum PageBoundary {
-        MediaBox = "MediaBox",
-        CropBox = "CropBox",
-        BleedBox = "BleedBox",
-        TrimBox = "TrimBox",
-        ArtBox = "ArtBox",
-    }
-);
+#[pdf_enum]
+enum PageBoundary {
+    MediaBox = "MediaBox",
+    CropBox = "CropBox",
+    BleedBox = "BleedBox",
+    TrimBox = "TrimBox",
+    ArtBox = "ArtBox",
+}
 
 impl Default for PageBoundary {
     fn default() -> Self {

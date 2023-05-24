@@ -1,4 +1,4 @@
-use crate::{catalog::assert_len, error::PdfResult, objects::Object, pdf_enum, resolve::Resolve};
+use crate::{catalog::assert_len, error::PdfResult, objects::Object, resolve::Resolve};
 
 pub struct Color;
 
@@ -157,19 +157,17 @@ impl ColorSpace {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug, Clone, Copy)]
-    pub enum ColorSpaceName {
-        DeviceGray = "DeviceGray",
-        DeviceRGB = "DeviceRGB",
-        DeviceCMYK = "DeviceCMYK",
-        CalGray = "CalGray",
-        CalRGB = "CalRGB",
-        Lab = "Lab",
-        ICCBased = "ICCBased",
-        Indexed = "Indexed",
-        Pattern = "Pattern",
-        Separation = "Separation",
-        DeviceN = "DeviceN",
-    }
-);
+#[pdf_enum]
+pub enum ColorSpaceName {
+    DeviceGray = "DeviceGray",
+    DeviceRGB = "DeviceRGB",
+    DeviceCMYK = "DeviceCMYK",
+    CalGray = "CalGray",
+    CalRGB = "CalRGB",
+    Lab = "Lab",
+    ICCBased = "ICCBased",
+    Indexed = "Indexed",
+    Pattern = "Pattern",
+    Separation = "Separation",
+    DeviceN = "DeviceN",
+}

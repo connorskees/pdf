@@ -3,7 +3,7 @@ use crate::{
     destination::Destination,
     error::PdfResult,
     objects::Dictionary,
-    pdf_enum, Resolve,
+     Resolve,
 };
 
 use super::BorderStyle;
@@ -51,22 +51,20 @@ pub(crate) struct LinkAnnotation<'a> {
     bs: Option<BorderStyle>,
 }
 
-pdf_enum!(
-    #[derive(Debug)]
-    pub enum HighlightingMode {
-        /// No highlighting
-        None = "N",
+#[pdf_enum]
+pub enum HighlightingMode {
+    /// No highlighting
+    None = "N",
 
-        /// Invert the contents of the annotation rectangle
-        Invert = "I",
+    /// Invert the contents of the annotation rectangle
+    Invert = "I",
 
-        /// Invert the annotation's border
-        Outline = "O",
+    /// Invert the annotation's border
+    Outline = "O",
 
-        /// Display the annotation as if it were being pushed below the surface of the page.
-        Push = "P",
-    }
-);
+    /// Display the annotation as if it were being pushed below the surface of the page.
+    Push = "P",
+}
 
 impl Default for HighlightingMode {
     fn default() -> Self {

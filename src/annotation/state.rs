@@ -1,4 +1,4 @@
-use crate::{error::PdfResult, pdf_enum};
+use crate::{error::PdfResult, };
 
 #[derive(Debug)]
 pub(crate) enum StateModel {
@@ -30,16 +30,14 @@ impl StateModel {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug)]
-    pub(crate) enum MarkedState {
-        /// The annotation has been marked by the user
-        Marked = "Marked",
+#[pdf_enum]
+pub(crate) enum MarkedState {
+    /// The annotation has been marked by the user
+    Marked = "Marked",
 
-        /// The annotation has not been marked by the user (the default)
-        Unmarked = "Unmarked",
-    }
-);
+    /// The annotation has not been marked by the user (the default)
+    Unmarked = "Unmarked",
+}
 
 impl Default for MarkedState {
     fn default() -> Self {
@@ -47,25 +45,23 @@ impl Default for MarkedState {
     }
 }
 
-pdf_enum!(
-    #[derive(Debug)]
-    pub(crate) enum ReviewState {
-        /// The user agrees with the change
-        Accepted = "Accepted",
+#[pdf_enum]
+pub(crate) enum ReviewState {
+    /// The user agrees with the change
+    Accepted = "Accepted",
 
-        /// The user disagrees with the change
-        Rejected = "Rejected",
+    /// The user disagrees with the change
+    Rejected = "Rejected",
 
-        /// The change has been cancelled
-        Cancelled = "Cancelled",
+    /// The change has been cancelled
+    Cancelled = "Cancelled",
 
-        /// The change has been completed
-        Completed = "Completed",
+    /// The change has been completed
+    Completed = "Completed",
 
-        /// The user has indicated nothing about the change (the default)
-        None = "None",
-    }
-);
+    /// The user has indicated nothing about the change (the default)
+    None = "None",
+}
 
 impl Default for ReviewState {
     fn default() -> Self {
