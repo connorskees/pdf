@@ -390,6 +390,10 @@ impl PostScriptArray {
         self.access = access;
     }
 
+    pub(super) fn access(&self) -> Access {
+        self.access
+    }
+
     pub(super) fn into_inner(self) -> Vec<PostScriptObject> {
         self.inner
     }

@@ -277,7 +277,13 @@ impl<'a> PostscriptInterpreter<'a> {
                 match obj {
                     PostScriptObject::Array(proc) => {
                         let proc = self.get_arr(proc).clone();
-                        self.execute_procedure(proc.into_inner())?;
+                        // todo: probably need a better check to determine whether
+                        // it's a procedure?
+                        if proc.access() == Access::ExecuteOnly {
+                            self.execute_procedure(proc.into_inner())?;
+                        } else {
+                            self.push(obj);
+                        }
                     }
                     obj => self.push(obj),
                 }
@@ -503,7 +509,6 @@ impl<'a> PostscriptInterpreter<'a> {
 
     fn exec(&mut self) -> PdfResult<()> {
         let obj = self.pop()?;
-
         self.execute_token(obj)
     }
 
@@ -1734,6 +1739,21 @@ mod test {
 
         assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Float(10.0));
         assert!(interpreter.pop().is_err());
+    }
+
+    #[test]
+    fn dict_contains_standard_encoding() {
+        let mut interpreter = PostscriptInterpreter::new(
+            b"
+            3 dict begin
+            /FontName /FZJRZA+SFSS2488 def
+            /Encoding StandardEncoding def
+            /PaintType 0 def
+            currentdict end
+        ",
+        );
+
+        interpreter.run().unwrap();
     }
 
     #[test]
