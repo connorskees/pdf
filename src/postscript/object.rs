@@ -24,7 +24,6 @@ pub(super) enum PostScriptObject {
     Mark,
     File,
     Dictionary(DictionaryIndex),
-    Procedure(Procedure),
     Operator(PostscriptOperator),
 }
 
@@ -78,32 +77,6 @@ pub(super) enum Access {
 impl Default for Access {
     fn default() -> Self {
         Access::Unlimited
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub(super) struct Procedure {
-    pub(super) inner: Vec<PostScriptObject>,
-    access: Access,
-}
-
-impl Procedure {
-    pub fn new() -> Self {
-        Self {
-            inner: Vec::new(),
-            access: Access::default(),
-        }
-    }
-
-    pub(super) fn from_toks(toks: Vec<PostScriptObject>) -> Self {
-        Self {
-            inner: toks,
-            access: Access::default(),
-        }
-    }
-
-    pub(super) fn set_access(&mut self, access: Access) {
-        self.access = access;
     }
 }
 
@@ -252,13 +225,13 @@ impl PostScriptDictionary {
         &self,
         key: &'static [u8],
         error: PostScriptError,
-    ) -> PostScriptResult<Procedure> {
+    ) -> PostScriptResult<ArrayIndex> {
         self.get_procedure(key)?.ok_or(error)
     }
 
-    pub fn get_procedure(&self, key: &'static [u8]) -> PostScriptResult<Option<Procedure>> {
+    pub fn get_procedure(&self, key: &'static [u8]) -> PostScriptResult<Option<ArrayIndex>> {
         match self.inner.get(&Name::from_bytes(key.to_vec())) {
-            Some(PostScriptObject::Procedure(n)) => Ok(Some(n.clone())),
+            Some(PostScriptObject::Array(n)) => Ok(Some(*n)),
             Some(..) => Err(PostScriptError::TypeCheck),
             None => Ok(None),
         }

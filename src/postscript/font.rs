@@ -4,7 +4,9 @@ use crate::{data_structures::Matrix, postscript::object::ArrayIndex};
 
 use super::{
     charstring::{CharString, CharStrings},
-    object::{PostScriptDictionary, PostScriptObject, PostScriptString, Procedure},
+    object::{
+        PostScriptArray, PostScriptDictionary, PostScriptObject, PostScriptString, 
+    },
     PostScriptError, PostScriptResult, PostscriptInterpreter,
 };
 
@@ -70,7 +72,7 @@ pub(crate) struct Type1PostscriptFont {
     font_type: FontType,
     pub font_matrix: Matrix,
     // todo: font_bounding_box: BoundingBox,
-    font_bounding_box: Procedure,
+    font_bounding_box: ArrayIndex,
     unique_id: Option<i32>,
     metrics: Option<Metrics>,
     stroke_width: Option<f32>,
@@ -302,7 +304,7 @@ pub(super) struct Private {
     /// Flex, hint replacement, and future extensions
     ///
     /// Required if Flex or hint replacement are used
-    pub(super) other_subroutines: Option<Vec<Procedure>>,
+    pub(super) other_subroutines: Option<Vec<PostScriptArray>>,
 
     /// Number unique to each Type 1 font program
     ///
@@ -369,7 +371,7 @@ pub(super) struct Private {
     /// Obsolete. Set to {16 16}
     ///
     /// Required
-    min_feature: Procedure,
+    min_feature: ArrayIndex,
 
     /// Compatibility entry. Use only for font programs in language group 1
     rnd_stem_up: Option<i32>,
@@ -410,11 +412,11 @@ impl Private {
             .map(|arr| {
                 arr.into_inner()
                     .into_iter()
-                    .map(|obj| match obj {
-                        PostScriptObject::Procedure(p) => Ok(p),
+                    .map(|obj: PostScriptObject| match obj {
+                        PostScriptObject::Array(p) => Ok(interpreter.get_arr(p).clone()),
                         _ => Err(PostScriptError::TypeCheck),
                     })
-                    .collect::<PostScriptResult<Vec<Procedure>>>()
+                    .collect::<PostScriptResult<Vec<PostScriptArray>>>()
             })
             .transpose()?;
 

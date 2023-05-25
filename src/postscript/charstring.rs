@@ -13,7 +13,7 @@ use crate::{
 use super::{
     decode::decrypt_charstring,
     font::{Encoding, Type1PostscriptFont},
-    object::{PostScriptDictionary, PostScriptObject, PostScriptString, Procedure},
+    object::{PostScriptArray, PostScriptDictionary, PostScriptObject, PostScriptString},
     PostScriptError, PostScriptResult, PostscriptInterpreter,
 };
 
@@ -276,7 +276,7 @@ pub(crate) struct CharStringPainter<'a> {
     current_path: Path,
     has_current_point: bool,
     subroutines: &'a [CharString],
-    other_subroutines: &'a [Procedure],
+    other_subroutines: &'a [PostScriptArray],
     operand_stack: CharStringStack,
     interpreter: PostscriptInterpreter<'a>,
     encoding: &'a Encoding,
@@ -568,7 +568,9 @@ impl<'a> CharStringPainter<'a> {
                     self.interpreter.push(PostScriptObject::Float(arg));
                 }
 
-                self.interpreter.execute_procedure(subr.clone()).unwrap();
+                self.interpreter
+                    .execute_procedure(subr.clone().into_inner())
+                    .unwrap();
             }
             _ => todo!("use of reserved other subroutine idx"),
         }

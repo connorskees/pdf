@@ -42,12 +42,23 @@ fn ident_token_from_bytes(bytes: &[u8]) -> PdfResult<PostScriptObject> {
         b"closefile" => PostscriptOperator::CloseFile,
         b"findresource" => PostscriptOperator::FindResource,
         b"for" => PostscriptOperator::For,
+        b"if" => PostscriptOperator::If,
+        b"count" => PostscriptOperator::Count,
+        b"type" => PostscriptOperator::Type,
+        b"eq" => PostscriptOperator::Eq,
+        b"ne" => PostscriptOperator::Ne,
+        b"save" => PostscriptOperator::Save,
+        b"restore" => PostscriptOperator::Restore,
+        b"bind" => PostscriptOperator::Bind,
         literal => {
             // todo: only to detect unimplemented operators
             match literal {
                 b"StandardEncoding" | b"|" | b"|-" | b"-|" | b"systemdict" | b"RD" | b"NP"
-                | b"ND" => {}
-                found => todo!("{:?}", String::from_utf8_lossy(found)),
+                | b"ND" | b"userdict" | b"errordict" => {}
+                found => println!(
+                    "found unknown literal: {:?}",
+                    String::from_utf8_lossy(found)
+                ),
             }
 
             return Ok(PostScriptObject::Literal(PostScriptString::from_bytes(

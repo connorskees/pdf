@@ -10,7 +10,7 @@ use self::{
     lexer::PostScriptLexer,
     object::{
         Access, ArrayIndex, Container, DictionaryIndex, PostScriptArray, PostScriptDictionary,
-        PostScriptObject, PostScriptString, Procedure, StringIndex,
+        PostScriptObject, PostScriptString, StringIndex,
     },
 };
 
@@ -242,6 +242,17 @@ impl<'a> PostscriptInterpreter<'a> {
             interpreter.new_dict(dict)
         };
 
+        interpreter.get_dict_mut(&user_dict).insert(
+            PostScriptString::from_bytes(b"userdict".to_vec()),
+            PostScriptObject::Dictionary(user_dict),
+        );
+
+        let errordict = interpreter.new_dict(PostScriptDictionary::new());
+        interpreter.get_dict_mut(&system_dict).insert(
+            PostScriptString::from_bytes(b"errordict".to_vec()),
+            PostScriptObject::Dictionary(errordict),
+        );
+
         interpreter.push_dict_stack(system_dict);
         interpreter.push_dict_stack(global_dict);
         interpreter.push_dict_stack(user_dict);
@@ -264,8 +275,9 @@ impl<'a> PostscriptInterpreter<'a> {
                 let obj = self.get_key(&lit)?;
 
                 match obj {
-                    PostScriptObject::Procedure(proc) => {
-                        self.execute_procedure(proc)?;
+                    PostScriptObject::Array(proc) => {
+                        let proc = self.get_arr(proc).clone();
+                        self.execute_procedure(proc.into_inner())?;
                     }
                     obj => self.push(obj),
                 }
@@ -309,6 +321,7 @@ impl<'a> PostscriptInterpreter<'a> {
             PostscriptOperator::Not => self.not(),
             PostscriptOperator::Get => self.get(),
             PostscriptOperator::Exec => self.exec(),
+            PostscriptOperator::If => self.if_op(),
             PostscriptOperator::IfElse => self.if_else(),
             PostscriptOperator::Lt => self.lt(),
             PostscriptOperator::Index => self.index(),
@@ -317,6 +330,11 @@ impl<'a> PostscriptInterpreter<'a> {
             PostscriptOperator::CloseFile => self.close_file(),
             PostscriptOperator::For => self.for_loop(),
             PostscriptOperator::Add => self.add(),
+            PostscriptOperator::Count => self.count(),
+            PostscriptOperator::Eq => self.eq(),
+            PostscriptOperator::Ne => self.ne(),
+            PostscriptOperator::Type => self.object_type(),
+            PostscriptOperator::Bind => self.bind(),
             op @ (PostscriptOperator::DefineResource
             | PostscriptOperator::UndefineResource
             | PostscriptOperator::FindResource
@@ -326,11 +344,12 @@ impl<'a> PostscriptInterpreter<'a> {
                 todo!("unimplemented resource operator {:?}", op)
             }
             op @ PostscriptOperator::Abs => todo!("{:?}", op),
+            PostscriptOperator::Save | PostscriptOperator::Restore => todo!(),
         }
     }
 
-    fn execute_procedure(&mut self, proc: Procedure) -> PdfResult<()> {
-        for tok in proc.inner {
+    fn execute_procedure(&mut self, proc: Vec<PostScriptObject>) -> PdfResult<()> {
+        for tok in proc {
             self.execute_token(tok)?;
         }
 
@@ -380,7 +399,8 @@ impl<'a> PostscriptInterpreter<'a> {
         while !should_terminate(control) {
             self.push(PostScriptObject::Float(control));
 
-            self.execute_procedure(proc.clone())?;
+            let proc = self.get_arr(proc).clone().into_inner();
+            self.execute_procedure(proc)?;
 
             control += increment;
         }
@@ -453,16 +473,30 @@ impl<'a> PostscriptInterpreter<'a> {
         Ok(())
     }
 
+    fn if_op(&mut self) -> PdfResult<()> {
+        let proc = self.pop_procedure()?;
+        let b = self.pop_bool()?;
+
+        if b {
+            let proc = self.get_arr(proc).clone().into_inner();
+            self.execute_procedure(proc)?;
+        }
+
+        Ok(())
+    }
+
     fn if_else(&mut self) -> PdfResult<()> {
         let proc_two = self.pop_procedure()?;
         let proc_one = self.pop_procedure()?;
         let b = self.pop_bool()?;
 
-        if b {
-            self.execute_procedure(proc_one)?;
+        let proc = if b {
+            self.get_arr(proc_one).clone().into_inner()
         } else {
-            self.execute_procedure(proc_two)?;
-        }
+            self.get_arr(proc_two).clone().into_inner()
+        };
+
+        self.execute_procedure(proc)?;
 
         Ok(())
     }
@@ -531,13 +565,115 @@ impl<'a> PostscriptInterpreter<'a> {
     }
 
     fn known(&mut self) -> PdfResult<()> {
-        // todo: or name?
-        let key = self.pop_string()?;
+        let key = self.pop_name()?;
         let dict = self.pop_dict()?;
 
-        self.push(PostScriptObject::Bool(
-            self.get_dict(dict).contains(self.get_str(key)),
-        ));
+        self.push(PostScriptObject::Bool(self.get_dict(dict).contains(&key)));
+
+        Ok(())
+    }
+
+    fn count(&mut self) -> PdfResult<()> {
+        let count = self.operand_stack.len();
+
+        self.push(PostScriptObject::Int(count as i32));
+
+        Ok(())
+    }
+
+    fn objects_equal(&self, a: PostScriptObject, b: PostScriptObject) -> bool {
+        match (a, b) {
+            (PostScriptObject::Array(arr1), PostScriptObject::Array(arr2)) => arr1 == arr2,
+            (PostScriptObject::Dictionary(dict1), PostScriptObject::Dictionary(dict2)) => {
+                dict1 == dict2
+            }
+            (PostScriptObject::Bool(b1), PostScriptObject::Bool(b2)) => b1 == b2,
+            (PostScriptObject::Null, PostScriptObject::Null) => true,
+            (PostScriptObject::String(string), PostScriptObject::Name(name))
+            | (PostScriptObject::Name(name), PostScriptObject::String(string)) => {
+                let string = self.get_str(string);
+                &name == string
+            }
+            (PostScriptObject::String(string1), PostScriptObject::String(string2)) => {
+                let string1 = self.get_str(string1);
+                let string2 = self.get_str(string2);
+                string1 == string2
+            }
+            (PostScriptObject::Name(name1), PostScriptObject::Name(name2)) => name1 == name2,
+            (PostScriptObject::Int(int1), PostScriptObject::Int(int2)) => int1 == int2,
+            (PostScriptObject::Int(int), PostScriptObject::Float(float))
+            | (PostScriptObject::Float(float), PostScriptObject::Int(int)) => float == int as f32,
+            (PostScriptObject::Float(float1), PostScriptObject::Float(float2)) => float1 == float2,
+            (PostScriptObject::Literal(literal1), PostScriptObject::Literal(literal2)) => {
+                literal1 == literal2
+            }
+            (PostScriptObject::Mark, PostScriptObject::Mark) => todo!(),
+            (PostScriptObject::File, PostScriptObject::File) => todo!(),
+            (PostScriptObject::Operator(..), PostScriptObject::Operator(..)) => todo!(),
+            _ => false,
+        }
+    }
+
+    fn eq(&mut self) -> PdfResult<()> {
+        let a = self.pop()?;
+        let b = self.pop()?;
+
+        let equals = self.objects_equal(a, b);
+
+        self.push(PostScriptObject::Bool(equals));
+
+        Ok(())
+    }
+
+    fn ne(&mut self) -> PdfResult<()> {
+        let a = self.pop()?;
+        let b = self.pop()?;
+
+        let equals = !self.objects_equal(a, b);
+
+        self.push(PostScriptObject::Bool(equals));
+
+        Ok(())
+    }
+
+    fn object_type(&mut self) -> PdfResult<()> {
+        let obj = self.pop()?;
+
+        let ty: &[u8] = match obj {
+            PostScriptObject::Null => b"nulltype",
+            PostScriptObject::Int(_) => b"integertype",
+            PostScriptObject::Float(_) => b"realtype",
+            PostScriptObject::Name(_) => b"nametype",
+            PostScriptObject::Bool(_) => b"booleantype",
+            PostScriptObject::String(_) => b"stringtype",
+            PostScriptObject::Array(_) => b"arraytype",
+            PostScriptObject::Mark => b"marktype",
+            PostScriptObject::File => b"filetype",
+            PostScriptObject::Dictionary(_) => b"dicttype",
+            PostScriptObject::Literal(_) | PostScriptObject::Operator(_) => b"operatortype",
+            // todo: packedarraytype, fonttype, gstatetype, savetype
+        };
+
+        let name = PostScriptString::from_bytes(ty.to_vec());
+
+        self.push(PostScriptObject::Name(name));
+
+        Ok(())
+    }
+
+    fn bind(&mut self) -> PdfResult<()> {
+        let proc_idx = self.pop_arr()?;
+        let proc = self.get_arr(proc_idx);
+
+        println!("`bind` operator not fully implemented");
+
+        for obj in proc.as_inner() {
+            if let PostScriptObject::Name(..) = obj {
+                // todo
+            }
+        }
+
+        self.push(PostScriptObject::Array(proc_idx));
 
         Ok(())
     }
@@ -655,9 +791,9 @@ impl<'a> PostscriptInterpreter<'a> {
         while let Some(tok) = self.lexer.next() {
             match tok? {
                 PostScriptObject::Operator(PostscriptOperator::ProcedureStart) => {
-                    objs.push(PostScriptObject::Procedure(Procedure::from_toks(
-                        self.lex_procedure()?,
-                    )));
+                    let proc = self.lex_procedure()?;
+                    let arr_idx = self.arrays.insert(PostScriptArray::from_objects(proc));
+                    objs.push(PostScriptObject::Array(arr_idx));
                 }
                 PostScriptObject::Operator(PostscriptOperator::ProcedureEnd) => break,
                 obj => objs.push(obj),
@@ -670,7 +806,7 @@ impl<'a> PostscriptInterpreter<'a> {
     fn procedure_start(&mut self) -> PdfResult<()> {
         let proc = self.lex_procedure()?;
 
-        self.push(PostScriptObject::Procedure(Procedure::from_toks(proc)));
+        self.push_arr(proc);
 
         Ok(())
     }
@@ -704,11 +840,6 @@ impl<'a> PostscriptInterpreter<'a> {
                 self.get_dict_mut(&dict).set_access(access);
 
                 obj = PostScriptObject::Dictionary(dict);
-            }
-            PostScriptObject::Procedure(mut procedure) => {
-                procedure.set_access(access);
-
-                obj = PostScriptObject::Procedure(procedure);
             }
             PostScriptObject::Array(arr) => {
                 self.get_arr_mut(arr).set_access(access);
@@ -878,6 +1009,13 @@ impl<'a> PostscriptInterpreter<'a> {
         }
     }
 
+    fn pop_arr(&mut self) -> PdfResult<ArrayIndex> {
+        match self.pop()? {
+            PostScriptObject::Array(arr) => Ok(arr),
+            _ => Err(PostScriptError::TypeCheck.into()),
+        }
+    }
+
     fn pop_bool(&mut self) -> PdfResult<bool> {
         match self.pop()? {
             PostScriptObject::Bool(b) => Ok(b),
@@ -893,11 +1031,8 @@ impl<'a> PostscriptInterpreter<'a> {
         }
     }
 
-    fn pop_procedure(&mut self) -> PdfResult<Procedure> {
-        match self.pop()? {
-            PostScriptObject::Procedure(proc) => Ok(proc),
-            _ => Err(PostScriptError::TypeCheck.into()),
-        }
+    fn pop_procedure(&mut self) -> PdfResult<ArrayIndex> {
+        self.pop_arr()
     }
 
     fn pop_file(&mut self) -> PdfResult<PostScriptObject> {
@@ -962,7 +1097,15 @@ pub(self) enum PostscriptOperator {
     Dict,
     Begin,
     Dup,
+
+    /// associates key with value in the current dictionary—the one on the top
+    /// of the dictionary stack. If key is already present in the current
+    /// dictionary, def simply replaces its value; otherwise, def creates a new
+    /// entry for key and stores value with it
+    ///
+    /// key value `def` –
     Def,
+
     ReadOnly,
     ExecuteOnly,
     NoAccess,
@@ -999,16 +1142,54 @@ pub(self) enum PostscriptOperator {
     /// If the value of array or dict is in global VM and any is a composite
     /// object whose value is in local VM, an invalidaccess error occurs
     Put,
+
+    /// returns true if there is an entry in the dictionary dict whose key is key;
+    /// otherwise, it returns false. dict does not have to be on the dictionary stack
+    ///
+    /// dict key `known` bool
     Known,
+
     Not,
     Get,
     Exec,
+    If,
     IfElse,
     Lt,
     Index,
     DefineFont,
     Mark,
     CloseFile,
+
+    /// pops two objects from the operand stack and pushes true if they are equal,
+    /// or false if not. The definition of equality depends on the types of the
+    /// objects being compared. Simple objects are equal if their types and values
+    /// are the same. Strings are equal if their lengths and individual elements
+    /// are equal. Other composite objects (arrays and dictionaries) are equal
+    /// only if they share the same value. Separate values are considered unequal,
+    /// even if all the components of those values are the same.
+    ///
+    /// This operator performs some type conversions. Integers and real numbers
+    /// can be compared freely: an integer and a real number representing the
+    /// same mathematical value are considered equal by eq. Strings and names
+    /// can likewise be compared freely: a name defined by some sequence of
+    /// characters is equal to a string whose elements are the same sequence of
+    /// characters.
+    ///
+    /// The literal/executable and access attributes of objects are not considered
+    /// in comparisons between objects
+    Eq,
+    Ne,
+
+    /// counts the number of items on the operand stack and pushes this count on
+    /// the operand stack
+    ///
+    /// any1 … anyn count any1 … anyn n
+    Count,
+
+    /// returns a name object that identifies the type of the object any
+    ///
+    /// any `type` name
+    Type,
 
     /// Register named resource instance in category
     ///
@@ -1082,6 +1263,88 @@ pub(self) enum PostscriptOperator {
     ///
     /// initial increment limit proc `for` –
     For,
+
+    /// creates a snapshot of the current state of virtual memory (VM) and returns
+    /// a save object representing that snapshot. The save object is composite
+    /// and logically belongs to the local VM, regardless of the current VM
+    /// allocation mode.
+    ///
+    /// Subsequently, the returned save object may be presented to restore to
+    /// reset VM to this snapshot.
+    ///
+    /// save also saves the current graphics state by pushing a copy of it on the
+    /// graphics state stack in a manner similar to gsave. This saved graphics
+    /// state is restored by restore and grestoreall
+    ///
+    /// `save` save
+    Save,
+
+    /// resets virtual memory (VM) to the state represented by the supplied save
+    /// object—in other words, the state at the time the corresponding save
+    /// operator was executed.
+    ///
+    /// If the current execution context supports job encapsulation and if save
+    /// represents the outermost saved VM state for this context, then objects
+    /// in both local and global VM revert to their saved state. If the current
+    /// context does not support job encapsulation or if save is not the outermost
+    /// saved VM state for this context, then only objects in local VM revert
+    /// to their saved state; objects in global VM are undisturbed.
+    ///
+    /// restore can reset VM to the state represented by any save object that is
+    /// still valid, not necessarily the one produced by the most recent save.
+    /// After restoring VM, restore invalidates its save operand along with
+    /// any other save objects created more recently than that one. That is, a
+    /// VM snapshot can be used only once; to restore the same environment
+    /// repeatedly, it is necessary to do a new save each time
+    ///
+    /// restore does not alter the contents of the operand, dictionary, or
+    /// execution stack, except to pop its save operand. If any of these stacks
+    /// contains composite objects whose values reside in local VM and are newer
+    /// than the snapshot being restored, an invalidrestore error occurs. This
+    /// restriction applies to save objects and, in LanguageLevel 1, to name
+    /// objects
+    ///
+    /// restore does alter the graphics state stack: it performs the equivalent
+    /// of a grestoreall and then removes the graphics state created by save from
+    /// the graphics state stack. restore also resets several per-context parameters
+    /// to their state at the time of save. These include:
+    ///  - Array packing mode (see setpacking)
+    ///  - VM allocation mode (see setglobal)
+    ///  -  Object output format (see setobjectformat)
+    ///  -  All user interpreter parameters (see setuserparams)
+    ///
+    /// save `restore` –
+    Restore,
+
+    /// replaces executable operator names in proc by their values. For each element
+    /// of proc that is an executable name, bind looks up the name in the context
+    /// of the current dictionary stack as if by the load operator. If the name is
+    /// found and its value is an operator object, bind replaces the name with the
+    /// operator in proc. If the name is not found or its value is not an operator,
+    /// bind does not make a change
+    ///
+    /// For each procedure object contained within proc, bind applies itself
+    /// recursively to that procedure, makes the procedure read-only, and stores
+    /// it back into proc. bind applies to both arrays and packed arrays, but
+    /// it treats their access attributes differently. It will ignore a read-only
+    /// array; that is, it will neither bind elements of the array nor examine
+    /// nested procedures. On the other hand, bind will operate on a packed array
+    /// (which always has read-only or even more restricted access), disregarding
+    /// its access attribute. No error occurs in either case
+    ///
+    /// The effect of bind is that all operator names in proc and in procedures
+    /// nested within proc to any depth become tightly bound to the operators
+    /// themselves. During subsequent execution of proc, the interpreter
+    /// encounters the operators themselves rather than their names.
+    ///
+    /// In LanguageLevel 3, if the user parameter IdiomRecognition is true, then
+    /// after replacing executable names with operators, bind compares proc with
+    /// every template procedure defined in instances of the IdiomSet resource
+    /// category. If it finds a match, it returns the associated substitute
+    /// procedure.
+    ///
+    /// proc `bind` proc
+    Bind,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1406,6 +1669,60 @@ mod test {
         interpreter.run().unwrap();
 
         assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Float(3.0));
+        assert!(interpreter.pop().is_err());
+    }
+
+    #[test]
+    fn known_name_exists() {
+        let mut interpreter = PostscriptInterpreter::new(
+            b"
+            /mydict 5 dict def
+            mydict /total 0 put
+            mydict /total known
+        ",
+        );
+
+        interpreter.run().unwrap();
+
+        assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Bool(true));
+        assert!(interpreter.pop().is_err());
+    }
+
+    #[test]
+    fn push_number() {
+        let mut interpreter = PostscriptInterpreter::new(b"5");
+
+        interpreter.run().unwrap();
+
+        assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Int(5));
+        assert!(interpreter.pop().is_err());
+    }
+
+    #[test]
+    fn push_name() {
+        let mut interpreter = PostscriptInterpreter::new(b"/name");
+
+        interpreter.run().unwrap();
+
+        let name = interpreter.pop_name().unwrap();
+
+        assert_eq!(name.as_bytes(), b"name");
+        assert!(interpreter.pop().is_err());
+    }
+
+    #[test]
+    fn known_name_dne() {
+        let mut interpreter = PostscriptInterpreter::new(
+            b"
+                /mydict 5 dict def
+                mydict /total 0 put
+                mydict /badname known
+            ",
+        );
+
+        interpreter.run().unwrap();
+
+        assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Bool(false));
         assert!(interpreter.pop().is_err());
     }
 
