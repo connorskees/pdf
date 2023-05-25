@@ -93,14 +93,27 @@ pub fn pdf_enum_inner(attr: TokenStream, item: TokenStream) -> TokenStream {
         })
     };
 
-    quote!(
-        #(#attrs)*
-        #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-        #vis enum #name {
+    let field = if object_type != Ident::new("Integer", Span::call_site()) {
+        quote!(
             #(
                 #(#field_attrs)*
                 #field_names,
             )*
+        )
+    } else {
+        quote!(
+            #(
+                #(#field_attrs)*
+                #field_names = #field_values,
+            )*
+        )
+    };
+
+    quote!(
+        #(#attrs)*
+        #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+        #vis enum #name {
+            #field
         }
 
         impl<'a> crate::FromObj<'a> for #name {

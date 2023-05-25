@@ -1,4 +1,4 @@
-use std::{borrow::Cow, cmp::min, io::Read, usize};
+use std::{borrow::Cow, cmp::min, io::Read};
 
 use crate::{
     error::{ParseError, PdfResult},

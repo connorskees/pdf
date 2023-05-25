@@ -490,13 +490,12 @@ impl<'a> CharStringPainter<'a> {
 
                     self.operand_stack.clear();
                 }
-                #[allow(unused)]
                 CharStringElement::Op(GraphicsOperator::HorizontalMoveTo) => {
                     let dx = self.operand_stack.pop_front()?;
 
                     self.operand_stack.clear();
 
-                    todo!()
+                    self.current_path.relative_move_to(dx, 0.0);
                 }
                 CharStringElement::Op(GraphicsOperator::VerticalHorizontalCurveTo) => {
                     let dy1 = self.operand_stack.pop_front()?;
