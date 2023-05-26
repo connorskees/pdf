@@ -1,20 +1,20 @@
 mod data_types;
 mod error;
+mod font_file;
 mod graphics_state;
 mod instruction;
 mod interpreter;
 pub(crate) mod parse;
 mod state;
 pub(crate) mod table;
-mod font_file;
 
 use crate::{error::PdfResult, objects::Dictionary, Resolve};
 
 use super::{encoding::FontEncoding, BaseFontDict};
 
 pub use data_types::*;
+pub use font_file::ParsedTrueTypeFontFile;
 pub use interpreter::TrueTypeInterpreter;
-pub use font_file::TrueTypeFontFile;
 
 /// A TrueType font dictionary may contain the same entries as a Type 1 font dictionary, with these differences:
 ///   * The value of Subtype shall be TrueType

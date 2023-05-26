@@ -14,5 +14,6 @@ pub use glyf::{
 pub use head::{Head, HeadFlags, MacStyle};
 pub use loca::LocaTable;
 pub use maxp::{MaxpPostscriptTable, MaxpTable};
+pub use name::{NameRecord, NameTable};
 pub use table_name::TableName;
 pub use tag::TableTag;

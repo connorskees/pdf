@@ -1,7 +1,7 @@
 use crate::font::Glyph;
 
 use super::{
-    graphics_state::TrueTypeGraphicsState, instruction::TrueTypeInstruction, TrueTypeFontFile,
+    graphics_state::TrueTypeGraphicsState, instruction::TrueTypeInstruction, ParsedTrueTypeFontFile,
 };
 
 struct InstructionStream {
@@ -28,12 +28,12 @@ pub struct TrueTypeInterpreter<'a, 'b> {
     instruction_stream: InstructionStream,
     interpreter_stack: Vec<u32>,
     graphics_state: TrueTypeGraphicsState,
-    ttf_file: &'b mut TrueTypeFontFile<'a>,
+    ttf_file: &'b mut ParsedTrueTypeFontFile<'a>,
     storage_area: Vec<u32>,
 }
 
 impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
-    pub fn new(ttf_file: &'b mut TrueTypeFontFile<'a>) -> Self {
+    pub fn new(ttf_file: &'b mut ParsedTrueTypeFontFile<'a>) -> Self {
         let storage_area_size = ttf_file.max_storage();
         Self {
             instruction_stream: InstructionStream::new(Vec::new()),

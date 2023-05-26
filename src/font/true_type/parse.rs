@@ -5,8 +5,8 @@ use crate::font::true_type::Fixed;
 use super::{
     table::{
         CompoundGlyphPartDescription, DirectoryTableEntry, FontDirectory, GlyfTable, Head,
-        HeadFlags, LocaTable, MacStyle, MaxpTable, OffsetSubtable, SimpleGlyph, TableDirectory,
-        TableTag, TrueTypeGlyph,
+        HeadFlags, LocaTable, MacStyle, MaxpTable, NameRecord, NameTable, OffsetSubtable,
+        SimpleGlyph, TableDirectory, TableTag, TrueTypeGlyph,
     },
     FWord, LongDateTime,
 };
@@ -372,6 +372,44 @@ impl<'a> TrueTypeParser<'a> {
             max_size_of_instructions,
             max_component_elements,
             max_component_depth,
+        })
+    }
+
+    pub fn read_name_table(&mut self, offset: usize) -> Option<NameTable> {
+        self.cursor = offset;
+        let format = self.read_u16()?;
+        let count = self.read_u16()?;
+        let string_offset = self.read_u16()?;
+
+        let mut name_records = Vec::with_capacity(count as usize);
+
+        for _ in 0..count {
+            name_records.push(self.read_name_record(offset + string_offset as usize)?);
+        }
+
+        Some(NameTable {
+            format,
+            string_offset,
+            name_records,
+        })
+    }
+
+    fn read_name_record(&mut self, string_offset: usize) -> Option<NameRecord> {
+        let platform_id = self.read_u16()?;
+        let platform_specific_id = self.read_u16()?;
+        let language_id = self.read_u16()?;
+        let name_id = self.read_u16()?;
+        let length = self.read_u16()?;
+        let offset = self.read_u16()?;
+
+        Some(NameRecord {
+            platform_id,
+            platform_specific_id,
+            language_id,
+            name_id,
+            length,
+            offset,
+            absolute_offset: offset as usize + string_offset,
         })
     }
 }

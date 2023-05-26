@@ -1,15 +1,12 @@
-
 use super::{
+    parse::TrueTypeParser,
     table::{
-        FontDirectory, GlyfTable, Head,
-        LocaTable, MaxpTable,
-        TableName, TrueTypeGlyph,
-    }, parse::TrueTypeParser,
+        FontDirectory, GlyfTable, Head, LocaTable, MaxpTable, NameTable, TableName, TrueTypeGlyph,
+    },
 };
 
-
 #[derive(Debug)]
-pub struct TrueTypeFontFile<'a> {
+pub struct ParsedTrueTypeFontFile<'a> {
     font_directory: FontDirectory,
     head: Head,
     maxp: MaxpTable,
@@ -17,7 +14,7 @@ pub struct TrueTypeFontFile<'a> {
     parser: TrueTypeParser<'a>,
 }
 
-impl<'a> TrueTypeFontFile<'a> {
+impl<'a> ParsedTrueTypeFontFile<'a> {
     pub fn new(buffer: &'a [u8]) -> Option<Self> {
         let mut parser = TrueTypeParser::new(buffer);
 
@@ -93,5 +90,13 @@ impl<'a> TrueTypeFontFile<'a> {
 
     pub fn max_storage(&self) -> u16 {
         self.maxp.max_storage
+    }
+
+    pub fn name_table(&mut self) -> Option<NameTable> {
+        let offset = self
+            .font_directory
+            .find_table_offset(TableName::Name.as_tag())
+            .unwrap();
+        self.parser.read_name_table(offset as usize)
     }
 }
