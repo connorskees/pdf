@@ -4,6 +4,7 @@ mod head;
 mod loca;
 mod maxp;
 mod name;
+mod table_name;
 mod tag;
 
 pub use font_directory::{DirectoryTableEntry, FontDirectory, OffsetSubtable, TableDirectory};
@@ -13,5 +14,5 @@ pub use glyf::{
 pub use head::{Head, HeadFlags, MacStyle};
 pub use loca::LocaTable;
 pub use maxp::{MaxpPostscriptTable, MaxpTable};
-pub use name::TableName;
+pub use table_name::TableName;
 pub use tag::TableTag;

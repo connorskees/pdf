@@ -1,8 +1,7 @@
 use crate::font::Glyph;
 
 use super::{
-    graphics_state::TrueTypeGraphicsState, instruction::TrueTypeInstruction,
-    parse::TrueTypeFontFile,
+    graphics_state::TrueTypeGraphicsState, instruction::TrueTypeInstruction, TrueTypeFontFile,
 };
 
 struct InstructionStream {
