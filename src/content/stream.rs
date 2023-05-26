@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::{
     error::{ParseError, PdfResult},
     filter::decode_stream,
@@ -6,9 +8,20 @@ use crate::{
     stream::Stream,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(crate) struct ContentStream {
     pub combined_buffer: Vec<u8>,
+}
+
+impl fmt::Debug for ContentStream {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ContentStream")
+            .field(
+                "combined_buffer",
+                &format!("[ {} bytes ]", self.combined_buffer.len()),
+            )
+            .finish()
+    }
 }
 
 impl ContentStream {
