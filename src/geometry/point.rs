@@ -10,6 +10,10 @@ impl Point {
     pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
+
+    pub const fn origin() -> Self {
+        Self::new(0.0, 0.0)
+    }
 }
 
 impl Add<Point> for Point {
