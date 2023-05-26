@@ -14,12 +14,20 @@ impl FontDirectory {
             .find(|entry| entry.tag == tag)
             .map(|entry| entry.offset)
     }
+
+    pub fn find_table_entry(&self, tag: TableTag) -> Option<DirectoryTableEntry> {
+        self.table_directory
+            .0
+            .iter()
+            .find(|entry| entry.tag == tag)
+            .copied()
+    }
 }
 
 #[derive(Debug)]
 pub struct TableDirectory(pub Vec<DirectoryTableEntry>);
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct DirectoryTableEntry {
     pub tag: TableTag,
     pub checksum: u32,

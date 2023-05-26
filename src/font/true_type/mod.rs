@@ -1,5 +1,7 @@
 mod error;
+mod graphics_state;
 mod instruction;
+mod interpreter;
 pub(crate) mod parse;
 mod state;
 pub(crate) mod table;
@@ -7,6 +9,8 @@ pub(crate) mod table;
 use crate::{error::PdfResult, objects::Dictionary, Resolve};
 
 use super::{encoding::FontEncoding, BaseFontDict};
+
+pub use interpreter::TrueTypeInterpreter;
 
 /// A TrueType font dictionary may contain the same entries as a Type 1 font dictionary, with these differences:
 ///   * The value of Subtype shall be TrueType
@@ -43,11 +47,13 @@ impl<'a> TrueTypeFont<'a> {
 }
 
 /// 16-bit signed fraction
+#[derive(Debug)]
 struct ShortFraction(i16);
 
 /// 16.16-bit signed fixed-point number
-struct Fixed(i32);
-
+#[derive(Debug)]
+pub struct Fixed(i32);
+#[derive(Debug)]
 enum DataType {
     /// 16-bit signed fraction
     ShortFraction(ShortFraction),
@@ -71,5 +77,7 @@ enum DataType {
     LongDateTime(LongDateTime),
 }
 
+#[derive(Debug)]
 pub struct LongDateTime(i64);
+#[derive(Debug)]
 pub struct FWord(i16);

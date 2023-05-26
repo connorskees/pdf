@@ -1,13 +1,15 @@
 use super::TableTag;
 
+#[derive(Debug)]
 pub struct GlyfTable {
-    pub(crate) glyphs: Vec<Glyph>,
+    pub(crate) glyphs: Vec<TrueTypeGlyph>,
 }
 
 impl GlyfTable {
     pub const TAG: TableTag = TableTag::new(*b"glyf");
 }
 
+#[derive(Debug)]
 pub struct GlyphDescription {
     /// If the number of contours is positive or zero, it is a single glyph;
     /// If the number of contours less than zero, the glyph is compound
@@ -19,6 +21,7 @@ pub struct GlyphDescription {
     y_max: i16,
 }
 
+#[derive(Debug)]
 pub struct SimpleGlyph {
     /// Array of last points of each contour; array entries are point indices
     // todo: we should be able to get away with either `&[u16]` or `&[u8] here
@@ -36,11 +39,13 @@ pub struct SimpleGlyph {
     pub(crate) y_coords: Vec<u16>,
 }
 
-pub enum Glyph {
+#[derive(Debug)]
+pub enum TrueTypeGlyph {
     Simple(SimpleGlyph),
     Compound(Vec<CompoundGlyphPartDescription>),
 }
 
+#[derive(Debug)]
 struct OutlineFlag(u8);
 
 impl OutlineFlag {
@@ -52,6 +57,7 @@ impl OutlineFlag {
     const POSITIVE_Y_SHORT_VECTOR: u8 = 1 << 5;
 }
 
+#[derive(Debug)]
 pub struct CompoundGlyphPartDescription {
     flags: CompoundGlyphComponentFlags,
 
@@ -67,6 +73,7 @@ pub struct CompoundGlyphPartDescription {
     transformation_option: CompoundTransformationOption,
 }
 
+#[derive(Debug)]
 struct CompoundGlyphComponentFlags(u16);
 
 impl CompoundGlyphComponentFlags {
@@ -83,6 +90,7 @@ impl CompoundGlyphComponentFlags {
     const OVERLAP_COMPOUND: u16 = 1 << 10;
 }
 
+#[derive(Debug)]
 enum CompoundTransformationOption {
     One,
     Two,

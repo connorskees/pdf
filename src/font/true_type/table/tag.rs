@@ -1,6 +1,6 @@
 use std::fmt::{self, Write};
 
-#[derive(PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct TableTag([u8; 4]);
 
 impl TableTag {

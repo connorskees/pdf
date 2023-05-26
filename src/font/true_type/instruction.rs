@@ -1,4 +1,4 @@
-enum TrueTypeInstruction {
+pub enum TrueTypeInstruction {
     AdjustAngle,
 
     /// Replaces the number at the top of the stack with its absolute value

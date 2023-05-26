@@ -1,6 +1,7 @@
 use super::tag::TableTag;
 
-enum TableName {
+#[derive(Debug)]
+pub enum TableName {
     Acnt,
     Ankr,
     Avar,

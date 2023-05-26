@@ -1,13 +1,22 @@
 use std::fmt;
 
-use super::table::{
-    CompoundGlyphPartDescription, DirectoryTableEntry, FontDirectory, GlyfTable, Glyph, Head,
-    OffsetSubtable, SimpleGlyph, TableDirectory, TableTag,
+use crate::font::true_type::Fixed;
+
+use super::{
+    table::{
+        CompoundGlyphPartDescription, DirectoryTableEntry, FontDirectory, GlyfTable, Head,
+        HeadFlags, LocaTable, MacStyle, MaxpTable, OffsetSubtable, SimpleGlyph, TableDirectory,
+        TableName, TableTag, TrueTypeGlyph,
+    },
+    FWord, LongDateTime,
 };
 
 #[derive(Debug)]
-pub(crate) struct TrueTypeFontFile<'a> {
+pub struct TrueTypeFontFile<'a> {
     font_directory: FontDirectory,
+    head: Head,
+    maxp: MaxpTable,
+    loca: LocaTable,
     parser: TrueTypeParser<'a>,
 }
 
@@ -17,18 +26,76 @@ impl<'a> TrueTypeFontFile<'a> {
 
         let font_directory = parser.read_font_directory()?;
 
+        let head = Self::get_head(&mut parser, &font_directory)?;
+        let maxp = Self::get_maxp(&mut parser, &font_directory)?;
+        let loca = Self::get_loca(&mut parser, &font_directory, head.index_to_loc_format)?;
+
         Some(Self {
-            parser,
             font_directory,
+            head,
+            maxp,
+            loca,
+            parser,
         })
     }
 
-    pub fn glyphs(&mut self) -> () {
+    fn get_head(parser: &mut TrueTypeParser, font_directory: &FontDirectory) -> Option<Head> {
+        let offset = font_directory
+            .find_table_offset(TableName::Head.as_tag())
+            .unwrap();
+        parser.read_head_table(offset as usize)
+    }
+
+    fn get_maxp(parser: &mut TrueTypeParser, font_directory: &FontDirectory) -> Option<MaxpTable> {
+        let offset = font_directory
+            .find_table_offset(TableName::Maxp.as_tag())
+            .unwrap();
+        parser.read_maxp_table(offset as usize)
+    }
+
+    fn get_loca(
+        parser: &mut TrueTypeParser,
+        font_directory: &FontDirectory,
+        loca_format: i16,
+    ) -> Option<LocaTable> {
+        let entry = font_directory
+            .find_table_entry(TableName::Loca.as_tag())
+            .unwrap();
+        parser.read_loca_table(entry.offset as usize, entry.length as usize, loca_format)
+    }
+
+    pub fn glyph(&mut self, char_code: u32) -> Option<TrueTypeGlyph> {
+        let glyf_entry = self.loca.get_glyf_entry(char_code)?;
+
+        let glyf_table_offset = self
+            .font_directory
+            .find_table_offset(GlyfTable::TAG)
+            .unwrap();
+
+        let glyf_offset = glyf_table_offset + glyf_entry.offset;
+
+        self.parser.cursor = glyf_offset as usize;
+        let glyf = self.parser.parse_glyph()?;
+
+        dbg!(&glyf);
+        todo!()
+    }
+
+    pub fn glyphs(&mut self) -> Vec<TrueTypeGlyph> {
         let offset = self
             .font_directory
             .find_table_offset(GlyfTable::TAG)
             .unwrap();
-        self.parser.read_glyf_table(offset as usize);
+        let num_glyphs = self.maxp.num_glyphs as usize;
+        let glyf_table = self
+            .parser
+            .read_glyf_table(offset as usize, num_glyphs)
+            .unwrap();
+        glyf_table.glyphs
+    }
+
+    pub fn max_storage(&self) -> u16 {
+        self.maxp.max_storage
     }
 }
 
@@ -85,8 +152,44 @@ impl<'a> TrueTypeParser<'a> {
         Some(u32::from_be_bytes([b1, b2, b3, b4]))
     }
 
-    fn read_fword(&mut self) -> Option<i16> {
-        todo!()
+    fn read_u64(&mut self) -> Option<u64> {
+        let b1 = self.next()?;
+        let b2 = self.next()?;
+        let b3 = self.next()?;
+        let b4 = self.next()?;
+        let b5 = self.next()?;
+        let b6 = self.next()?;
+        let b7 = self.next()?;
+        let b8 = self.next()?;
+
+        Some(u64::from_be_bytes([b1, b2, b3, b4, b5, b6, b7, b8]))
+    }
+
+    fn read_i64(&mut self) -> Option<i64> {
+        let b1 = self.next()?;
+        let b2 = self.next()?;
+        let b3 = self.next()?;
+        let b4 = self.next()?;
+        let b5 = self.next()?;
+        let b6 = self.next()?;
+        let b7 = self.next()?;
+        let b8 = self.next()?;
+
+        Some(i64::from_be_bytes([b1, b2, b3, b4, b5, b6, b7, b8]))
+    }
+
+    fn read_fixed(&mut self) -> Option<Fixed> {
+        let n = self.read_u32()?;
+
+        Some(Fixed(i32::from_be_bytes(n.to_be_bytes())))
+    }
+
+    fn read_fword(&mut self) -> Option<FWord> {
+        Some(FWord(self.read_i16()?))
+    }
+
+    fn read_long_date_time(&mut self) -> Option<LongDateTime> {
+        Some(LongDateTime(self.read_i64()?))
     }
 
     fn read_offset_subtable(&mut self) -> Option<OffsetSubtable> {
@@ -142,21 +245,33 @@ impl<'a> TrueTypeParser<'a> {
         })
     }
 
-    fn parse_head(&mut self) -> Option<Head> {
-        todo!()
-    }
-
     #[track_caller]
     fn get_byte_range(&self, length: usize) -> &[u8] {
         &self.buffer[self.cursor..(self.cursor + length)]
     }
 
-    fn parse_simple_glyph_flags(&mut self) -> Vec<u8> {
-        todo!()
+    fn parse_simple_glyph_flags(&mut self, number_of_contours: i16) -> Vec<u8> {
+        let mut flags = Vec::new();
+
+        while flags.len() < number_of_contours as usize {
+            let next = self.next().unwrap();
+            let should_repeat = next & 0b1000 != 0;
+            flags.push(next);
+            if should_repeat {
+                let num_repeat = self.next().unwrap();
+                for _ in 0..num_repeat {
+                    // flags.push(next);
+                }
+            }
+        }
+
+        assert_eq!(flags.len(), number_of_contours as usize);
+
+        flags
     }
 
     fn parse_simple_glyph(&mut self, number_of_contours: i16) -> Option<SimpleGlyph> {
-        let mut end_points_of_contours = Vec::new();
+        let mut end_points_of_contours = Vec::with_capacity(number_of_contours as usize);
 
         // todo: this should just reinterpret bytes
         for _ in 0..number_of_contours {
@@ -166,16 +281,13 @@ impl<'a> TrueTypeParser<'a> {
         let instruction_length = self.read_u16()?;
         let instructions = self.get_byte_range(instruction_length as usize).to_vec();
 
-        let flag_start = self.cursor;
-
-        // let flag = self.next().unwrap();
-        let flags = self.parse_simple_glyph_flags();
+        let flags = self.parse_simple_glyph_flags(number_of_contours);
 
         let mut x_coords = Vec::new();
         let mut y_coords = Vec::new();
 
         for &flag in &flags {
-            if true {
+            if flag & 0b10 != 0 {
                 x_coords.push(self.next()? as u16);
             } else {
                 x_coords.push(self.read_u16()?);
@@ -183,14 +295,12 @@ impl<'a> TrueTypeParser<'a> {
         }
 
         for &flag in &flags {
-            if true {
+            if flag & 0b100 != 0 {
                 y_coords.push(self.next()? as u16);
             } else {
                 y_coords.push(self.read_u16()?);
             }
         }
-        // println!("{:#b}", flag);
-        // let flags = &[self.next()?];
 
         Some(SimpleGlyph {
             end_points_of_contours,
@@ -205,37 +315,142 @@ impl<'a> TrueTypeParser<'a> {
         todo!()
     }
 
-    fn parse_glyph(&mut self) -> Option<Glyph> {
+    fn parse_glyph(&mut self) -> Option<TrueTypeGlyph> {
         let number_of_contours = self.read_i16()?;
-        let x_min = self.read_u16()?;
-        let y_min = self.read_u16()?;
-        let x_max = self.read_u16()?;
-        let y_max = self.read_u16()?;
-
-        dbg!(number_of_contours);
+        let _x_min = self.read_u16()?;
+        let _y_min = self.read_u16()?;
+        let _x_max = self.read_u16()?;
+        let _y_max = self.read_u16()?;
 
         Some(
             if number_of_contours.is_positive() || number_of_contours == 0 {
                 let glyph = self.parse_simple_glyph(number_of_contours)?;
 
-                Glyph::Simple(glyph)
+                TrueTypeGlyph::Simple(glyph)
             } else {
                 let glyph = self.parse_compound_glyph()?;
 
-                Glyph::Compound(glyph)
+                TrueTypeGlyph::Compound(glyph)
             },
         )
     }
 
-    fn read_glyf_table(&mut self, offset: usize) -> Option<GlyfTable> {
+    fn read_glyf_table(&mut self, offset: usize, num_glyphs: usize) -> Option<GlyfTable> {
         self.cursor = offset;
 
-        let mut glyphs = Vec::new();
+        let mut glyphs = Vec::with_capacity(num_glyphs);
 
-        loop {
+        for _ in 0..num_glyphs {
             glyphs.push(self.parse_glyph()?);
         }
 
         Some(GlyfTable { glyphs })
+    }
+
+    fn read_loca_table(&mut self, offset: usize, length: usize, format: i16) -> Option<LocaTable> {
+        self.cursor = offset;
+
+        let buffer = self.get_byte_range(length);
+
+        let offsets = match format {
+            // short
+            0 => buffer
+                .chunks_exact(2)
+                .map(|bytes| u16::from_be_bytes([bytes[0], bytes[1]]) as u32)
+                .collect(),
+            // long
+            1 => buffer
+                .chunks_exact(4)
+                .map(|bytes| u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
+                .collect(),
+            _ => todo!("unsupported loca table format: {:?}", format),
+        };
+
+        Some(LocaTable { offsets })
+    }
+
+    fn read_head_table(&mut self, offset: usize) -> Option<Head> {
+        self.cursor = offset;
+
+        let version = self.read_u32()?;
+        assert_eq!(version, 0x00010000);
+        let font_revision = self.read_fixed()?;
+        let check_sum_adjustment = self.read_u32()?;
+        let magic_number = self.read_u32()?;
+        assert_eq!(magic_number, 0x5F0F3CF5);
+
+        let flags = HeadFlags(self.read_u16()?);
+        let units_per_em = self.read_u16()?;
+        let created = self.read_long_date_time()?;
+        let modified = self.read_long_date_time()?;
+        let x_min = self.read_fword()?;
+        let y_min = self.read_fword()?;
+        let x_max = self.read_fword()?;
+        let y_max = self.read_fword()?;
+        let mac_style = MacStyle(self.read_u16()?);
+        let lowest_rec_ppem = self.read_u16()?;
+        let font_direction_hint = self.read_i16()?;
+        let index_to_loc_format = self.read_i16()?;
+        let glyph_data_format = self.read_i16()?;
+
+        // todo: perhaps verify this?
+        drop(check_sum_adjustment);
+
+        Some(Head {
+            font_revision,
+            flags,
+            units_per_em,
+            created,
+            modified,
+            x_min,
+            y_min,
+            x_max,
+            y_max,
+            mac_style,
+            lowest_rec_ppem,
+            font_direction_hint,
+            index_to_loc_format,
+            glyph_data_format,
+        })
+    }
+
+    fn read_maxp_table(&mut self, offset: usize) -> Option<MaxpTable> {
+        self.cursor = offset;
+
+        let version = self.read_u32()?;
+        assert_eq!(version, 0x00010000);
+
+        let num_glyphs = self.read_u16()?;
+        let max_points = self.read_u16()?;
+        let max_contours = self.read_u16()?;
+        let max_component_points = self.read_u16()?;
+        let max_component_contours = self.read_u16()?;
+        let max_zones = self.read_u16()?;
+        let max_twilight_points = self.read_u16()?;
+        let max_storage = self.read_u16()?;
+        let max_function_defs = self.read_u16()?;
+        let max_instruction_defs = self.read_u16()?;
+        let max_stack_elements = self.read_u16()?;
+        let max_size_of_instructions = self.read_u16()?;
+        let max_component_elements = self.read_u16()?;
+        let max_component_depth = self.read_u16()?;
+
+        Some(MaxpTable {
+            version: Fixed(i32::from_be_bytes(version.to_be_bytes())),
+            num_glyphs,
+            max_points,
+            max_contours,
+            max_component_points,
+            max_component_contours,
+            max_zones,
+            max_twilight_points,
+            max_storage,
+            max_function_defs,
+            max_instruction_defs,
+            max_stack_elements,
+            max_size_of_instructions,
+            max_component_elements,
+            max_component_depth,
+        })
     }
 }
