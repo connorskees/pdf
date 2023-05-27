@@ -16,6 +16,14 @@ impl<'a> FromObj<'a> for Rectangle {
 }
 
 impl Rectangle {
+    pub fn width(&self) -> f32 {
+        self.upper_right_x - self.lower_left_x
+    }
+
+    pub fn height(&self) -> f32 {
+        self.upper_right_y - self.lower_left_y
+    }
+
     pub(crate) fn from_arr<'a>(
         mut arr: Vec<Object>,
         resolver: &mut dyn Resolve<'a>,
