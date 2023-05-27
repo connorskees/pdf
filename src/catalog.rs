@@ -337,7 +337,9 @@ impl<'a> FromObj<'a> for OpenAction<'a> {
     fn from_obj(obj: Object<'a>, lexer: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let obj = lexer.resolve(obj)?;
         Ok(match obj {
-            Object::Dictionary(dict) => OpenAction::Actions(Actions::from_dict(dict, lexer)?),
+            Object::Dictionary(dict) => {
+                OpenAction::Actions(Actions::from_obj(Object::Dictionary(dict), lexer)?)
+            }
             obj => OpenAction::Destination(Destination::from_obj(obj, lexer)?),
         })
     }
@@ -417,12 +419,13 @@ pub struct Permissions;
 pub struct Legal;
 #[derive(Debug)]
 pub struct Requirement;
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, FromObj)]
 pub struct Collection;
 #[derive(Debug)]
 pub struct BoxColorInfo;
 
 #[derive(Debug, Clone, FromObj)]
+#[obj_type("Group")]
 pub struct GroupAttributes<'a> {
     /// The group subtype, which identifies the type of group whose attributes
     /// this dictionary describes. This is always "Transparency"

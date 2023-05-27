@@ -1,12 +1,11 @@
 use crate::{
-    assert_empty,
     data_structures::Rectangle,
     date::Date,
     error::{ParseError, PdfResult},
     objects::{Dictionary, Object, Reference},
     optional_content::OptionalContent,
     resources::graphics_state_parameters::LineDashPattern,
-    Resolve,
+    FromObj, Resolve,
 };
 
 use subtype::{AnnotationSubType, AnnotationSubTypeKind};
@@ -25,9 +24,7 @@ pub struct Annotation<'a> {
 impl<'a> Annotation<'a> {
     pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let base = BaseAnnotation::from_dict(&mut dict, resolver)?;
-        let sub_type = AnnotationSubType::from_dict(&mut dict, &base, resolver)?;
-
-        assert_empty(dict);
+        let sub_type = AnnotationSubType::from_dict(dict, &base, resolver)?;
 
         Ok(Self { base, sub_type })
     }
@@ -453,14 +450,17 @@ struct RichTextString;
 /// by the annotation's BS entry. Such dictionaries may also be used to specify the width and dash pattern
 /// for the lines drawn by line, square, circle, and ink annotations. If neither the Border nor the BS entry
 /// is present, the border shall be drawn as a solid line with a width of 1 point
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
+#[obj_type("Border")]
 pub struct BorderStyle {
     /// The border width in points. If this value is 0, no border shall drawn.
     ///
     /// Default value: 1
+    #[field("W")]
     w: u32,
 
     /// The border style
+    #[field("S")]
     s: Option<BorderStyleKind>,
 
     /// A dash array defining a pattern of dashes and gaps that shall be used in drawing a dashed border (border
@@ -470,27 +470,8 @@ pub struct BorderStyle {
     /// EXAMPLE: A `D` entry of [3 2] specifies a border drawn with 3-point dashes alternating with 2-point gaps.
     ///
     /// Default value: [3].
+    #[field("D")]
     d: Option<LineDashPattern>,
-}
-
-impl BorderStyle {
-    const TYPE: &'static str = "Border";
-
-    pub fn from_dict<'a>(
-        mut dict: Dictionary<'a>,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Self> {
-        dict.expect_type(Self::TYPE, resolver, false)?;
-
-        let w = dict.get_unsigned_integer("W", resolver)?.unwrap_or(1);
-        let s = dict.get_name("S", resolver)?.map(BorderStyleKind::from_str);
-        let d = dict
-            .get_object("D", resolver)?
-            .map(|arr| LineDashPattern::from_arr(vec![arr, Object::Integer(0)], resolver))
-            .transpose()?;
-
-        Ok(Self { w, s, d })
-    }
 }
 
 #[derive(Debug)]
@@ -513,6 +494,13 @@ enum BorderStyleKind {
     Underline,
 
     Other(String),
+}
+
+impl<'a> FromObj<'a> for BorderStyleKind {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let s = resolver.assert_name(obj)?;
+        Ok(BorderStyleKind::from_str(s))
+    }
 }
 
 impl BorderStyleKind {

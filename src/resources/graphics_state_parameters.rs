@@ -333,6 +333,13 @@ impl LineDashPattern {
     }
 }
 
+impl<'a> FromObj<'a> for LineDashPattern {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let arr = resolver.assert_arr(obj)?;
+        LineDashPattern::from_arr(arr, resolver)
+    }
+}
+
 fn graphics_state_parameters_font_from_obj<'a>(
     obj: Object<'a>,
     resolver: &mut dyn Resolve<'a>,

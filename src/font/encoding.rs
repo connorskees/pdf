@@ -52,7 +52,8 @@ pub enum BaseFontEncoding {
     WinAnsiEncoding = "WinAnsiEncoding",
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
+#[obj_type("Encoding")]
 pub struct FontEncodingDict {
     /// The base encoding—that is, the encoding from which the Differences entry (if present)
     /// describes differences— shall be the name of one of the predefined encodings
@@ -61,42 +62,24 @@ pub struct FontEncodingDict {
     /// a font program that is embedded in the PDF file, the implicit base encoding shall be
     /// the font program’s built-in encoding. Otherwise, for a nonsymbolic font, it shall be
     /// StandardEncoding, and for a symbolic font, it shall be the font’s built-in encoding
+    #[field("BaseEncoding")]
     base_encoding: Option<BaseFontEncoding>,
 
     /// An array describing the differences from the encoding specified by BaseEncoding or,
     /// if BaseEncoding is absent, from an implicit base encoding
+    #[field("Differences")]
     differences: Option<FontDifferences>,
-}
-
-impl FontEncodingDict {
-    const TYPE: &'static str = "Encoding";
-}
-
-impl<'a> FromObj<'a> for FontEncodingDict {
-    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let mut dict = resolver.assert_dict(obj)?;
-
-        dict.expect_type(Self::TYPE, resolver, false)?;
-
-        let base_encoding = dict
-            .get_name("BaseEncoding", resolver)?
-            .as_deref()
-            .map(BaseFontEncoding::from_str)
-            .transpose()?;
-        let differences = dict
-            .get_arr("Differences", resolver)?
-            .map(|arr| FontDifferences::from_arr(arr, resolver))
-            .transpose()?;
-
-        Ok(Self {
-            base_encoding,
-            differences,
-        })
-    }
 }
 
 #[derive(Debug)]
 struct FontDifferences(HashMap<u32, Vec<String>>);
+
+impl<'a> FromObj<'a> for FontDifferences {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let arr = resolver.assert_arr(obj)?;
+        FontDifferences::from_arr(arr, resolver)
+    }
+}
 
 impl FontDifferences {
     pub fn from_arr<'a>(

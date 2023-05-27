@@ -94,6 +94,7 @@ impl ColorSpace {
         }
     }
 
+    #[allow(unused)]
     fn blend(&self, background: Self) -> Self {
         todo!()
     }

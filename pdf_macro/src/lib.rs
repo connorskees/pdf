@@ -10,7 +10,7 @@ pub fn pdf_enum(attr: TokenStream, item: TokenStream) -> TokenStream {
     pdf_enum_inner(attr, item)
 }
 
-#[proc_macro_derive(FromObj, attributes(field))]
+#[proc_macro_derive(FromObj, attributes(field, obj_type))]
 pub fn pdf_obj(item: TokenStream) -> TokenStream {
     pdf_obj_inner(item)
 }

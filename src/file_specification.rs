@@ -1,5 +1,4 @@
 use crate::{
-    assert_empty,
     catalog::{assert_len, Collection},
     error::{ParseError, PdfResult},
     objects::{Dictionary, Object, ObjectType},
@@ -16,8 +15,8 @@ impl<'a> FromObj<'a> for FileSpecification<'a> {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         match resolver.resolve(obj)? {
             Object::String(s) => Ok(FileSpecification::Simple(FileSpecificationString::new(s))),
-            Object::Dictionary(dict) => Ok(FileSpecification::Full(
-                FullFileSpecification::from_dict(dict, resolver)?,
+            obj @ Object::Dictionary(..) => Ok(FileSpecification::Full(
+                FullFileSpecification::from_obj(obj, resolver)?,
             )),
             _ => Err(ParseError::MismatchedObjectType {
                 expected: ObjectType::Dictionary,
@@ -26,7 +25,8 @@ impl<'a> FromObj<'a> for FileSpecification<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, FromObj)]
+#[obj_type("Typespec")]
 pub struct FullFileSpecification<'a> {
     /// The name of the file system that shall be used to interpret this file
     /// specification.
@@ -36,6 +36,7 @@ pub struct FullFileSpecification<'a> {
     /// standard file system name, URL; an application can register other names.
     ///
     /// This entry shall be independent of the F and UF entries.
+    #[field("Fs")]
     file_system: Option<String>,
 
     /// A file specification string as descibed by the `FileSpecificationString` docs
@@ -44,6 +45,7 @@ pub struct FullFileSpecification<'a> {
     /// The UF entry should be used in addition to the F entry. The UF entry provides
     /// cross-platform and cross-language compatibility and the F entry provides backwards
     /// compatibility.
+    #[field("F")]
     file_specification_string: Option<FileSpecificationString>,
 
     /// A Unicode text string that provides file specification. This is a text string
@@ -51,7 +53,26 @@ pub struct FullFileSpecification<'a> {
     ///
     /// The F entry should be included along with this entry for backwards compatibility
     /// reasons.
+    #[field("UF")]
     unicode_file_specification_string: Option<FileSpecificationString>,
+
+    /// A file specification string representing a DOS file name.
+    ///
+    /// This entry is obsolescent and should not be used by conforming writers.
+    #[field("DOS")]
+    dos: Option<FileSpecificationString>,
+
+    /// A file specification string representing a Mac OS file name.
+    ///
+    /// This entry is obsolescent and should not be used by conforming writers.
+    #[field("Mac")]
+    mac: Option<String>,
+
+    /// A file specification string representing a UNIX file name.
+    ///
+    /// This entry is obsolescent and should not be used by conforming writers.
+    #[field("Unix")]
+    unix: Option<String>,
 
     /// An array of two byte strings constituting a file identifier that should be included
     /// in the referenced file.
@@ -59,6 +80,7 @@ pub struct FullFileSpecification<'a> {
     /// NOTE: The use of this entry improves an application's chances of finding the
     /// intended file and allows it to warn the user if the file has changed since the link
     /// was made.
+    #[field("ID")]
     id: Option<FileIdentifier>,
 
     /// A flag indicating whether the file referenced by the file specification is volatile
@@ -70,6 +92,7 @@ pub struct FullFileSpecification<'a> {
     /// it is played.
     ///
     /// Default value: false.
+    #[field("V", default = false)]
     is_volatile: bool,
 
     /// A dictionary containing a subset of the keys F, and UF, corresponding to the entries
@@ -78,6 +101,7 @@ pub struct FullFileSpecification<'a> {
     /// The value of each such key shall be an embedded file stream containing the corresponding
     /// file. If this entry is present, the Type entry is required and the file specification
     /// dictionary shall be indirectly referenced.
+    #[field("EF")]
     ef: Option<Dictionary<'a>>,
 
     /// A dictionary with the same structure as the EF dictionary, which shall be present.
@@ -88,58 +112,19 @@ pub struct FullFileSpecification<'a> {
     ///
     /// If this entry is present, the Type entry is required and the file specification dictionary
     /// shall be indirectly referenced.
+    #[field("RF")]
     rf: Option<Dictionary<'a>>,
 
     /// Descriptive text associated with the file specification.
     ///
     /// It shall be used for files in the EmbeddedFiles name tree
+    #[field("Desc")]
     description: Option<String>,
 
     /// A collection item dictionary, which shall be used to create the user interface for
     /// portable collections
+    #[field("CI")]
     collection_item_dict: Option<Collection>,
-}
-
-impl<'a> FullFileSpecification<'a> {
-    const TYPE: &'static str = "Typespec";
-
-    pub(crate) fn from_dict(
-        mut dict: Dictionary<'a>,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Self> {
-        dict.expect_type(Self::TYPE, resolver, false)?;
-
-        let file_system = dict.get_name("Fs", resolver)?;
-        let file_specification_string = dict
-            .get_string("F", resolver)?
-            .map(FileSpecificationString::new);
-        let unicode_file_specification_string = dict
-            .get_string("UF", resolver)?
-            .map(FileSpecificationString::new);
-        dict.get_string("DOS", resolver)?;
-        dict.get_string("Mac", resolver)?;
-        dict.get_string("Unix", resolver)?;
-        let id = dict.get::<FileIdentifier>("UF", resolver)?;
-        let is_volatile = dict.get_bool("V", resolver)?.unwrap_or(false);
-        let ef = dict.get_dict("EF", resolver)?;
-        let rf = dict.get_dict("RF", resolver)?;
-        let description = dict.get_string("Desc", resolver)?;
-        let collection_item_dict = dict.get_dict("CI", resolver)?.map(|_| todo!());
-
-        assert_empty(dict);
-
-        Ok(FullFileSpecification {
-            file_system,
-            file_specification_string,
-            unicode_file_specification_string,
-            id,
-            is_volatile,
-            ef,
-            rf,
-            description,
-            collection_item_dict,
-        })
-    }
 }
 
 /// The standard format for representing a simple file specification in string form divides
@@ -155,6 +140,12 @@ pub struct FileSpecificationString(String);
 impl FileSpecificationString {
     pub fn new(s: String) -> Self {
         Self(s)
+    }
+}
+
+impl<'a> FromObj<'a> for FileSpecificationString {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        Ok(Self(String::from_obj(obj, resolver)?))
     }
 }
 

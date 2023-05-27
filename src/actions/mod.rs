@@ -1,6 +1,6 @@
 use crate::{
     error::{ParseError, PdfResult},
-    objects::{Dictionary, Object, ObjectType},
+    objects::{Object, ObjectType},
     FromObj, Resolve,
 };
 
@@ -19,6 +19,7 @@ pub struct Actions<'a> {
     ///
     /// The value is either a single action dictionary or an array of action dictionaries
     /// that shall be performed in order
+    // todo: should this actually be Vec<Action>?
     next: Option<Vec<Self>>,
 }
 
@@ -32,13 +33,13 @@ enum Action<'a> {
 impl<'a> Actions<'a> {
     const TYPE: &'static str = "Action";
 
-    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Vec<Self>> {
+    fn maybe_array(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Vec<Self>> {
         Ok(match resolver.resolve(obj)? {
             Object::Array(arr) => arr
                 .into_iter()
-                .map(|obj| Actions::from_dict(resolver.assert_dict(obj)?, resolver))
+                .map(|obj| Actions::from_obj(obj, resolver))
                 .collect::<PdfResult<Vec<Actions>>>()?,
-            Object::Dictionary(dict) => vec![Actions::from_dict(dict, resolver)?],
+            obj @ Object::Dictionary(..) => vec![Actions::from_obj(obj, resolver)?],
             _ => {
                 return Err(ParseError::MismatchedObjectTypeAny {
                     expected: &[ObjectType::Array, ObjectType::Dictionary],
@@ -46,13 +47,17 @@ impl<'a> Actions<'a> {
             }
         })
     }
+}
 
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for Actions<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut dict = resolver.assert_dict(obj)?;
+
         let action_type = ActionType::from_str(&dict.expect_name("S", resolver)?)?;
 
         let next = dict
             .get_object("Next", resolver)?
-            .map(|obj| Actions::from_obj(obj, resolver))
+            .map(|obj| Actions::maybe_array(obj, resolver))
             .transpose()?;
 
         let action = match action_type {
@@ -63,7 +68,9 @@ impl<'a> Actions<'a> {
                 Object::Dictionary(dict),
                 resolver,
             )?),
-            ActionType::Uri => Action::Uri(UriAction::from_dict(dict, resolver)?),
+            ActionType::Uri => {
+                Action::Uri(UriAction::from_obj(Object::Dictionary(dict), resolver)?)
+            }
             _ => todo!(),
         };
 

@@ -25,7 +25,7 @@ impl fmt::Debug for Stream<'_> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct DecodeParams<'a> {
-    params: Vec<Dictionary<'a>>,
+    params: Vec<Option<Dictionary<'a>>>,
 }
 
 impl<'a> DecodeParams<'a> {
@@ -33,9 +33,15 @@ impl<'a> DecodeParams<'a> {
         let params = match resolver.resolve(obj)? {
             Object::Array(arr) => arr
                 .into_iter()
-                .map(|obj| resolver.assert_dict(obj))
-                .collect::<PdfResult<Vec<Dictionary>>>()?,
-            Object::Dictionary(dict) => vec![dict],
+                .map(|obj| match resolver.resolve(obj)? {
+                    Object::Dictionary(dict) => Ok(Some(dict)),
+                    Object::Null => Ok(None),
+                    _ => Err(ParseError::MismatchedObjectTypeAny {
+                        expected: &[ObjectType::Null, ObjectType::Dictionary],
+                    }),
+                })
+                .collect::<PdfResult<Vec<Option<Dictionary>>>>()?,
+            Object::Dictionary(dict) => vec![Some(dict)],
             _ => {
                 return Err(ParseError::MismatchedObjectTypeAny {
                     expected: &[ObjectType::Array, ObjectType::Dictionary],
@@ -47,7 +53,7 @@ impl<'a> DecodeParams<'a> {
     }
 
     pub fn get(&self, idx: usize) -> Option<&Dictionary<'a>> {
-        self.params.get(idx)
+        self.params.get(idx).and_then(|d| d.as_ref())
     }
 }
 

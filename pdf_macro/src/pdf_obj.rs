@@ -111,6 +111,20 @@ pub fn pdf_obj_inner(input: TokenStream) -> TokenStream {
     let name = input.ident;
     let mut generics = input.generics;
 
+    let obj_type_value: Option<LitStr> = input
+        .attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("obj_type"))
+        .map(|attr| attr.parse_args().unwrap());
+
+    let obj_type = if let Some(obj_type_value) = &obj_type_value {
+        Some(quote!(
+            dict.expect_type(#obj_type_value, resolver, true)?;
+        ))
+    } else {
+        None
+    };
+
     let fields = match input.data {
         Data::Struct(data_struct) => data_struct.fields.into_iter().map(|field| {
             let name = field.ident.unwrap();
@@ -176,6 +190,20 @@ pub fn pdf_obj_inner(input: TokenStream) -> TokenStream {
         .zip(field_default.iter())
         .map(|(((name, ty), key), default)| field_getter(name, ty, key, default));
 
+    let obj_type_impl = if let Some(obj_type_value) = &obj_type_value {
+        let type_params = generics.type_params();
+        let lifetimes = generics.lifetimes();
+        let (_, ty_generics, where_clause) = generics.split_for_impl();
+
+        Some(quote!(
+            impl<#(#lifetimes,)* #(#type_params,)*> #name #ty_generics #where_clause {
+                pub const TYPE: &'static str = #obj_type_value;
+            }
+        ))
+    } else {
+        None
+    };
+
     let mut from_obj_lt: LifetimeParam = parse_quote!('from_obj);
     for lt in generics.lifetimes_mut() {
         lt.bounds.insert(0, parse_quote!('from_obj));
@@ -190,6 +218,8 @@ pub fn pdf_obj_inner(input: TokenStream) -> TokenStream {
             fn from_obj(obj: crate::Object<'from_obj>, resolver: &mut dyn crate::Resolve<'from_obj>) -> crate::PdfResult<Self> {
                 let mut dict = resolver.assert_dict(obj)?;
 
+                #obj_type
+
                 #(
                     #getters
                 )*
@@ -197,6 +227,8 @@ pub fn pdf_obj_inner(input: TokenStream) -> TokenStream {
                 #return_val
             }
         }
+
+        #obj_type_impl
     )
     .into()
 }

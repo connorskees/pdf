@@ -513,7 +513,7 @@ fn main() -> PdfResult<()> {
         let renderer = render::Renderer::new(&mut content, &mut parser.lexer, Rc::clone(&page));
 
         renderer.render().unwrap();
-        // break;
+        break;
     }
 
     // dbg!(parser.run().unwrap());

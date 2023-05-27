@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::TryFrom, fmt};
+use std::{collections::HashMap, convert::TryFrom, fmt, rc::Rc};
 
 use crate::{
     assert_reference, data_structures::Matrix, date::Date, stream::Stream, ParseError, PdfResult,
@@ -388,6 +388,12 @@ impl<'a> FromObj<'a> for u32 {
     }
 }
 
+impl<'a> FromObj<'a> for usize {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        Ok(u32::from_obj(obj, resolver)? as usize)
+    }
+}
+
 impl<'a> FromObj<'a> for f32 {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         resolver.assert_number(obj)
@@ -418,6 +424,12 @@ impl<'a> FromObj<'a> for Object<'a> {
     }
 }
 
+impl<'a> FromObj<'a> for Reference {
+    fn from_obj(obj: Object<'a>, _resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        assert_reference(obj)
+    }
+}
+
 impl<'a> FromObj<'a> for Dictionary<'a> {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         resolver.assert_dict(obj)
@@ -430,6 +442,12 @@ impl<'a, T: FromObj<'a>> FromObj<'a> for Vec<T> {
         arr.into_iter()
             .map(|obj| T::from_obj(obj, resolver))
             .collect()
+    }
+}
+
+impl<'a, T: FromObj<'a>> FromObj<'a> for Rc<T> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        Ok(Rc::new(T::from_obj(obj, resolver)?))
     }
 }
 

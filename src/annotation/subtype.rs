@@ -1,4 +1,8 @@
-use crate::{error::PdfResult, objects::Dictionary, Resolve};
+use crate::{
+    error::PdfResult,
+    objects::{Dictionary, Object},
+    FromObj, Resolve,
+};
 
 use super::{link::LinkAnnotation, text::TextAnnotation, BaseAnnotation};
 
@@ -10,17 +14,18 @@ pub(crate) enum AnnotationSubType<'a> {
 
 impl<'a> AnnotationSubType<'a> {
     pub(crate) fn from_dict(
-        dict: &mut Dictionary<'a>,
+        mut dict: Dictionary<'a>,
         base: &BaseAnnotation,
         resolver: &mut dyn Resolve<'a>,
     ) -> PdfResult<Self> {
         Ok(match base.subtype {
             AnnotationSubTypeKind::Text => {
-                AnnotationSubType::Text(TextAnnotation::from_dict(dict, resolver)?)
+                AnnotationSubType::Text(TextAnnotation::from_dict(&mut dict, resolver)?)
             }
-            AnnotationSubTypeKind::Link => {
-                AnnotationSubType::Link(LinkAnnotation::from_dict(dict, resolver)?)
-            }
+            AnnotationSubTypeKind::Link => AnnotationSubType::Link(LinkAnnotation::from_obj(
+                Object::Dictionary(dict),
+                resolver,
+            )?),
             _ => todo!(),
         })
     }

@@ -3,7 +3,7 @@ use crate::{
     data_structures::{NameTree, NumberTree},
     error::{ParseError, PdfResult},
     objects::{Dictionary, Object, ObjectType, Reference},
-    Resolve,
+    FromObj, Resolve,
 };
 
 #[derive(Debug)]
@@ -268,11 +268,11 @@ impl<'a> StructureElementChild<'a> {
 
         Ok(match ty.as_deref() {
             None => Self::StructureElement(Box::new(StructureElement::from_dict(dict, resolver)?)),
-            Some(ObjectReferenceDictionary::TYPE) => {
-                Self::ObjectReferenceDictionary(ObjectReferenceDictionary::from_dict(dict)?)
-            }
+            Some(ObjectReferenceDictionary::TYPE) => Self::ObjectReferenceDictionary(
+                ObjectReferenceDictionary::from_obj(Object::Dictionary(dict), resolver)?,
+            ),
             Some(MarkedContentReferenceDictionary::TYPE) => Self::MarkedContentReferenceDictionary(
-                MarkedContentReferenceDictionary::from_dict(dict, resolver)?,
+                MarkedContentReferenceDictionary::from_obj(Object::Dictionary(dict), resolver)?,
             ),
             Some(StructureElement::TYPE) => {
                 Self::StructureElement(Box::new(StructureElement::from_dict(dict, resolver)?))
@@ -282,34 +282,28 @@ impl<'a> StructureElementChild<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
+#[obj_type("OBJR")]
 struct ObjectReferenceDictionary {
     /// The page object of the page on which the object shall be rendered. This entry
     /// overrides any Pg entry in the structure element containing the object reference;
     /// it shall be used if the structure element has no such entry.
+    #[field("Pg")]
     pg: Option<Reference>,
 
     /// The referenced object
+    #[field("Obj")]
     obj: Reference,
 }
 
-impl ObjectReferenceDictionary {
-    const TYPE: &'static str = "OBJR";
-
-    pub fn from_dict(mut dict: Dictionary) -> PdfResult<Self> {
-        let pg = dict.get_reference("Pg")?;
-        let obj = dict.expect_reference("Obj")?;
-
-        Ok(Self { pg, obj })
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
+#[obj_type("MCR")]
 struct MarkedContentReferenceDictionary {
     /// The page object representing the page on which the graphics objects in the marked-content
     /// sequence shall be rendered. This entry overrides any Pg entry in the structure element
     /// containing the marked-content reference; it shall be required if the structure element
     /// has no such entry.
+    #[field("Pg")]
     pg: Option<Reference>,
 
     /// The content stream containing the marked-content sequence. This entry should be present
@@ -317,35 +311,17 @@ struct MarkedContentReferenceDictionary {
     /// stream for the page. If this entry is absent, the marked-content sequence shall be contained
     /// in the content stream of the page identified by Pg (either in the markedcontent reference
     /// dictionary or in the parent structure element)
+    #[field("Stm")]
     stm: Option<Reference>,
 
     /// The PDF object owning the stream identified by Stems annotation to which an appearance
     /// stream belongs.
+    #[field("StmOwn")]
     stm_own: Option<Reference>,
 
     /// The marked-content identifier of the marked-content sequence within its content stream.
+    #[field("MCID")]
     mcid: i32,
-}
-
-impl MarkedContentReferenceDictionary {
-    const TYPE: &'static str = "MCR";
-
-    pub fn from_dict<'a>(
-        mut dict: Dictionary<'a>,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Self> {
-        let pg = dict.get_reference("Pg")?;
-        let stm = dict.get_reference("Stm")?;
-        let stm_own = dict.get_reference("StmOwn")?;
-        let mcid = dict.expect_integer("MCID", resolver)?;
-
-        Ok(Self {
-            pg,
-            stm,
-            stm_own,
-            mcid,
-        })
-    }
 }
 
 #[derive(Debug)]
