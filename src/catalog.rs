@@ -483,7 +483,7 @@ pub struct GroupAttributes<'a> {
     /// be ignored. But if the page is in turn used as an element of some other page, it shall
     /// be treated as if it were a transparency group XObject; the I value shall be interpreted
     /// in the normal way to determine whether the page group is isolated.
-    #[field("I")]
+    #[field("I", default = false)]
     is_isolated: bool,
 
     /// A flag specifying whether the transparency group is a knockout group.

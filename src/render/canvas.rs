@@ -1,4 +1,4 @@
-use std::mem;
+use std::{fs::File, io::BufWriter, mem, path::Path as FilePath};
 
 use crate::{
     color::Color,
@@ -283,6 +283,8 @@ impl Canvas {
             return;
         }
 
+        assert!(point.x >= 0.0);
+        assert!(point.y >= 0.0);
         assert!(
             (point.x as usize) < self.width,
             "{} < {}",
@@ -292,6 +294,11 @@ impl Canvas {
         assert!((point.y as usize) < self.height);
 
         let end = self.width * self.height - 1;
+
+        if point.x as usize + (end - self.width) < point.y as usize * self.height {
+            return;
+        }
+
         let idx = point.x as usize + (end - self.width) - point.y as usize * self.height;
 
         self.buffer[(idx as usize).min(self.width * self.height - 1)] = color;
@@ -347,6 +354,23 @@ impl Canvas {
         }
 
         Ok(())
+    }
+
+    fn render_to_image(&mut self, p: impl AsRef<FilePath>) {
+        let file = File::create(p).unwrap();
+        let ref mut w = BufWriter::new(file);
+        let mut encoder = png::Encoder::new(w, self.width as u32, self.height as u32); // Width is 2 pixels and height is 1.
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+
+        let mut writer = encoder.write_header().unwrap();
+
+        let data = self
+            .buffer
+            .iter()
+            .flat_map(|x| x.to_le_bytes())
+            .collect::<Vec<_>>();
+        writer.write_image_data(&data).unwrap();
     }
 
     pub fn draw(&mut self) {

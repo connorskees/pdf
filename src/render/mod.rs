@@ -11,7 +11,10 @@ use crate::{
     data_structures::Matrix,
     error::PdfResult,
     filter::decode_stream,
-    font::{Font, TrueTypeFont, Type1Font},
+    font::{
+        true_type::{ParsedTrueTypeFontFile, TrueTypeInterpreter},
+        Font, TrueTypeFont, Type1Font,
+    },
     geometry::{Path, Point},
     objects::Object,
     page::PageObject,
@@ -97,10 +100,17 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         resolver: &'a mut dyn Resolve<'b>,
         page: Rc<PageObject<'b>>,
     ) -> Self {
+        let media_box: crate::data_structures::Rectangle = page.media_box.unwrap();
+        // for now, our rendering assumes a perfect square
+        let dim = media_box.width().ceil().max(media_box.height().ceil());
+
+        let width = dim;
+        let height = dim;
+
         Self {
             content,
             resolver,
-            canvas: Canvas::new(1000, 1000),
+            canvas: Canvas::new(width as usize, height as usize),
             graphics_state_stack: Vec::new(),
             operand_stack: Vec::new(),
             graphics_state: GraphicsState::default(),
@@ -918,15 +928,17 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
     fn draw_text(&mut self, arr: Vec<Object<'b>>) -> PdfResult<()> {
         let (font_stream, widths) = match self.text_state.font.as_deref() {
-            Some(Font::Type1(Type1Font { base, .. })) => (
-                base.font_descriptor
+            Some(Font::Type1(Type1Font { base, .. })) => {
+                let font_stream = base
+                    .font_descriptor
                     .as_ref()
                     .unwrap()
                     .font_file
                     .clone()
-                    .unwrap(),
-                &base.widths,
-            ),
+                    .unwrap();
+
+                (font_stream, &base.widths)
+            }
             Some(Font::TrueType(TrueTypeFont { base, .. })) => {
                 let font_stream = base
                     .font_descriptor
@@ -936,23 +948,14 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     .clone()
                     .unwrap();
 
-                let stream = decode_stream(
+                let _stream = decode_stream(
                     &font_stream.stream.stream,
                     &font_stream.stream.dict,
                     self.resolver,
                 )?;
 
-                let mut file =
-                    crate::font::true_type::parse::TrueTypeFontFile::new(&stream).unwrap();
-
-                dbg!(&file);
-
-                file.glyphs();
-
-                // println!("{}", &String::from_utf8_lossy(&stream)[..8]);
-
-                return Ok(());
-                // todo!()
+                // (font_stream, &base.widths)
+                todo!()
             }
             Some(font) => todo!("unimplement font type: {:#?}", font),
             None => todo!("no font selected in text state"),
@@ -965,10 +968,10 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         )?;
 
         let mut interpreter = PostscriptInterpreter::new(&stream);
-
         interpreter.run()?;
 
         let font = interpreter.fonts.into_values().next().unwrap();
+        // let mut font = ParsedTrueTypeFontFile::new(&stream).unwrap();
 
         for obj in arr {
             let obj = self.resolver.resolve(obj)?;
@@ -991,6 +994,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                 _ => todo!(),
             };
 
+            // let mut interpreter = TrueTypeInterpreter::new(&mut font);
             let mut painter = CharStringPainter::new(&font);
 
             for c in s.chars() {
@@ -1008,6 +1012,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                         .device_independent
                         .current_transformation_matrix;
 
+                // let mut glyph = interpreter.render_glyph(c as u32).unwrap();
                 let mut glyph = painter.evaluate(c as u32)?;
 
                 glyph.outline.apply_transform(trm);
@@ -1178,7 +1183,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     /// path, using the even-odd rule to determine which regions lie inside the
     /// clipping path.
     fn set_clipping_path_even_odd(&mut self) -> PdfResult<()> {
-        dbg!("unimplemented clipping path operator even-odd");
+        println!("unimplemented clipping path operator even-odd");
 
         Ok(())
     }
@@ -1187,7 +1192,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     /// using the nonzero winding number rule to determine which regions lie inside
     /// the clipping path.
     fn set_clipping_path_non_zero_winding_number(&mut self) -> PdfResult<()> {
-        dbg!("unimplemented clipping path operator non-zero winding number");
+        println!("unimplemented clipping path operator non-zero winding number");
 
         Ok(())
     }
