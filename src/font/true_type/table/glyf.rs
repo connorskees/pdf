@@ -49,12 +49,12 @@ pub enum TrueTypeGlyph {
 struct OutlineFlag(u8);
 
 impl OutlineFlag {
-    const ON_CURVE: u8 = 1 << 0;
-    const X_SHORT_VECTOR: u8 = 1 << 1;
-    const Y_SHORT_VECTOR: u8 = 1 << 2;
-    const REPEAT: u8 = 1 << 3;
-    const POSITIVE_X_SHORT_VECTOR: u8 = 1 << 4;
-    const POSITIVE_Y_SHORT_VECTOR: u8 = 1 << 5;
+    pub const ON_CURVE: u8 = 1 << 0;
+    pub const X_SHORT_VECTOR: u8 = 1 << 1;
+    pub const Y_SHORT_VECTOR: u8 = 1 << 2;
+    pub const REPEAT: u8 = 1 << 3;
+    pub const POSITIVE_X_SHORT_VECTOR: u8 = 1 << 4;
+    pub const POSITIVE_Y_SHORT_VECTOR: u8 = 1 << 5;
 }
 
 #[derive(Debug)]
@@ -74,20 +74,20 @@ pub struct CompoundGlyphPartDescription {
 }
 
 #[derive(Debug)]
-struct CompoundGlyphComponentFlags(u16);
+pub struct CompoundGlyphComponentFlags(u16);
 
 impl CompoundGlyphComponentFlags {
-    const ARG_1_AND_2_ARE_WORDS: u16 = 1 << 0;
-    const ARGS_ARE_XY_VALUES: u16 = 1 << 1;
-    const ROUND_XY_TO_GRID: u16 = 1 << 2;
-    const WE_HAVE_A_SCALE: u16 = 1 << 3;
-    const _OBSOLETE: u16 = 1 << 4;
-    const MORE_COMPONENTS: u16 = 1 << 5;
-    const WE_HAVE_AN_X_AND_Y_SCALE: u16 = 1 << 6;
-    const WE_HAVE_A_TWO_BY_TWO: u16 = 1 << 7;
-    const WE_HAVE_INSTRUCTIONS: u16 = 1 << 8;
-    const USE_MY_METRICS: u16 = 1 << 9;
-    const OVERLAP_COMPOUND: u16 = 1 << 10;
+    pub const ARG_1_AND_2_ARE_WORDS: u16 = 1 << 0;
+    pub const ARGS_ARE_XY_VALUES: u16 = 1 << 1;
+    pub const ROUND_XY_TO_GRID: u16 = 1 << 2;
+    pub const WE_HAVE_A_SCALE: u16 = 1 << 3;
+    pub const _OBSOLETE: u16 = 1 << 4;
+    pub const MORE_COMPONENTS: u16 = 1 << 5;
+    pub const WE_HAVE_AN_X_AND_Y_SCALE: u16 = 1 << 6;
+    pub const WE_HAVE_A_TWO_BY_TWO: u16 = 1 << 7;
+    pub const WE_HAVE_INSTRUCTIONS: u16 = 1 << 8;
+    pub const USE_MY_METRICS: u16 = 1 << 9;
+    pub const OVERLAP_COMPOUND: u16 = 1 << 10;
 }
 
 #[derive(Debug)]

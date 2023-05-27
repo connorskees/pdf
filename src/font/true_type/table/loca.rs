@@ -12,7 +12,7 @@ impl LocaTable {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct GlyfEntry {
     pub offset: u32,
     pub len: u32,

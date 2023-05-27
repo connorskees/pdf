@@ -1,3 +1,4 @@
+#[derive(Debug, Clone, Copy)]
 pub enum TrueTypeInstruction {
     AdjustAngle,
 
@@ -289,7 +290,7 @@ pub enum TrueTypeInstruction {
     /// Interpolates untouched points in the zone referenced by zp2 to preserve
     /// the original relationship of the untouched points to the other points in
     /// that zone.
-    InterpolateUntouchedPoints,
+    InterpolateUntouchedPoints(u8),
 
     /// Moves the instruction pointer to a new location specified by the offset
     /// popped from the stack.
@@ -364,11 +365,11 @@ pub enum TrueTypeInstruction {
     /// distance from its current position. If the Boolean a is set to 0, point
     /// p is not moved, but nonetheless is marked as touched in the direction(s)
     /// specified by the current freedom vector.
-    MoveDirectAbsolutePoint,
+    MoveDirectAbsolutePoint(u8),
 
-    MoveDirectRelativePoint,
+    MoveDirectRelativePoint(u8),
 
-    MoveIndirectaAbsolutePoint,
+    MoveIndirectAbsolutePoint(u8),
 
     /// Returns the minimum of the top two stack elements
     ///
@@ -498,7 +499,7 @@ pub enum TrueTypeInstruction {
     ///
     /// When byte values are pushed onto the stack they are non-sign extended
     /// with zeroes to form 32 bit numbers
-    PushBytes,
+    PushBytes(u8),
 
     /// Takes the specified number of words from the instruction stream and pushes
     /// them onto the interpreter stack
@@ -522,7 +523,7 @@ pub enum TrueTypeInstruction {
     /// then truncated to an integer. If the result of the compensation and
     /// rounding would be to change the sign of the distance, the distance is
     /// set to 0
-    ReturnDownToGrid,
+    RoundDownToGrid,
 
     /// Sets the round state variable to round off. In this state engine compensation
     /// occurs but no rounding takes place. If engine compensation would change
@@ -604,6 +605,14 @@ pub enum TrueTypeInstruction {
     /// 1, the dropout control mode will be set
     ScanType,
 
+    /// Moves a point to the position specified by the coordinate value given
+    /// on the stack.
+    ///
+    /// Pops a coordinate value, c, and a point number, p, and moves point p from
+    /// its current position along the freedom vector so that its component along
+    /// the projection vector becomes the value popped off the stack.
+    SetsCoordinateFromStack,
+
     /// Establish a new value for the control value table cut-in
     ///
     /// Pops a value, n, from the stack and sets the control value cut-in to n.
@@ -661,7 +670,7 @@ pub enum TrueTypeInstruction {
 
     /// Shifts points specified by the amount the reference point has already been
     /// shifted
-    ShiftPointUsingReferencePoint,
+    ShiftPointUsingReferencePoint(u8),
 
     /// Shift the specified points by the specified amount
     ShiftPointByPixels,
@@ -743,7 +752,7 @@ pub enum TrueTypeInstruction {
     /// Sets both the projection vector and freedom vector to the same coordinate
     /// axis causing movement and measurement to be in the same direction. The
     /// setting of the Boolean variable a determines the choice of axis
-    SetFreedomAndProjectionVectorsToCoordinateAxis,
+    SetFreedomAndProjectionVectorsToCoordinateAxis(u8),
 
     /// Swaps the top two stack elements
     Swap,

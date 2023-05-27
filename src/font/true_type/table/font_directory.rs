@@ -8,11 +8,7 @@ pub struct FontDirectory {
 
 impl FontDirectory {
     pub fn find_table_offset(&self, tag: TableTag) -> Option<u32> {
-        self.table_directory
-            .0
-            .iter()
-            .find(|entry| entry.tag == tag)
-            .map(|entry| entry.offset)
+        self.find_table_entry(tag).map(|entry| entry.offset)
     }
 
     pub fn find_table_entry(&self, tag: TableTag) -> Option<DirectoryTableEntry> {

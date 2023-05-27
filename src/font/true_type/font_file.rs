@@ -1,8 +1,10 @@
 use super::{
     parse::TrueTypeParser,
     table::{
-        FontDirectory, GlyfTable, Head, LocaTable, MaxpTable, NameTable, TableName, TrueTypeGlyph,
+        CvtTable, FontDirectory, GlyfTable, Head, LocaTable, MaxpTable, NameTable, TableName,
+        TrueTypeGlyph,
     },
+    FWord,
 };
 
 #[derive(Debug)]
@@ -11,6 +13,7 @@ pub struct ParsedTrueTypeFontFile<'a> {
     head: Head,
     maxp: MaxpTable,
     loca: LocaTable,
+    cvt: CvtTable,
     parser: TrueTypeParser<'a>,
 }
 
@@ -23,12 +26,14 @@ impl<'a> ParsedTrueTypeFontFile<'a> {
         let head = Self::get_head(&mut parser, &font_directory)?;
         let maxp = Self::get_maxp(&mut parser, &font_directory)?;
         let loca = Self::get_loca(&mut parser, &font_directory, head.index_to_loc_format)?;
+        let cvt = Self::get_cvt(&mut parser, &font_directory)?;
 
         Some(Self {
             font_directory,
             head,
             maxp,
             loca,
+            cvt,
             parser,
         })
     }
@@ -47,6 +52,13 @@ impl<'a> ParsedTrueTypeFontFile<'a> {
         parser.read_maxp_table(offset as usize)
     }
 
+    fn get_cvt(parser: &mut TrueTypeParser, font_directory: &FontDirectory) -> Option<CvtTable> {
+        let entry = font_directory
+            .find_table_entry(TableName::Cvt.as_tag())
+            .unwrap();
+        parser.read_cvt_table(entry)
+    }
+
     fn get_loca(
         parser: &mut TrueTypeParser,
         font_directory: &FontDirectory,
@@ -59,7 +71,7 @@ impl<'a> ParsedTrueTypeFontFile<'a> {
     }
 
     pub fn glyph(&mut self, char_code: u32) -> Option<TrueTypeGlyph> {
-        let glyf_entry = self.loca.get_glyf_entry(char_code)?;
+        let glyf_entry = self.loca.get_glyf_entry(char_code).unwrap();
 
         let glyf_table_offset = self
             .font_directory
@@ -69,10 +81,9 @@ impl<'a> ParsedTrueTypeFontFile<'a> {
         let glyf_offset = glyf_table_offset + glyf_entry.offset;
 
         self.parser.cursor = glyf_offset as usize;
-        let glyf = self.parser.parse_glyph()?;
+        let glyf = self.parser.parse_glyph().unwrap();
 
-        dbg!(&glyf);
-        todo!()
+        Some(glyf)
     }
 
     pub fn glyphs(&mut self) -> Vec<TrueTypeGlyph> {
@@ -88,8 +99,21 @@ impl<'a> ParsedTrueTypeFontFile<'a> {
         glyf_table.glyphs
     }
 
+    /// Number of Storage Area locations
     pub fn max_storage(&self) -> u16 {
         self.maxp.max_storage
+    }
+
+    pub fn max_twilight_points(&self) -> u16 {
+        self.maxp.max_twilight_points
+    }
+
+    pub fn max_points(&self) -> u16 {
+        self.maxp.max_points
+    }
+
+    pub fn cvt_entry(&self, n: usize) -> Option<FWord> {
+        self.cvt.entries.get(n).copied()
     }
 
     pub fn name_table(&mut self) -> Option<NameTable> {

@@ -4,8 +4,8 @@ use crate::font::true_type::Fixed;
 
 use super::{
     table::{
-        CompoundGlyphPartDescription, DirectoryTableEntry, FontDirectory, GlyfTable, Head,
-        HeadFlags, LocaTable, MacStyle, MaxpTable, NameRecord, NameTable, OffsetSubtable,
+        CompoundGlyphPartDescription, CvtTable, DirectoryTableEntry, FontDirectory, GlyfTable,
+        Head, HeadFlags, LocaTable, MacStyle, MaxpTable, NameRecord, NameTable, OffsetSubtable,
         SimpleGlyph, TableDirectory, TableTag, TrueTypeGlyph,
     },
     FWord, LongDateTime,
@@ -191,10 +191,10 @@ impl<'a> TrueTypeParser<'a> {
 
         // todo: this should just reinterpret bytes
         for _ in 0..number_of_contours {
-            end_points_of_contours.push(self.read_u16()?);
+            end_points_of_contours.push(self.read_u16().unwrap());
         }
 
-        let instruction_length = self.read_u16()?;
+        let instruction_length = self.read_u16().unwrap();
         let instructions = self.get_byte_range(instruction_length as usize).to_vec();
 
         let flags = self.parse_simple_glyph_flags(number_of_contours);
@@ -204,17 +204,17 @@ impl<'a> TrueTypeParser<'a> {
 
         for &flag in &flags {
             if flag & 0b10 != 0 {
-                x_coords.push(self.next()? as u16);
+                x_coords.push(self.next().unwrap() as u16);
             } else {
-                x_coords.push(self.read_u16()?);
+                x_coords.push(self.read_u16().unwrap());
             }
         }
 
         for &flag in &flags {
             if flag & 0b100 != 0 {
-                y_coords.push(self.next()? as u16);
+                y_coords.push(self.next().unwrap() as u16);
             } else {
-                y_coords.push(self.read_u16()?);
+                y_coords.push(self.read_u16().unwrap());
             }
         }
 
@@ -232,19 +232,19 @@ impl<'a> TrueTypeParser<'a> {
     }
 
     pub fn parse_glyph(&mut self) -> Option<TrueTypeGlyph> {
-        let number_of_contours = self.read_i16()?;
-        let _x_min = self.read_u16()?;
-        let _y_min = self.read_u16()?;
-        let _x_max = self.read_u16()?;
-        let _y_max = self.read_u16()?;
+        let number_of_contours = self.read_i16().unwrap();
+        let _x_min = self.read_fword().unwrap();
+        let _y_min = self.read_fword().unwrap();
+        let _x_max = self.read_fword().unwrap();
+        let _y_max = self.read_fword().unwrap();
 
         Some(
             if number_of_contours.is_positive() || number_of_contours == 0 {
-                let glyph = self.parse_simple_glyph(number_of_contours)?;
+                let glyph = self.parse_simple_glyph(number_of_contours).unwrap();
 
                 TrueTypeGlyph::Simple(glyph)
             } else {
-                let glyph = self.parse_compound_glyph()?;
+                let glyph = self.parse_compound_glyph().unwrap();
 
                 TrueTypeGlyph::Compound(glyph)
             },
@@ -277,7 +277,7 @@ impl<'a> TrueTypeParser<'a> {
             // short
             0 => buffer
                 .chunks_exact(2)
-                .map(|bytes| u16::from_be_bytes([bytes[0], bytes[1]]) as u32)
+                .map(|bytes| u16::from_be_bytes([bytes[0], bytes[1]]) as u32 * 2)
                 .collect(),
             // long
             1 => buffer
@@ -411,5 +411,19 @@ impl<'a> TrueTypeParser<'a> {
             offset,
             absolute_offset: offset as usize + string_offset,
         })
+    }
+
+    pub fn read_cvt_table(&mut self, entry: DirectoryTableEntry) -> Option<CvtTable> {
+        self.cursor = entry.offset as usize;
+
+        let num_entries = entry.length as usize / 4;
+
+        let mut entries = Vec::with_capacity(num_entries);
+
+        for _ in 0..num_entries {
+            entries.push(self.read_fword()?);
+        }
+
+        Some(CvtTable { entries })
     }
 }

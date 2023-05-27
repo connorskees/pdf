@@ -1,3 +1,4 @@
+mod cvt;
 mod font_directory;
 mod glyf;
 mod head;
@@ -7,6 +8,7 @@ mod name;
 mod table_name;
 mod tag;
 
+pub use cvt::CvtTable;
 pub use font_directory::{DirectoryTableEntry, FontDirectory, OffsetSubtable, TableDirectory};
 pub use glyf::{
     CompoundGlyphPartDescription, GlyfTable, GlyphDescription, SimpleGlyph, TrueTypeGlyph,
