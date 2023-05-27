@@ -200,10 +200,7 @@ impl<'a> ImageXObject<'a> {
             .map(|stream| MetadataStream::from_stream(stream, resolver))
             .transpose()?;
 
-        let oc = dict
-            .get_dict("OC", resolver)?
-            .map(|dict| OptionalContent::from_dict(dict, resolver))
-            .transpose()?;
+        let oc = dict.get("OC", resolver)?;
 
         Ok(Self {
             width,
@@ -318,10 +315,7 @@ impl<'a> AlternateImage<'a> {
         let dict = &mut stream.dict.other;
 
         let default_for_printing = dict.get_bool("DefaultForPrinting", resolver)?;
-        let oc = dict
-            .get_dict("OC", resolver)?
-            .map(|dict| OptionalContentGroup::from_dict(dict, resolver))
-            .transpose()?;
+        let oc = dict.get("OC", resolver)?;
 
         let image = ImageXObject::from_stream(stream, resolver)?;
 

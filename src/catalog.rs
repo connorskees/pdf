@@ -13,7 +13,6 @@ document is opened.
 
 use crate::{
     actions::Actions,
-    assert_empty,
     data_structures::NumberTree,
     date::Date,
     destination::Destination,
@@ -22,13 +21,14 @@ use crate::{
     stream::Stream,
     structure::StructTreeRoot,
     viewer_preferences::ViewerPreferences,
-    Dictionary, FromObj, Lexer, Object, ParseError, PdfResult, Reference, Resolve,
+    Dictionary, FromObj, Object, ParseError, PdfResult, Reference, Resolve,
 };
 
 pub use crate::color::{ColorSpace, ColorSpaceName};
 
 /// See module level documentation
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
+#[obj_type("Catalog")]
 pub struct DocumentCatalog<'a> {
     /// The version of the PDF specification
     /// to which the document conforms(for example,
@@ -45,111 +45,133 @@ pub struct DocumentCatalog<'a> {
     /// not a number, and therefore shall be preceded
     /// by a SOLIDUS (2Fh) character (/) when written
     /// in the PDF file (for example, /1.4).
+    #[field("Version")]
     version: Option<String>,
 
     /// An extensions dictionary containing developer prefix
     /// identification and version numbers for developer extensions
     /// that occur in this document
+    #[field("Extensions")]
     extensions: Option<Extensions>,
 
     /// The page tree node that shall be the root of the document's
     /// page tree
+    #[field("Pages")]
     pub pages: Reference,
 
-    /// A number tree defining the page labelling for
-    /// the document. The keys in this tree shall be
-    /// page indices; the corresponding values shall
-    /// be page label dictionaries. Each page index
-    /// shall denote the first page in a labelling
-    /// range to which the specified page label dictionary
-    /// applies. The tree shall include a value for
-    /// page index 0.
+    /// A number tree defining the page labelling for the document. The keys in
+    /// this tree shall be page indices; the corresponding values shall be page
+    /// label dictionaries. Each page index shall denote the first page in a
+    /// labelling range to which the specified page label dictionary applies. The
+    /// tree shall include a value for page index 0.
+    #[field("PageLabels")]
     page_labels: Option<TypedReference<'a, NumberTree<'a>>>,
 
     /// The document's name dictionary
+    #[field("Names")]
     names: Option<NameDictionary>,
 
     /// A dictionary of names and corresponding destinations
+    #[field("Dests")]
     dests: Option<Reference>,
 
     /// A viewer preferences dictionary specifying the way
     /// the document shall be displayed on the screen. If
     /// this entry is absent, conforming readers shall use
     /// their own current user preference settings.
+    #[field("ViewerPreferences")]
     viewer_preferences: Option<TypedReference<'a, ViewerPreferences>>,
 
+    #[field("PageLayout", default = PageLayout::default())]
     page_layout: PageLayout,
 
+    #[field("PageMode", default = PageMode::default())]
     page_mode: PageMode,
 
+    #[field("Outlines")]
     outlines: Option<Reference>,
 
+    #[field("Threads")]
     threads: Option<Reference>,
 
-    /// A value specifying a destination that shall be displayed
-    /// or an action that shall be performed when the document
-    /// is opened. The value shall be either an array defining
-    /// a destination or an action dictionary representing an action.
+    /// A value specifying a destination that shall be displayed or an action
+    /// that shall be performed when the document is opened. The value shall be
+    /// either an array defining a destination or an action dictionary representing
+    /// an action.
     ///
-    /// If this entry is absent, the document shall be opened to the
-    /// top of the first page at the default magnification factor.
+    /// If this entry is absent, the document shall be opened to the top of the
+    /// first page at the default magnification factor.
+    #[field("OpenAction")]
     open_action: Option<OpenAction<'a>>,
 
-    /// An additional-actions dictionary defining the actions
-    /// that shall be taken in response to various trigger
-    /// events affecting the document as a whole
+    /// An additional-actions dictionary defining the actions that shall be taken
+    /// in response to various trigger events affecting the document as a whole
+    #[field("AA")]
     aa: Option<AdditionalActions>,
 
-    /// A URI dictionary containing document-level information
-    /// for URI actions
+    /// A URI dictionary containing document-level information for URI actions
+    #[field("URI")]
     uri: Option<UriDict>,
 
+    #[field("AcroForm")]
     acro_form: Option<AcroForm>,
 
+    #[field("Metadata")]
     metadata: Option<Reference>,
 
+    #[field("StructTreeRoot")]
     struct_tree_root: Option<StructTreeRoot<'a>>,
 
-    /// A mark information dictionary that shall contain information
-    /// about the document's usage of Tagged PDF conventions
+    /// A mark information dictionary that shall contain information about the
+    /// document's usage of Tagged PDF conventions
+    #[field("MarkInfo")]
     mark_info: Option<MarkInformationDictionary>,
 
-    /// A language identifier that shall specify the natural language
-    /// for all text in the document except where overridden by language
-    /// specifications for structure elements or marked content.
+    /// A language identifier that shall specify the natural language for all
+    /// text in the document except where overridden by language specifications
+    /// for structure elements or marked content.
     ///
     /// If this entry is absent, the language shall be considered unknown.
+    #[field("Lang")]
     lang: Option<String>,
 
-    /// A Web Capture information dictionary that shall contain state
-    /// information used by any Web Capture extension
+    /// A Web Capture information dictionary that shall contain state information
+    /// used by any Web Capture extension
+    #[field("SpiderInfo")]
     spider_info: Option<WebCapture>,
 
     /// An array of output intent dictionaries that shall specify the colour
     /// characteristics of output devices on which the document might be rendered
+    #[field("OutputIntents")]
     output_intents: Option<Vec<OutputIntent>>,
 
+    #[field("PieceInfo")]
     piece_info: Option<PagePiece<'a>>,
 
     /// The document's optional content properties dictionary
     ///
     /// Required if a document contains optional content
+    #[field("OCProperties")]
     oc_properties: Option<OptionalContentProperties<'a>>,
 
-    /// A permissions dictionary that shall specify user access permissions
-    /// for the document.
+    /// A permissions dictionary that shall specify user access permissions for
+    /// the document.
+    #[field("Perms")]
     perms: Option<Permissions>,
 
     /// A dictionary that shall contain attestations regarding the content of a
     /// PDF document, as it relates to the legality of digital signatures
+    #[field("Legal")]
     legal: Option<Legal>,
 
     /// An array of requirement dictionaries that shall represent requirements
     /// for the document
+    #[field("Requirements")]
     requirements: Option<Vec<Requirement>>,
 
     /// A collection dictionary that a conforming reader shall use to enhance
     /// the presentation of file attachments stored in the PDF document.
+    #[field("Collection")]
     collection: Option<Collection>,
 
     /// A flag used to expedite the display of PDF documents containing XFA forms.
@@ -157,94 +179,11 @@ pub struct DocumentCatalog<'a> {
     /// is first opened
     ///
     /// Default value: false.
+    #[field("NeedsRendering", default = false)]
     needs_rendering: bool,
 
+    #[field("LastModified")]
     last_modified: Option<Date>,
-}
-
-impl<'a> DocumentCatalog<'a> {
-    const TYPE: &'static str = "Catalog";
-
-    pub(crate) fn from_dict(mut dict: Dictionary<'a>, lexer: &mut Lexer<'a>) -> PdfResult<Self> {
-        dict.expect_type(Self::TYPE, lexer, true)?;
-
-        let version = dict.get_name("Version", lexer)?;
-        let extensions = None;
-        let pages = dict.expect_reference("Pages")?;
-        let page_labels = None;
-        let names = None;
-        let dests = dict.get_reference("Dests")?;
-        let viewer_preferences = dict.get("ViewerPreferences", lexer)?;
-
-        let page_layout = dict
-            .get_name("PageLayout", lexer)?
-            .as_deref()
-            .map(PageLayout::from_str)
-            .unwrap_or_else(|| Ok(PageLayout::default()))?;
-        let page_mode = dict
-            .get_name("PageMode", lexer)?
-            .as_deref()
-            .map(PageMode::from_str)
-            .unwrap_or_else(|| Ok(PageMode::default()))?;
-
-        let outlines = dict.get_reference("Outlines")?;
-        let threads = dict.get_reference("Threads")?;
-        let open_action = dict.get::<OpenAction>("OpenAction", lexer)?;
-        let aa = None;
-        let uri = None;
-        let acro_form = None;
-        let metadata = dict.get_reference("Metadata")?;
-        let struct_tree_root = dict
-            .get_dict("StructTreeRoot", lexer)?
-            .map(|dict| StructTreeRoot::from_dict(dict, lexer))
-            .transpose()?;
-        let mark_info = dict.get::<MarkInformationDictionary>("MarkInfo", lexer)?;
-        let lang = dict.get_string("Lang", lexer)?;
-        let spider_info = None;
-        let output_intents = None;
-        let piece_info = dict.get::<PagePiece>("PieceInfo", lexer)?;
-        let oc_properties = dict.get::<OptionalContentProperties>("OCProperties", lexer)?;
-        let perms = None;
-        let legal = None;
-        let requirements = None;
-        let collection = None;
-        let needs_rendering = dict.get_bool("NeedsRendering", lexer)?.unwrap_or(false);
-        let last_modified = dict.get::<Date>("LastModified", lexer)?;
-
-        assert_empty(dict);
-
-        Ok(DocumentCatalog {
-            version,
-            extensions,
-            pages,
-            page_labels,
-            names,
-            dests,
-            viewer_preferences,
-            page_layout,
-            page_mode,
-            outlines,
-            threads,
-            open_action,
-            aa,
-            uri,
-            acro_form,
-            metadata,
-            struct_tree_root,
-            mark_info,
-            lang,
-            spider_info,
-            output_intents,
-            piece_info,
-            oc_properties,
-            perms,
-            legal,
-            requirements,
-            collection,
-            needs_rendering,
-            last_modified,
-        })
-    }
 }
 
 #[derive(Debug)]
@@ -311,17 +250,17 @@ impl Default for Trapped {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct Extensions;
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 struct Language;
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct NameDictionary;
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct NamedDestinations;
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct DocumentOutline;
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct ThreadDictionary;
 
 pub fn assert_len(arr: &[Object], len: usize) -> PdfResult<()> {
@@ -353,11 +292,11 @@ impl<'a> FromObj<'a> for OpenAction<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct AdditionalActions;
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct UriDict;
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct AcroForm;
 #[derive(Debug, Clone)]
 pub struct MetadataStream<'a> {
@@ -406,9 +345,9 @@ pub struct MarkInformationDictionary {
     suspects: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct WebCapture;
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct OutputIntent;
 
 #[derive(Debug, Clone)]
@@ -421,15 +360,15 @@ impl<'a> FromObj<'a> for PagePiece<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct Permissions;
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct Legal;
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct Requirement;
 #[derive(Debug, Clone, PartialEq, FromObj)]
 pub struct Collection;
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct BoxColorInfo;
 
 #[derive(Debug, Clone, FromObj)]
@@ -508,15 +447,15 @@ pub struct GroupAttributes<'a> {
     is_knockout: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct Transitions;
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct SeparationInfo;
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct NavigationNode;
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct Viewport;
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct PropertyList;
 
 #[pdf_enum]

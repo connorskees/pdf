@@ -7,7 +7,7 @@ use crate::{
     font::Font,
     function::{Function, TransferFunction},
     halftones::Halftones,
-    objects::{Dictionary, Object, ObjectType},
+    objects::{Object, ObjectType},
     render::{graphics_state::GraphicsState, text_state::TextState},
     stream::Stream,
     FromObj, Resolve,
@@ -221,23 +221,24 @@ impl<'a> SoftMask<'a> {
             return Ok(Self::None);
         }
 
-        Ok(Self::Dictionary(SoftMaskDictionary::from_dict(
-            resolver.assert_dict(obj)?,
-            resolver,
+        Ok(Self::Dictionary(SoftMaskDictionary::from_obj(
+            obj, resolver,
         )?))
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
 pub struct SoftMaskDictionary<'a> {
     /// A subtype specifying the method to be used in deriving the mask values from the
     /// transparency group specified by the G entry
+    #[field("S")]
     subtype: SoftMaskSubtype,
 
     /// A transparency group XObject to be used as the source of alpha or colour values
     /// for deriving the mask. If the subtype S is Luminosity, the group attributes
     /// dictionary shall contain a CS entry defining the colour space in which the compositing
     /// computation is to be performed
+    #[field("G")]
     transparency_group: Stream<'a>,
 
     /// An array of component values specifying the colour to be used as the backdrop against
@@ -248,6 +249,7 @@ pub struct SoftMaskDictionary<'a> {
     ///
     /// Default value: the colour space's initial value, representing black.
     // todo
+    #[field("BC")]
     backdrop_color: Option<Vec<Object<'a>>>,
 
     /// A function object specifying the transfer function to be used
@@ -259,28 +261,8 @@ pub struct SoftMaskDictionary<'a> {
     /// be specified in place of a function object to designate the identity function.
     ///
     /// Default value: Identity
+    #[field("TransferFunction", default = TransferFunction::Identity)]
     transfer_function: TransferFunction<'a>,
-}
-
-impl<'a> SoftMaskDictionary<'a> {
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let subtype = SoftMaskSubtype::from_str(&dict.expect_name("S", resolver)?)?;
-
-        let transparency_group = dict.expect_stream("G", resolver)?;
-        let backdrop_color = dict.get_arr("BC", resolver)?;
-        let transfer_function = dict
-            .get_object("TransferFunction", resolver)?
-            .map(|obj| TransferFunction::from_obj(obj, resolver))
-            .transpose()?
-            .unwrap_or(TransferFunction::Identity);
-
-        Ok(Self {
-            subtype,
-            transparency_group,
-            backdrop_color,
-            transfer_function,
-        })
-    }
 }
 
 #[pdf_enum]

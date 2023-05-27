@@ -1,19 +1,7 @@
-use crate::{
-    error::PdfResult,
-    objects::{Dictionary, Object},
-    Resolve,
-};
+use crate::objects::Object;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
 pub struct OptionalContent;
-impl OptionalContent {
-    pub fn from_dict<'a>(
-        _dict: Dictionary<'a>,
-        _resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Self> {
-        todo!()
-    }
-}
 
 #[derive(Debug, FromObj)]
 pub struct OptionalContentProperties<'a> {
@@ -165,13 +153,8 @@ struct OptionalContentConfiguration<'a> {
     locked: Option<Vec<Object<'a>>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
 pub struct OptionalContentGroup;
-impl OptionalContentGroup {
-    pub fn from_dict<'a>(_dict: Dictionary, _resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        todo!()
-    }
-}
 
 #[derive(Debug)]
 struct OptionalContentUsage;

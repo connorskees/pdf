@@ -990,8 +990,9 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                 // (font_stream, &base.widths)
                 todo!()
             }
-            Some(font) => todo!("unimplement font type: {:#?}", font),
-            None => todo!("no font selected in text state"),
+            _ => return Ok(()),
+            // Some(font) => todo!("unimplement font type: {:#?}", font),
+            // None => todo!("no font selected in text state"),
         };
 
         let stream = decode_stream(

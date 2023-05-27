@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    error::PdfResult, filter::dct::DctDecoder, objects::Dictionary, stream::StreamDict, Resolve,
+    error::PdfResult, filter::dct::DctDecoder, objects::{Dictionary, Object}, stream::StreamDict, Resolve, FromObj
 };
 
 use flate::{FlateDecoder, FlateDecoderParams};
@@ -38,7 +38,7 @@ pub(crate) fn decode_stream<'a, 'b>(
                 }
                 FilterKind::Lzw => todo!(),
                 FilterKind::Flate => {
-                    let decoder_params = FlateDecoderParams::from_dict(decode_params, resolver)?;
+                    let decoder_params = FlateDecoderParams::from_obj(Object::Dictionary(decode_params), resolver)?;
 
                     stream = FlateDecoder::new(Cow::Owned(stream), decoder_params).decode();
                 }

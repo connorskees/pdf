@@ -434,10 +434,7 @@ impl<'a> Parser<'a> {
 
         xref = Rc::clone(&lexer.xref);
 
-        let catalog = DocumentCatalog::from_dict(
-            lexer.assert_dict(Object::Reference(trailer.root))?,
-            &mut lexer,
-        )?;
+        let catalog = DocumentCatalog::from_obj(Object::Reference(trailer.root), &mut lexer)?;
 
         let page_tree = lexer.lex_page_tree(&xref, catalog.pages)?;
 
@@ -471,9 +468,8 @@ impl<'a> Parser<'a> {
                 .iter()
                 .map(|&annot| {
                     let obj = self.lexer.lex_object_from_reference(annot)?;
-                    let dict = self.lexer.assert_dict(obj)?;
 
-                    Annotation::from_dict(dict, &mut self.lexer)
+                    Annotation::from_obj(obj, &mut self.lexer)
                 })
                 .collect::<PdfResult<Vec<Annotation>>>()?;
 

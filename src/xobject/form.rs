@@ -126,10 +126,7 @@ impl<'a> FormXObject<'a> {
             .get_dict("OPI", resolver)?
             .map(|dict| OpenPrepressInterface::from_dict(dict, resolver))
             .transpose()?;
-        let oc = dict
-            .get_dict("OC", resolver)?
-            .map(|dict| OptionalContent::from_dict(dict, resolver))
-            .transpose()?;
+        let oc = dict.get("OC", resolver)?;
 
         let name = dict.get_name("Name", resolver)?;
 

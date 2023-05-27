@@ -1,9 +1,9 @@
 use crate::{
     catalog::assert_len,
     error::{ParseError, PdfResult},
-    objects::{Dictionary, Object, ObjectType},
+    objects::{Dictionary, Object, ObjectType, Name},
     stream::Stream,
-    Resolve,
+    FromObj, Resolve,
 };
 
 use super::{cid::CidFontDictionary, cjk::PredefinedCjkCmapName, cmap::ToUnicodeCmapStream};
@@ -14,8 +14,8 @@ enum Type0FontEncoding<'a> {
     Stream(Stream<'a>),
 }
 
-impl<'a> Type0FontEncoding<'a> {
-    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for Type0FontEncoding<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         match resolver.resolve(obj)? {
             Object::Name(name) => Ok(Self::Predefined(PredefinedCjkCmapName::from_str(&name)?)),
             Object::Stream(stream) => Ok(Self::Stream(stream)),
@@ -42,7 +42,7 @@ pub struct Type0Font<'a> {
     ///       font program associated directly with a Type 0 font dictionary.
     ///       The conventions described here ensure maximum compatibility with
     ///       existing readers
-    base_font: String,
+    base_font: Name,
 
     /// The name of a predefined CMap, or a stream containing a CMap that
     /// maps character codes to font numbers and CIDs. If the descendant is
@@ -59,9 +59,8 @@ pub struct Type0Font<'a> {
 
 impl<'a> Type0Font<'a> {
     pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let base_font = dict.expect_name("BaseFont", resolver)?;
-        let encoding =
-            Type0FontEncoding::from_obj(dict.expect_object("Encoding", resolver)?, resolver)?;
+        let base_font = dict.expect("BaseFont", resolver)?;
+        let encoding = dict.expect("Encoding", resolver)?;
         let descendant_fonts = {
             let mut arr = dict.expect_arr("DescendantFonts", resolver)?;
 

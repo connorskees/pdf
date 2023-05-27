@@ -1,17 +1,13 @@
 use std::{borrow::Cow, cmp::min, io::Read};
 
-use crate::{
-    error::{ParseError, PdfResult},
-    objects::Dictionary,
-    Resolve,
-};
-
 use flate2::read::ZlibDecoder;
 
-#[derive(Debug)]
 /// <https://www.adobe.com/content/dam/acom/en/devnet/postscript/pdfs/TN5603.Filters.pdf>
+#[derive(Debug, FromObj)]
+
 pub struct FlateDecoderParams {
     /// The default value is 1 (Predictor::Unused)
+    #[field("Predictor", default = Predictor::Unused)]
     predictor: Predictor,
 
     /// Specifies the number of samples in the sampled row.
@@ -20,6 +16,7 @@ pub struct FlateDecoderParams {
     /// the value of `predictor` is greater than 1.
     ///
     /// The default value is 1
+    #[field("Columns", default = 1)]
     columns: u32,
 
     /// Specifies the number of interleaved color components in a sample.
@@ -28,6 +25,7 @@ pub struct FlateDecoderParams {
     /// the value of `predictor` is greater than 1
     ///
     /// The default value is 1
+    #[field("Colors", default = 1)]
     colors: u32,
 
     /// The number of bits used to represent each component.
@@ -35,6 +33,7 @@ pub struct FlateDecoderParams {
     /// The possible values are 1, 2, 4, 8, and 16
     ///
     /// The default value is 8
+    #[field("BitsPerComponent", default = BitsPerComponent::Eight)]
     bits_per_component: BitsPerComponent,
 }
 
@@ -50,34 +49,6 @@ impl FlateDecoderParams {
     pub const fn bytes_per_row(&self) -> u32 {
         self.bytes_per_pixel() * self.columns
     }
-
-    pub fn from_dict<'a>(
-        mut dict: Dictionary<'a>,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Self> {
-        let predictor = dict
-            .get_integer("Predictor", resolver)?
-            .map(Predictor::from_integer)
-            .transpose()?
-            .unwrap_or(Predictor::Unused);
-
-        let columns = dict.get_unsigned_integer("Columns", resolver)?.unwrap_or(1);
-
-        let colors = dict.get_unsigned_integer("Colors", resolver)?.unwrap_or(1);
-
-        let bits_per_component = dict
-            .get_integer("BitsPerComponent", resolver)?
-            .map(BitsPerComponent::from_integer)
-            .transpose()?
-            .unwrap_or(BitsPerComponent::Eight);
-
-        Ok(Self {
-            predictor,
-            columns,
-            colors,
-            bits_per_component,
-        })
-    }
 }
 
 #[derive(Debug)]
@@ -86,7 +57,7 @@ pub struct FlateDecoder {
     buffer: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[pdf_enum(Integer)]
 enum Predictor {
     /// No filter is applied *and* no byte precedes each row
     Unused = 1,
@@ -108,26 +79,6 @@ enum Predictor {
 
     /// A hybrid of all 4
     Optimum = 15,
-}
-
-impl Predictor {
-    pub fn from_integer(i: i32) -> PdfResult<Self> {
-        Ok(match i {
-            1 => Self::Unused,
-            10 => Self::None,
-            11 => Self::Sub,
-            12 => Self::Up,
-            13 => Self::Average,
-            14 => Self::Paeth,
-            15 => Self::Optimum,
-            _ => {
-                return Err(ParseError::UnrecognizedVariant {
-                    ty: "Predictor",
-                    found: i.to_string(),
-                })
-            }
-        })
-    }
 }
 
 #[pdf_enum(Integer)]

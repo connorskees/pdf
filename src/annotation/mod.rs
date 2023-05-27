@@ -21,8 +21,10 @@ pub struct Annotation<'a> {
     sub_type: AnnotationSubType<'a>,
 }
 
-impl<'a> Annotation<'a> {
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for Annotation<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut dict = resolver.assert_dict(obj)?;
+
         let base = BaseAnnotation::from_dict(&mut dict, resolver)?;
         let sub_type = AnnotationSubType::from_dict(dict, &base, resolver)?;
 
@@ -198,21 +200,9 @@ struct MarkupAnnotation {
 }
 
 // todo: this seems to only be used for 3d stuff
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
+#[obj_type("ExData")]
 struct ExternalDataDictionary {}
-
-impl ExternalDataDictionary {
-    const TYPE: &'static str = "ExData";
-
-    pub fn from_dict<'a>(
-        mut dict: Dictionary<'a>,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Self> {
-        dict.expect_type(Self::TYPE, resolver, false)?;
-
-        todo!()
-    }
-}
 
 #[pdf_enum]
 enum ReplyType {
@@ -238,10 +228,7 @@ impl MarkupAnnotation {
             .map(ReplyType::from_str)
             .transpose()?;
         let it = dict.get_name("IT", resolver)?;
-        let ex_data = dict
-            .get_dict("ExData", resolver)?
-            .map(|d| ExternalDataDictionary::from_dict(d, resolver))
-            .transpose()?;
+        let ex_data = dict.get("ExData", resolver)?;
 
         Ok(Self {
             t,
