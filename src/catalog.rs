@@ -12,10 +12,17 @@ document is opened.
 */
 
 use crate::{
-    actions::Actions, assert_empty, data_structures::NumberTree, date::Date,
-    destination::Destination, objects::Name, optional_content::OptionalContentProperties,
-    stream::Stream, structure::StructTreeRoot, viewer_preferences::ViewerPreferences, Dictionary,
-    FromObj, Lexer, Object, ParseError, PdfResult, Reference, Resolve,
+    actions::Actions,
+    assert_empty,
+    data_structures::NumberTree,
+    date::Date,
+    destination::Destination,
+    objects::{Name, TypedReference},
+    optional_content::OptionalContentProperties,
+    stream::Stream,
+    structure::StructTreeRoot,
+    viewer_preferences::ViewerPreferences,
+    Dictionary, FromObj, Lexer, Object, ParseError, PdfResult, Reference, Resolve,
 };
 
 pub use crate::color::{ColorSpace, ColorSpaceName};
@@ -57,7 +64,7 @@ pub struct DocumentCatalog<'a> {
     /// range to which the specified page label dictionary
     /// applies. The tree shall include a value for
     /// page index 0.
-    page_labels: Option<NumberTree<'a>>,
+    page_labels: Option<TypedReference<'a, NumberTree<'a>>>,
 
     /// The document's name dictionary
     names: Option<NameDictionary>,
@@ -69,7 +76,7 @@ pub struct DocumentCatalog<'a> {
     /// the document shall be displayed on the screen. If
     /// this entry is absent, conforming readers shall use
     /// their own current user preference settings.
-    viewer_preferences: Option<ViewerPreferences>,
+    viewer_preferences: Option<TypedReference<'a, ViewerPreferences>>,
 
     page_layout: PageLayout,
 
@@ -167,7 +174,7 @@ impl<'a> DocumentCatalog<'a> {
         let page_labels = None;
         let names = None;
         let dests = dict.get_reference("Dests")?;
-        let viewer_preferences = dict.get::<ViewerPreferences>("ViewerPreferences", lexer)?;
+        let viewer_preferences = dict.get("ViewerPreferences", lexer)?;
 
         let page_layout = dict
             .get_name("PageLayout", lexer)?
@@ -274,6 +281,7 @@ pub struct InformationDictionary<'a> {
     #[field("Trapped", default = Trapped::default())]
     trapped: Trapped,
 
+    // todo: "other" field
     #[field("")]
     other: Dictionary<'a>,
 }

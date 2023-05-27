@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::TryFrom, fmt, rc::Rc};
+use std::{borrow::Cow, collections::HashMap, convert::TryFrom, fmt, marker::PhantomData, rc::Rc};
 
 use crate::{
     assert_reference, data_structures::Matrix, date::Date, stream::Stream, ParseError, PdfResult,
@@ -53,6 +53,28 @@ impl<'a> Object<'a> {
 pub struct Reference {
     pub object_number: usize,
     pub generation: usize,
+}
+
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum TypedReference<'a, T: FromObj<'a>> {
+    Indirect {
+        reference: Reference,
+        _t: PhantomData<&'a T>,
+    },
+    Direct(T),
+}
+
+impl<'a, T: FromObj<'a> + Clone> TypedReference<'a, T> {
+    // todo: cache somehow
+    pub fn get_ref(&self, resolver: &mut dyn Resolve<'a>) -> PdfResult<Cow<T>> {
+        match self {
+            TypedReference::Indirect { reference, _t } => {
+                let value = T::from_obj(Object::Reference(*reference), resolver)?;
+                Ok(Cow::Owned(value))
+            }
+            TypedReference::Direct(t) => Ok(Cow::Borrowed(t)),
+        }
+    }
 }
 
 #[derive(Clone, PartialEq)]
@@ -418,6 +440,12 @@ impl<'a> FromObj<'a> for String {
     }
 }
 
+impl<'a> FromObj<'a> for Stream<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        resolver.assert_stream(obj)
+    }
+}
+
 impl<'a> FromObj<'a> for Object<'a> {
     fn from_obj(obj: Object<'a>, _resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         Ok(obj)
@@ -462,5 +490,17 @@ impl<'a> FromObj<'a> for Matrix {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let arr = resolver.assert_arr(obj)?;
         Matrix::from_arr(arr, resolver)
+    }
+}
+
+impl<'a, T: FromObj<'a>> FromObj<'a> for TypedReference<'a, T> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        Ok(match obj {
+            Object::Reference(reference) => Self::Indirect {
+                reference,
+                _t: PhantomData,
+            },
+            _ => Self::Direct(T::from_obj(obj, resolver)?),
+        })
     }
 }

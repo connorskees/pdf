@@ -110,7 +110,7 @@ pub struct HalftoneOne<'a> {
 
 #[derive(Debug, Clone)]
 pub struct HalftoneFive<'a> {
-    colorant: ColorSpace,
+    colorant: ColorSpace<'a>,
     default: Box<Halftones<'a>>,
 }
 

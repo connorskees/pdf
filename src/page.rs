@@ -9,7 +9,7 @@ use crate::{
     data_structures::Rectangle,
     date::Date,
     error::PdfResult,
-    objects::Dictionary,
+    objects::{Dictionary, TypedReference},
     resources::Resources,
     stream::Stream,
     Reference, Resolve,
@@ -213,7 +213,7 @@ pub struct PageObject<'a> {
     /// not preserve the existing structure of the Contents array.
     ///
     /// Conforming writers shall not create a Contents array containing no elements.
-    pub(crate) contents: Option<ContentStream>,
+    pub(crate) contents: Option<TypedReference<'a, ContentStream>>,
 
     /// The number of degrees by which the page shall be rotated clockwise
     /// when displayed or printed. The value shall be a multiple of 90.
@@ -225,10 +225,10 @@ pub struct PageObject<'a> {
 
     /// A group attributes dictionary that shall specify the attributes of
     /// the page's page group for use in the transparent imaging model
-    pub group: Option<GroupAttributes<'a>>,
+    pub group: Option<TypedReference<'a, GroupAttributes<'a>>>,
 
     /// A stream object that shall define the page's thumbnail image
-    pub thumb: Option<Stream<'a>>,
+    pub thumb: Option<TypedReference<'a, Stream<'a>>>,
 
     /// An array that shall contain indirect references to all article beads
     /// appearing on the page. The beads shall be listed in the array in
@@ -357,11 +357,7 @@ impl<'a> InheritablePageFields<'a> {
     }
 
     pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let resources = dict
-            .get_dict("Resources", resolver)?
-            .map(|dict| Resources::from_dict(dict, resolver))
-            .transpose()?
-            .map(Rc::new);
+        let resources = dict.get("Resources", resolver)?;
 
         let media_box = dict.get::<Rectangle>("MediaBox", resolver)?;
         let crop_box = dict.get::<Rectangle>("CropBox", resolver)?;

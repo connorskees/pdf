@@ -19,10 +19,13 @@ use crate::{
     objects::Object,
     page::PageObject,
     postscript::{charstring::CharStringPainter, PostscriptInterpreter},
-    resources::graphics_state_parameters::{LineCapStyle, LineDashPattern, LineJoinStyle},
+    resources::{
+        graphics_state_parameters::{LineCapStyle, LineDashPattern, LineJoinStyle},
+        Resources,
+    },
     shading::ShadingObject,
     xobject::{FormXObject, XObject},
-    Resolve,
+    FromObj, Resolve,
 };
 
 use canvas::Canvas;
@@ -52,6 +55,7 @@ pub struct Renderer<'a, 'b: 'a> {
     /// the glyphs to an appropriate size, and accomplish other effects.
     text_state: TextState<'b>,
     page: Rc<PageObject<'b>>,
+    resources: Option<Rc<Resources<'b>>>,
     current_path: Option<Path>,
 }
 
@@ -115,19 +119,40 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
             operand_stack: Vec::new(),
             graphics_state: GraphicsState::default(),
             text_state: TextState::default(),
+            resources: page.resources(),
             page,
             current_path: None,
         }
     }
 
-    fn render_form_xobject(&mut self, content_buffer: Cow<'b, [u8]>) -> PdfResult<()> {
+    fn current_transformation_matrix(&self) -> Matrix {
+        self.graphics_state
+            .device_independent
+            .current_transformation_matrix
+    }
+
+    fn render_form_xobject(&mut self, mut form: FormXObject<'b>) -> PdfResult<()> {
+        let content_buffer: Cow<'b, [u8]> = decode_stream(
+            unsafe { &*(&*form.stream.stream as *const _) },
+            &form.stream.dict,
+            self.resolver,
+        )?;
+
         let mut form_content = ContentLexer::new(content_buffer);
 
+        self.save_graphics_state()?;
         std::mem::swap(self.content, &mut form_content);
+        std::mem::swap(&mut self.resources, &mut form.resources);
+        self.graphics_state
+            .device_independent
+            .current_transformation_matrix *= form.matrix;
 
         self.render_content_stream()?;
 
         std::mem::swap(self.content, &mut form_content);
+        std::mem::swap(&mut self.resources, &mut form.resources);
+
+        self.restore_graphics_state()?;
 
         Ok(())
     }
@@ -228,7 +253,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     fn paint_using_shading_pattern(&mut self) -> PdfResult<()> {
         let name = self.pop_name()?;
 
-        if let Some(resources) = &self.page.resources() {
+        if let Some(resources) = &self.resources {
             let shade = resources
                 .shading
                 .as_ref()
@@ -274,13 +299,25 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         Ok(())
     }
 
-    fn get_color_space(&mut self, color_space_name: ColorSpaceName) -> PdfResult<ColorSpace> {
+    fn get_color_space(&mut self, color_space_name: ColorSpaceName) -> PdfResult<ColorSpace<'b>> {
         Ok(match color_space_name {
             ColorSpaceName::Separation | ColorSpaceName::DeviceN | ColorSpaceName::ICCBased => {
                 todo!()
             }
             ColorSpaceName::Pattern => {
-                todo!()
+                let name = self.pop_name()?;
+
+                let pattern = self
+                    .resources
+                    .as_ref()
+                    .unwrap()
+                    .pattern
+                    .as_ref()
+                    .unwrap()
+                    .get(&name)
+                    .map(Rc::clone);
+
+                ColorSpace::Pattern(pattern)
             }
             ColorSpaceName::Indexed => {
                 todo!()
@@ -402,7 +439,6 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
             ColorSpace::init(name)
         } else {
             let name = self
-                .page
                 .resources
                 .as_ref()
                 .unwrap()
@@ -426,7 +462,6 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
             ColorSpace::init(name)
         } else {
             let name = self
-                .page
                 .resources
                 .as_ref()
                 .unwrap()
@@ -650,7 +685,6 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         let dict_name = self.pop_name()?;
 
         let graphics_state_parameters = self
-            .page
             .resources
             .as_ref()
             .and_then(|res| res.ext_g_state.as_ref())
@@ -868,7 +902,6 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         let font_name = self.pop_name()?;
 
         let font = self
-            .page
             .resources
             .as_ref()
             .and_then(|res| res.font.as_ref())
@@ -1114,7 +1147,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     fn draw_xobject(&mut self) -> PdfResult<()> {
         let name = self.pop_name()?;
 
-        if let Some(resources) = &self.page.resources() {
+        if let Some(resources) = &self.resources {
             let xobject = resources
                 .xobject
                 .as_ref()
@@ -1124,13 +1157,8 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                 Some(XObject::Image(image)) => self.canvas.draw_image(image, self.resolver)?,
                 Some(XObject::Form(form)) => {
                     let form: FormXObject<'b> = FormXObject::clone(form);
-                    let content_buffer: Cow<'b, [u8]> = decode_stream(
-                        unsafe { &*(&*form.stream.stream as *const _) },
-                        &form.stream.dict,
-                        self.resolver,
-                    )?;
 
-                    self.render_form_xobject(content_buffer)?
+                    self.render_form_xobject(form)?
                 }
                 Some(XObject::PostScript(ps_obj)) => {
                     todo!("unimplemented postscript xobject {:#?}", ps_obj)

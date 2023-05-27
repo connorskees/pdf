@@ -4,8 +4,8 @@ use crate::{
     error::{ParseError, PdfResult},
     filter::decode_stream,
     objects::{Object, ObjectType},
-    resolve::Resolve,
-    stream::Stream,
+    Resolve,
+    stream::Stream, FromObj
 };
 
 #[derive(Clone)]
@@ -24,8 +24,8 @@ impl fmt::Debug for ContentStream {
     }
 }
 
-impl ContentStream {
-    pub fn from_obj<'a>(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for ContentStream {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let streams = match resolver.resolve(obj)? {
             Object::Stream(stream) => vec![stream],
             Object::Array(arr) => arr

@@ -15,12 +15,12 @@ pub(crate) struct GraphicsState<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct GraphicsStateColorSpace {
-    pub stroking: ColorSpace,
-    pub nonstroking: ColorSpace,
+pub struct GraphicsStateColorSpace<'a> {
+    pub stroking: ColorSpace<'a>,
+    pub nonstroking: ColorSpace<'a>,
 }
 
-impl Default for GraphicsStateColorSpace {
+impl<'a> Default for GraphicsStateColorSpace<'a> {
     fn default() -> Self {
         Self {
             stroking: ColorSpace::DeviceGray(0.0),
@@ -62,7 +62,7 @@ pub struct DeviceIndependentGraphicsState<'a> {
     /// all other painting operations.
     ///
     /// Initial value: black.
-    pub color_space: GraphicsStateColorSpace,
+    pub color_space: GraphicsStateColorSpace<'a>,
 
     /// The thickness, in user space units, of paths to be stroked
     ///

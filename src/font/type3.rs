@@ -7,7 +7,7 @@ use crate::{
     objects::Dictionary,
     resources::Resources,
     stream::Stream,
-    Resolve, FromObj
+    FromObj, Resolve,
 };
 
 use super::{encoding::FontEncoding, BaseFontDict};
@@ -72,10 +72,7 @@ impl<'a> Type3Font<'a> {
             .map(|(key, obj)| Ok((key, resolver.assert_stream(obj)?)))
             .collect::<PdfResult<_>>()?;
         let encoding = FontEncoding::from_obj(dict.expect_object("Encoding", resolver)?, resolver)?;
-        let resources = dict
-            .get_dict("Resources", resolver)?
-            .map(|dict| Resources::from_dict(dict, resolver))
-            .transpose()?;
+        let resources = dict.get("Resources", resolver)?;
         let to_unicode = dict
             .get_stream("ToUnicode", resolver)?
             .map(|stream| ToUnicodeCmapStream::from_stream(stream, resolver))

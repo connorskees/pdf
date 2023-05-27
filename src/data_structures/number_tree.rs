@@ -5,7 +5,7 @@ use crate::{
     catalog::assert_len,
     error::PdfResult,
     objects::{Dictionary, Object},
-    Resolve,
+    Resolve, FromObj
 };
 
 /// A number tree is similar to a name tree, except that its keys shall be integers instead of
@@ -34,8 +34,10 @@ fn get_nums<'a>(
         .transpose()
 }
 
-impl<'a> NumberTree<'a> {
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for NumberTree<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut dict = resolver.assert_dict(obj)?;
+
         let nums = get_nums(&mut dict, resolver)?;
 
         assert_empty(dict);

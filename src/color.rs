@@ -1,4 +1,9 @@
-use crate::{catalog::assert_len, error::PdfResult, objects::Object, resolve::Resolve};
+use std::rc::Rc;
+
+use crate::{
+    catalog::assert_len, error::PdfResult, objects::Object, resources::pattern::Pattern, FromObj,
+    Resolve,
+};
 
 pub struct Color;
 
@@ -10,7 +15,7 @@ impl Color {
 }
 
 #[derive(Debug, Clone)]
-pub enum ColorSpace {
+pub enum ColorSpace<'a> {
     // Device
     DeviceGray(f32),
     DeviceRGB {
@@ -43,12 +48,12 @@ pub enum ColorSpace {
 
     // Special
     Indexed(u32),
-    Pattern,
+    Pattern(Option<Rc<Pattern<'a>>>),
     Separation,
     DeviceN(Vec<f32>),
 }
 
-impl ColorSpace {
+impl<'a> ColorSpace<'a> {
     pub fn init(name: ColorSpaceName) -> Self {
         match name {
             ColorSpaceName::DeviceGray => ColorSpace::DeviceGray(0.0),
@@ -72,7 +77,7 @@ impl ColorSpace {
             ColorSpaceName::Lab => todo!(),
             ColorSpaceName::ICCBased => todo!(),
             ColorSpaceName::Indexed => ColorSpace::Indexed(0),
-            ColorSpaceName::Pattern => todo!(),
+            ColorSpaceName::Pattern => ColorSpace::Pattern(None),
             ColorSpaceName::Separation => todo!(),
             ColorSpaceName::DeviceN => todo!(),
         }
@@ -104,8 +109,11 @@ impl ColorSpace {
     /// This may change in the future
     pub fn as_u32(&self) -> u32 {
         match self {
-            // todo: argb
-            Self::DeviceGray(n) => *n as u32,
+            &Self::DeviceGray(n) => {
+                let n = (n * 255.0) as u32;
+
+                (0xff << 24) | (n << 16) | (n << 8) | n
+            }
             &Self::DeviceRGB { red, green, blue } => {
                 let r = (red * 255.0) as u32;
                 let g = (green * 255.0) as u32;
@@ -125,11 +133,21 @@ impl ColorSpace {
 
                 (0xff << 24) | (r << 16) | (g << 8) | b
             }
+            Self::Pattern(..) => {
+                // todo: we just set color to red for now
+                let r = (1.0 * 255.0) as u32;
+                let g = (0.0 * 255.0) as u32;
+                let b = (0.0 * 255.0) as u32;
+
+                (0xff << 24) | (r << 16) | (g << 8) | b
+            }
             c => todo!("unimplemented color space: {:?}", c),
         }
     }
+}
 
-    pub(crate) fn from_obj<'a>(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for ColorSpace<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         match resolver.resolve(obj)? {
             Object::Name(name) => Ok(ColorSpace::init(ColorSpaceName::from_str(&name)?)),
             Object::Array(arr) => {

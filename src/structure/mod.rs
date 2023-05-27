@@ -62,14 +62,8 @@ impl<'a> StructTreeRoot<'a> {
             .map(|obj| StructureElement::from_obj(obj, resolver))
             .transpose()?;
 
-        let id_tree = dict
-            .get_dict("IdTree", resolver)?
-            .map(|dict| NameTree::from_dict(dict, resolver))
-            .transpose()?;
-        let parent_tree = dict
-            .get_dict("ParentTree", resolver)?
-            .map(|dict| NumberTree::from_dict(dict, resolver))
-            .transpose()?;
+        let id_tree = dict.get("IdTree", resolver)?;
+        let parent_tree = dict.get("ParentTree", resolver)?;
         let parent_tree_next_key = dict.get_integer("ParentTreeNextKey", resolver)?;
         let role_map = dict.get_dict("RoleMap", resolver)?;
         let class_map = dict.get_dict("ClassMap", resolver)?;

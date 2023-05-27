@@ -99,7 +99,7 @@ impl<'a> TilingPattern<'a> {
         let bbox = dict.expect::<Rectangle>("BBox", resolver)?;
         let x_step = dict.expect_number("XStep", resolver)?;
         let y_step = dict.expect_number("YStep", resolver)?;
-        let resources = Resources::from_dict(dict.expect_dict("Resources", resolver)?, resolver)?;
+        let resources = dict.expect("Resources", resolver)?;
         let matrix = dict
             .get::<Matrix>("Matrix", resolver)?
             .unwrap_or_else(Matrix::identity);

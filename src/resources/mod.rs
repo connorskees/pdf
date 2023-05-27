@@ -1,8 +1,13 @@
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    assert_empty, error::PdfResult, font::Font, objects::Dictionary, shading::ShadingObject,
-    xobject::XObject, FromObj, Resolve,
+    assert_empty,
+    error::PdfResult,
+    font::Font,
+    objects::{Dictionary, Object},
+    shading::ShadingObject,
+    xobject::XObject,
+    FromObj, Resolve,
 };
 
 use self::{graphics_state_parameters::GraphicsStateParameters, pattern::Pattern};
@@ -19,11 +24,11 @@ pub struct Resources<'a> {
     /// A dictionary that maps each resource name to
     /// either the name of a device-dependent color
     /// space or an array describing a color space
-    // color_space: Option<HashMap<String, ColorSpace>>,
+    // color_space: Option<HashMap<String, ColorSpace<'a>>>,
     pub color_space: Option<Dictionary<'a>>,
 
     /// A dictionary that maps resource names to pattern objects
-    pub pattern: Option<HashMap<String, Pattern<'a>>>,
+    pub pattern: Option<HashMap<String, Rc<Pattern<'a>>>>,
 
     /// A dictionary that maps resource names to shading dictionaries
     pub shading: Option<HashMap<String, ShadingObject<'a>>>,
@@ -41,11 +46,10 @@ pub struct Resources<'a> {
     // properties: Option<HashMap<String, PropertyList>>,
 }
 
-impl<'a> Resources<'a> {
-    pub(crate) fn from_dict(
-        mut dict: Dictionary<'a>,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for Resources<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut dict = resolver.assert_dict(obj)?;
+
         let ext_g_state = dict
             .get_dict("ExtGState", resolver)?
             .map(|dict| {
@@ -65,8 +69,8 @@ impl<'a> Resources<'a> {
             .get_dict("Pattern", resolver)?
             .map(|dict| {
                 dict.entries()
-                    .map(|(key, obj)| Ok((key, Pattern::from_obj(obj, resolver)?)))
-                    .collect::<PdfResult<HashMap<String, Pattern>>>()
+                    .map(|(key, obj)| Ok((key, Rc::new(Pattern::from_obj(obj, resolver)?))))
+                    .collect::<PdfResult<HashMap<String, Rc<Pattern>>>>()
             })
             .transpose()?;
 

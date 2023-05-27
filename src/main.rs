@@ -44,15 +44,14 @@ pub(crate) use crate::{objects::FromObj, resolve::Resolve};
 
 use crate::{
     annotation::Annotation,
-    catalog::{DocumentCatalog, GroupAttributes, InformationDictionary, PagePiece},
-    content::{ContentLexer, ContentStream},
+    catalog::{DocumentCatalog, InformationDictionary, PagePiece},
+    content::ContentLexer,
     error::{ParseError, PdfResult},
     filter::decode_stream,
     lex::{LexBase, LexObject},
     object_stream::{ObjectStream, ObjectStreamDict, ObjectStreamParser},
     objects::{Dictionary, Object, ObjectType, Reference},
     page::{InheritablePageFields, PageNode, PageObject, PageTree, PageTreeNode, TabOrder},
-    resources::Resources,
     stream::StreamDict,
     trailer::Trailer,
     xref::{ByteOffset, TrailerOrOffset, Xref, XrefParser},
@@ -242,24 +241,17 @@ impl<'a> Lexer<'a> {
     ) -> PdfResult<()> {
         let parent = dict.expect_reference("Parent")?;
         let last_modified = dict.get::<Date>("LastModified", self)?;
-        let resources = dict
-            .get_dict("Resources", self)?
-            .map(|dict| Resources::from_dict(dict, self))
-            .transpose()?
-            .map(Rc::new);
+        let resources = dict.get("Resources", self)?;
         let media_box = dict.get::<Rectangle>("MediaBox", self)?;
         let crop_box = dict.get::<Rectangle>("CropBox", self)?;
         let bleed_box = dict.get::<Rectangle>("BleedBox", self)?;
         let trim_box = dict.get::<Rectangle>("TrimBox", self)?;
         let art_box = dict.get::<Rectangle>("ArtBox", self)?;
         let box_color_info = None;
-        let contents = dict
-            .get_object("Contents", self)?
-            .map(|obj| ContentStream::from_obj(obj, self))
-            .transpose()?;
+        let contents = dict.get("Contents", self)?;
         let rotate = dict.get_integer("Rotate", self)?;
-        let group = dict.get::<GroupAttributes>("Group", self)?;
-        let thumb = dict.get_stream("Thumb", self)?;
+        let group = dict.get("Group", self)?;
+        let thumb = dict.get("Thumb", self)?;
         let b = None;
         let dur = None;
         let trans = None;
@@ -499,7 +491,7 @@ impl<'a> Parser<'a> {
 
         // todo: no copy
         Ok(ContentLexer::new(Cow::Owned(
-            stream.combined_buffer.clone(),
+            stream.get_ref(&mut self.lexer)?.combined_buffer.clone(),
         )))
     }
 }
