@@ -12,8 +12,11 @@ description = "PDF parser"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = { version = "1.0.71", features = ["backtrace"] }
 fast-float = "0.2.0"
+fixed = "1.23.1"
 flate2 = "1.0.20"
 jpeg-decoder = "0.1.22"
 minifb = "0.19.3"
 pdf_macro = { path = "pdf_macro" }
+png = "0.17.8"
