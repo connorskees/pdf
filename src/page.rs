@@ -45,6 +45,8 @@ impl<'a> PageNode<'a> {
             PageNode::Leaf(leaf) => leaves.push(Rc::clone(leaf)),
         }
 
+        leaves.reverse();
+
         leaves
     }
 
