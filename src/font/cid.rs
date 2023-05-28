@@ -1,6 +1,6 @@
 use crate::{
     error::{ParseError, PdfResult},
-    objects::{ Object, ObjectType},
+    objects::{Name, Object, ObjectType},
     stream::Stream,
     FromObj, Resolve,
 };
@@ -32,13 +32,14 @@ pub struct CidSystemInfo {
 }
 
 #[derive(Debug, FromObj)]
+#[obj_type("Font")]
 pub struct CidFontDictionary<'a> {
     /// The PostScript name of the CIDFont. For Type 0 CIDFonts, this shall be
     /// the value of the CIDFontName entry in the CIDFont program. For Type 2
     /// CIDFonts, it shall be derived the same way as for a simple TrueType font.
     /// In either case, the name may have a subset prefix if appropriate
     #[field("BaseFont")]
-    base_font: String,
+    base_font: Name,
 
     /// A dictionary containing entries that define the character collection of the
     /// CIDFont

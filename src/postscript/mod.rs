@@ -1531,9 +1531,9 @@ pub(super) enum GraphicsOperator {
     /// called dymin, dymid and dymax. These stems and the counters between them
     /// will all be controlled. These coordinates must obey certain restrictions:
     ///
-    ///     • dymin = dymax
+    ///     - dymin = dymax
     ///
-    ///     • The distance from ymin + dymin/2 to ymid + dymid/2 must equal the
+    ///     - The distance from ymin + dymin/2 to ymid + dymid/2 must equal the
     ///       distance from ymid + dymid/2 to ymax + dymax/2. In other words,
     ///       the distance from the center of the bottom stem to the center of
     ///       the middle stem must be the same as the distance from the center
@@ -1565,9 +1565,9 @@ pub(super) enum GraphicsOperator {
     /// and the counters between them will all be controlled. These coordinates
     /// must obey certain restrictions described as follows:
     ///
-    ///     • dxmin = dxmax
+    ///     - dxmin = dxmax
     ///
-    ///     • The distance from xmin + dxmin/2 to xmid + dxmid/2 must equal the
+    ///     - The distance from xmin + dxmin/2 to xmid + dxmid/2 must equal the
     ///       distance from xmid + dxmid/2 to xmax + dxmax/2. In other words, the
     ///       distance from the center of the left stem to the center of the
     ///       middle stem must be the same as the distance from the center of the

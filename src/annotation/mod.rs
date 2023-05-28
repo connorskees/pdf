@@ -450,7 +450,7 @@ pub struct BorderStyle {
     ///
     /// EXAMPLE: A `D` entry of [3 2] specifies a border drawn with 3-point dashes alternating with 2-point gaps.
     ///
-    /// Default value: [3].
+    /// Default value: \[3\].
     #[field("D")]
     d: Option<LineDashPattern>,
 }

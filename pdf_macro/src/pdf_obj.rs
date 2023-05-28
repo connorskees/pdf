@@ -119,7 +119,7 @@ pub fn pdf_obj_inner(input: TokenStream) -> TokenStream {
 
     let obj_type = if let Some(obj_type_value) = &obj_type_value {
         Some(quote!(
-            dict.expect_type(#obj_type_value, resolver, true)?;
+            dict.expect_type(#obj_type_value, resolver, false).context(stringify!(#name))?;
         ))
     } else {
         None

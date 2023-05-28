@@ -79,7 +79,7 @@ pub struct TextState<'a> {
     /// be applied to the glyphs individually rather than to the implicit
     /// transparency group as a whole:
     ///
-    ///     • Graphics state parameters, including transparency parameters, shall
+    ///     - Graphics state parameters, including transparency parameters, shall
     ///       be inherited from the context in which the text object appears. They
     ///       shall not be saved and restored. The transparency parameters shall
     ///       not be reset at the beginning of the transparency group (as they
@@ -87,7 +87,7 @@ pub struct TextState<'a> {
     ///       made to graphics state parameters within the text object shall persist
     ///       beyond the end of the text object.
     ///
-    ///     • After the implicit transparency group for the text object has been
+    ///     - After the implicit transparency group for the text object has been
     ///       completely evaluated, the group results shall be composited with
     ///       the backdrop, using the Normal blend mode and alpha and soft mask
     ///       values of 1.0.
