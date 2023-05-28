@@ -59,17 +59,17 @@ fn field_getter(
             assert!(default.is_none());
             let generic = extract_type_from_option(ty).unwrap();
             quote!(
-                let #name = dict.get::<#generic>(#key, resolver)?;
+                let #name = dict.get::<#generic>(#key, resolver).context(#key)?;
             )
         }
         _ => {
             if let Some(default) = default {
                 quote!(
-                    let #name = dict.get::<#ty>(#key, resolver)?.unwrap_or(#default);
+                    let #name = dict.get::<#ty>(#key, resolver).context(#key)?.unwrap_or(#default);
                 )
             } else {
                 quote!(
-                    let #name = dict.expect::<#ty>(#key, resolver)?;
+                    let #name = dict.expect::<#ty>(#key, resolver).context(#key)?;
                 )
             }
         }
@@ -133,7 +133,10 @@ pub fn pdf_obj_inner(input: TokenStream) -> TokenStream {
                 .attrs
                 .into_iter()
                 .find(|attr| attr.path().is_ident("field"))
-                .unwrap();
+                .expect(&format!(
+                    "`{}` does not have field decorator",
+                    name.to_string()
+                ));
 
             let nested = field_attr.parse_args_with(HelperArgs::parse).unwrap();
 
@@ -216,6 +219,7 @@ pub fn pdf_obj_inner(input: TokenStream) -> TokenStream {
     quote!(
         impl<#(#lifetimes,)* #(#type_params,)* #from_obj_lt> crate::FromObj<'from_obj> for #name #ty_generics #where_clause {
             fn from_obj(obj: crate::Object<'from_obj>, resolver: &mut dyn crate::Resolve<'from_obj>) -> crate::PdfResult<Self> {
+                use anyhow::Context;
                 let mut dict = resolver.assert_dict(obj)?;
 
                 #obj_type
