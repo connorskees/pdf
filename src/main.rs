@@ -37,21 +37,18 @@ mod xref;
 
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, io, rc::Rc};
 
-use data_structures::Rectangle;
-use date::Date;
-
 pub(crate) use crate::{objects::FromObj, resolve::Resolve};
 
 use crate::{
     annotation::Annotation,
-    catalog::{DocumentCatalog, InformationDictionary, PagePiece},
+    catalog::{DocumentCatalog, InformationDictionary},
     content::ContentLexer,
     error::{ParseError, PdfResult},
     filter::decode_stream,
     lex::{LexBase, LexObject},
     object_stream::{ObjectStream, ObjectStreamDict, ObjectStreamParser},
     objects::{Dictionary, Object, ObjectType, Reference},
-    page::{InheritablePageFields, PageNode, PageObject, PageTree, PageTreeNode, TabOrder},
+    page::{InheritablePageFields, PageNode, PageObject, PageTree, PageTreeNode},
     stream::StreamDict,
     trailer::Trailer,
     xref::{ByteOffset, TrailerOrOffset, Xref, XrefParser},
@@ -240,38 +237,30 @@ impl<'a> Lexer<'a> {
         pages: &mut HashMap<Reference, PageNode<'a>>,
     ) -> PdfResult<()> {
         let parent = dict.expect_reference("Parent")?;
-        let last_modified = dict.get::<Date>("LastModified", self)?;
+        let last_modified = dict.get("LastModified", self)?;
         let resources = dict.get("Resources", self)?;
-        let media_box = dict.get::<Rectangle>("MediaBox", self)?;
-        let crop_box = dict.get::<Rectangle>("CropBox", self)?;
-        let bleed_box = dict.get::<Rectangle>("BleedBox", self)?;
-        let trim_box = dict.get::<Rectangle>("TrimBox", self)?;
-        let art_box = dict.get::<Rectangle>("ArtBox", self)?;
-        let box_color_info = None;
+        let media_box = dict.get("MediaBox", self)?;
+        let crop_box = dict.get("CropBox", self)?;
+        let bleed_box = dict.get("BleedBox", self)?;
+        let trim_box = dict.get("TrimBox", self)?;
+        let art_box = dict.get("ArtBox", self)?;
+        let box_color_info = dict.get("BoxColorInfo", self)?;
         let contents = dict.get("Contents", self)?;
-        let rotate = dict.get_integer("Rotate", self)?;
+        let rotate = dict.get("Rotate", self)?;
         let group = dict.get("Group", self)?;
         let thumb = dict.get("Thumb", self)?;
-        let b = None;
-        let dur = None;
-        let trans = None;
-        let annots = dict
-            .get_arr("Annots", self)?
-            .map(|annots| {
-                annots
-                    .into_iter()
-                    .map(assert_reference)
-                    .collect::<PdfResult<Vec<Reference>>>()
-            })
-            .transpose()?;
-        let aa = None;
+        let b = dict.get("B", self)?;
+        let dur = dict.get("Dur", self)?;
+        let trans = dict.get("Trans", self)?;
+        let annots = dict.get("Annots", self)?;
+        let aa = dict.get("AA", self)?;
         let metadata = None;
-        let piece_info = dict.get::<PagePiece>("PieceInfo", self)?;
-        let struct_parents = dict.get_integer("StructParents", self)?;
-        let id = None;
-        let pz = None;
-        let separation_info = None;
-        let tabs = dict.get::<TabOrder>("Tabs", self)?;
+        let piece_info = dict.get("PieceInfo", self)?;
+        let struct_parents = dict.get("StructParents", self)?;
+        let id = dict.get("ID", self)?;
+        let pz = dict.get("PZ", self)?;
+        let separation_info = dict.get("SeparationInfo", self)?;
+        let tabs = dict.get("Tabs", self)?;
         let template_instantiated = None;
         let pres_steps = None;
         let user_unit = None;
