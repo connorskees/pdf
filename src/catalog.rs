@@ -13,7 +13,7 @@ document is opened.
 
 use crate::{
     actions::Actions,
-    data_structures::NumberTree,
+    data_structures::{NameTree, NumberTree},
     date::Date,
     destination::Destination,
     objects::{Name, TypedReference},
@@ -69,7 +69,7 @@ pub struct DocumentCatalog<'a> {
 
     /// The document's name dictionary
     #[field("Names")]
-    names: Option<NameDictionary>,
+    names: Option<TypedReference<'a, NameDictionary>>,
 
     /// A dictionary of names and corresponding destinations
     #[field("Dests")]
@@ -114,7 +114,7 @@ pub struct DocumentCatalog<'a> {
     uri: Option<UriDict>,
 
     #[field("AcroForm")]
-    acro_form: Option<AcroForm>,
+    acro_form: Option<TypedReference<'a, AcroForm<'a>>>,
 
     #[field("Metadata")]
     metadata: Option<Reference>,
@@ -186,7 +186,7 @@ pub struct DocumentCatalog<'a> {
     last_modified: Option<Date>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct Encryption;
 
 #[derive(Debug, FromObj)]
@@ -254,8 +254,55 @@ impl Default for Trapped {
 pub struct Extensions;
 #[derive(Debug, FromObj)]
 struct Language;
+
 #[derive(Debug, FromObj)]
-pub struct NameDictionary;
+pub struct NameDictionary {
+    /// A name tree mapping name strings to destinations
+    #[field("Dests")]
+    dests: Option<NameTree>,
+
+    /// A name tree mapping name strings to annotation appearance streams
+    #[field("AP")]
+    ap: Option<NameTree>,
+
+    /// A name tree mapping name strings to document-level JavaScript actions
+    #[field("JavaScript")]
+    java_script: Option<NameTree>,
+
+    /// A name tree mapping name strings to visible pages for use in interactive
+    /// forms
+    #[field("Pages")]
+    pages: Option<NameTree>,
+
+    /// A name tree mapping name strings to invisible (template) pages for use
+    /// in interactive forms
+    #[field("Templates")]
+    templates: Option<NameTree>,
+
+    /// A name tree mapping digital identifiers to Web Capture content sets
+    #[field("IDS")]
+    ids: Option<NameTree>,
+
+    /// A name tree mapping uniform resource locators (URLs) to Web Capture
+    /// content sets
+    #[field("URLS")]
+    urls: Option<NameTree>,
+
+    /// A name tree mapping name strings to file specifications for embedded file
+    /// streams
+    #[field("EmbeddedFiles")]
+    embedded_files: Option<NameTree>,
+
+    /// A name tree mapping name strings to alternate presentations
+    #[field("AlternatePresentations")]
+    alternate_presentations: Option<NameTree>,
+
+    /// A name tree mapping name strings (which shall have Unicode encoding) to
+    /// rendition objects
+    #[field("Renditions")]
+    renditions: Option<NameTree>,
+}
+
 #[derive(Debug, FromObj)]
 pub struct NamedDestinations;
 #[derive(Debug, FromObj)]
@@ -296,8 +343,86 @@ impl<'a> FromObj<'a> for OpenAction<'a> {
 pub struct AdditionalActions;
 #[derive(Debug, FromObj)]
 pub struct UriDict;
+
 #[derive(Debug, FromObj)]
-pub struct AcroForm;
+pub struct AcroForm<'a> {
+    /// An array of references to the document’s root fields (those with no
+    /// ancestors in the field hierarchy).
+    #[field("Fields")]
+    fields: Vec<Reference>,
+
+    /// A flag specifying whether to construct appearance streams and appearance
+    /// dictionaries for all widget annotations in the document
+    ///
+    /// Default value: false
+    #[field("NeedAppearances", default = false)]
+    need_appearances: bool,
+
+    /// A set of flags specifying various document-level characteristics related
+    /// to signature fields
+    ///
+    /// Default value: 0
+    #[field("SigFlags", default = SigFlags(0))]
+    sig_flags: SigFlags,
+
+    /// An array of indirect references to field dictionaries with calculation
+    /// actions, defining the calculation order in which their values will be
+    /// recalculated when the value of any field changes
+    #[field("CO")]
+    co: Option<Vec<Reference>>,
+
+    /// A resource dictionary containing default resources (such as fonts, patterns,
+    /// or colour spaces) that shall be used by form field appearance streams.
+    /// At a minimum, this dictionary shall contain a Font entry specifying the
+    /// resource name and font dictionary of the default font for displaying text.
+    #[field("DR")]
+    dr: Option<Dictionary<'a>>,
+
+    /// A document-wide default value for the DA attribute of variable text fields
+    #[field("DA")]
+    da: Option<String>,
+
+    /// A document-wide default value for the Q attribute of variable text fields
+    #[field("Q")]
+    q: Option<String>,
+
+    /// A stream or array containing an XFA resource, whose format shall be
+    /// described by the Data Package (XDP) Specification.
+    ///
+    /// The value of this entry shall be either a stream representing the entire
+    /// contents of the XML Data Package or an array of text string and stream
+    /// pairs representing the individual packets comprising the XML Data Package.
+    // todo: struct for field
+    #[field("XFA")]
+    xfa: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct SigFlags(u32);
+
+impl SigFlags {
+    /// If set, the document contains at least one signature field. This flag
+    /// allows a conforming reader to enable user interface items (such as menu
+    /// items or pushbuttons) related to signature processing without having to
+    /// scan the entire document for the presence of signature fields.
+    pub const SIGNATURES_EXIST: u8 = 0b01;
+
+    /// If set, the document contains signatures that may be invalidated if the
+    /// file is saved (written) in a way that alters its previous contents, as
+    /// opposed to an incremental update. Merely updating the file by appending
+    /// new information to the end of the previous version is safe. Conforming
+    /// readers may use this flag to inform a user requesting a full save that
+    /// signatures will be invalidated and require explicit confirmation before
+    /// continuing with the operation.
+    pub const APPEND_ONLY: u8 = 0b10;
+}
+
+impl<'a> FromObj<'a> for SigFlags {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        Ok(Self(u32::from_obj(obj, resolver)?))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct MetadataStream<'a> {
     stream: Stream<'a>,
