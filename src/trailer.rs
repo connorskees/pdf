@@ -1,5 +1,3 @@
-use std::convert::TryFrom;
-
 use crate::{
     assert_empty,
     catalog::Encryption,
@@ -37,6 +35,7 @@ pub struct Trailer {
     pub encryption: Option<Encryption>,
     pub id: Option<FileIdentifier>,
     pub info: Option<Reference>,
+    pub xref_stream: Option<i32>,
 
     /// LibreOffice specific extension, see <https://bugs.documentfoundation.org/show_bug.cgi?id=66580>
     pub(crate) doc_checksum: Option<String>,
@@ -60,11 +59,8 @@ impl Trailer {
         is_previous: bool,
         resolver: &mut dyn Resolve<'a>,
     ) -> PdfResult<Self> {
-        let size = usize::try_from(dict.expect_integer("Size", resolver)?)?;
-        let prev = dict
-            .get_integer("Prev", resolver)?
-            .map(usize::try_from)
-            .transpose()?;
+        let size = dict.expect("Size", resolver)?;
+        let prev = dict.get("Prev", resolver)?;
         let root = if is_previous {
             dict.get_reference("Root")?.unwrap_or(Reference {
                 object_number: 0,
@@ -78,6 +74,7 @@ impl Trailer {
         let id = dict.get::<FileIdentifier>("ID", resolver)?;
         let info = dict.get_reference("Info")?;
         let doc_checksum = dict.get_name("DocChecksum", resolver)?;
+        let xref_stream = dict.get_integer("XRefStm", resolver)?;
 
         Ok(Trailer {
             size,
@@ -86,6 +83,7 @@ impl Trailer {
             encryption,
             info,
             id,
+            xref_stream,
             doc_checksum,
         })
     }
