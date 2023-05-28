@@ -135,20 +135,27 @@ pub struct TrueTypeGraphicsState {
     /// The first of three zone pointers. Can be set to reference either the glyph
     /// zone (Z0) or the twilight zone (Z1)
     ///
-    /// Default: 1
-    pub zp0: u32,
+    /// Default: 1 (glyph)
+    pub zp0: Zone,
 
     /// The second of three zone pointers. Can be set to reference either the
     /// twilight zone (Z0) or the glyph zone (Z1)
     ///
-    /// Default: 1
-    pub zp1: u32,
+    /// Default: 1 (glyph)
+    pub zp1: Zone,
 
     /// The third of three zone pointers. Can be set to reference either the
     /// twilight zone (Z0) or the glyph zone (Z1)
     ///
-    /// Default: 1
-    pub zp2: u32,
+    /// Default: 1 (glyph)
+    pub zp2: Zone,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[repr(u8)]
+pub enum Zone {
+    Twilight = 0,
+    Glyph = 1,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -220,9 +227,9 @@ impl Default for TrueTypeGraphicsState {
             scan_control: false,
             single_width_cut_in: F26Dot6::ZERO,
             single_width_value: F26Dot6::ZERO,
-            zp0: 1,
-            zp1: 1,
-            zp2: 1,
+            zp0: Zone::Glyph,
+            zp1: Zone::Glyph,
+            zp2: Zone::Glyph,
         }
     }
 }
