@@ -1,5 +1,5 @@
 use crate::{
-    catalog::ColorSpace,
+    color::ColorSpace,
     data_structures::Matrix,
     function::{Function, TransferFunction},
     halftones::Halftones,

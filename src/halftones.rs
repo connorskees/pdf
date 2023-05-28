@@ -1,5 +1,5 @@
 use crate::{
-    catalog::ColorSpace,
+    color::ColorSpace,
     error::{ParseError, PdfResult},
     function::{SpotFunction, TransferFunction},
     objects::{Dictionary, Object, ObjectType},

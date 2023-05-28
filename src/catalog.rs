@@ -21,8 +21,6 @@ use crate::{
     Dictionary, FromObj, Object, ParseError, PdfResult, Reference, Resolve,
 };
 
-pub use crate::color::{ColorSpace, ColorSpaceName};
-
 /// See module level documentation
 #[derive(Debug, FromObj)]
 #[obj_type("Catalog")]

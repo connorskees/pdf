@@ -424,13 +424,18 @@ struct Appearance;
 #[derive(Debug)]
 struct RichTextString;
 
-/// An annotation may optionally be surrounded by a border when displayed or printed. If present, the border
-/// shall be drawn completely inside the annotation rectangle. In PDF 1.1, the characteristics of the border
-/// shall be specified by the Border entry in the annotation dictionary. Beginning with PDF 1.2, the border
-/// characteristics for some types of annotations may instead be specified in a border style dictionary designated
-/// by the annotation's BS entry. Such dictionaries may also be used to specify the width and dash pattern
-/// for the lines drawn by line, square, circle, and ink annotations. If neither the Border nor the BS entry
-/// is present, the border shall be drawn as a solid line with a width of 1 point
+/// An annotation may optionally be surrounded by a border when displayed or
+/// printed.
+///
+/// If present, the border shall be drawn completely inside the annotation
+/// rectangle. In PDF 1.1, the characteristics of the border shall be specified
+/// by the Border entry in the annotation dictionary. Beginning with PDF 1.2,
+/// the border characteristics for some types of annotations may instead be
+/// specified in a border style dictionary designated by the annotation's BS
+/// entry. Such dictionaries may also be used to specify the width and dash
+/// pattern for the lines drawn by line, square, circle, and ink annotations. If
+/// neither the Border nor the BS entry is present, the border shall be drawn as
+/// a solid line with a width of 1 point
 #[derive(Debug, FromObj)]
 #[obj_type("Border")]
 pub struct BorderStyle {
