@@ -190,7 +190,7 @@ impl<'a> Dictionary<'a> {
             .ok_or(ParseError::MissingRequiredKey { key })?
     }
 
-    fn expect_name_is_value(
+    pub fn expect_name_is_value(
         &mut self,
         key: &'static str,
         val: &'static str,

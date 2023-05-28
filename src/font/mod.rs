@@ -1,6 +1,10 @@
 use type0::Type0Font;
 
-use crate::{error::PdfResult, objects::{Dictionary, Object}, Resolve, FromObj};
+use crate::{
+    error::PdfResult,
+    objects::{Dictionary, Object},
+    FromObj, Resolve,
+};
 
 pub use self::{
     descriptor::FontDescriptor,

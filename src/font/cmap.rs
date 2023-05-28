@@ -1,4 +1,4 @@
-use crate::{error::PdfResult, resolve::Resolve, stream::Stream, FromObj, objects::Object};
+use crate::{error::PdfResult, objects::Object, resolve::Resolve, stream::Stream, FromObj};
 
 #[derive(Debug)]
 pub(crate) struct ToUnicodeCmapStream<'a> {

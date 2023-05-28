@@ -1,9 +1,10 @@
 use proc_macro::TokenStream;
-use proc_macro2::Ident;
+use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{
-    parse::Parse, parse_macro_input, parse_quote, Data, DeriveInput, Expr, GenericArgument,
-    LifetimeParam, LitStr, Path, PathArguments, PathSegment, Token, Type, TypePath,
+    parse::Parse, parse_macro_input, parse_quote, Attribute, Data, DeriveInput, Expr,
+    GenericArgument, LifetimeParam, LitStr, Path, PathArguments, PathSegment, Token, Type,
+    TypePath,
 };
 
 fn extract_type_from_option(ty: &syn::Type) -> Option<&syn::Type> {
@@ -105,25 +106,58 @@ impl Parse for HelperArgs {
     }
 }
 
+fn obj_type(input: &DeriveInput) -> Option<(TokenStream2, TokenStream2)> {
+    let name = &input.ident;
+    let generics = &input.generics;
+
+    let obj_type_args: HelperArgs = input
+        .attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("obj_type"))?
+        .parse_args()
+        .unwrap();
+
+    let obj_type_value: LitStr = obj_type_args.key;
+    let obj_subtype_value = obj_type_args.default;
+
+    let mut obj_type = quote!(
+        dict.expect_type(#obj_type_value, resolver, false).context(stringify!(#name))?;
+    );
+
+    if let Some(subtype) = &obj_subtype_value {
+        obj_type.extend(quote!(
+            dict.expect_name_is_value("Subtype", #subtype, false, resolver).context(stringify!(#name))?;
+        ));
+    }
+
+    let type_params = generics.type_params();
+    let lifetimes = generics.lifetimes();
+    let (_, ty_generics, where_clause) = generics.split_for_impl();
+
+    let subtype_impl = obj_subtype_value.map(|sub| {
+        quote!(
+            pub const SUBTYPE: &'static str = #sub;
+        )
+    });
+    let obj_type_impl = quote!(
+        impl<#(#lifetimes,)* #(#type_params,)*> #name #ty_generics #where_clause {
+            pub const TYPE: &'static str = #obj_type_value;
+            #subtype_impl
+        }
+    );
+
+    Some((obj_type, obj_type_impl))
+}
+
 pub fn pdf_obj_inner(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
+    let (obj_type, obj_type_impl) = obj_type(&input)
+        .map(|(ty, imp)| (Some(ty), Some(imp)))
+        .unwrap_or((None, None));
+
     let name = input.ident;
     let mut generics = input.generics;
-
-    let obj_type_value: Option<LitStr> = input
-        .attrs
-        .iter()
-        .find(|attr| attr.path().is_ident("obj_type"))
-        .map(|attr| attr.parse_args().unwrap());
-
-    let obj_type = if let Some(obj_type_value) = &obj_type_value {
-        Some(quote!(
-            dict.expect_type(#obj_type_value, resolver, false).context(stringify!(#name))?;
-        ))
-    } else {
-        None
-    };
 
     let fields = match input.data {
         Data::Struct(data_struct) => data_struct.fields.into_iter().map(|field| {
@@ -192,20 +226,6 @@ pub fn pdf_obj_inner(input: TokenStream) -> TokenStream {
         .zip(field_key.iter())
         .zip(field_default.iter())
         .map(|(((name, ty), key), default)| field_getter(name, ty, key, default));
-
-    let obj_type_impl = if let Some(obj_type_value) = &obj_type_value {
-        let type_params = generics.type_params();
-        let lifetimes = generics.lifetimes();
-        let (_, ty_generics, where_clause) = generics.split_for_impl();
-
-        Some(quote!(
-            impl<#(#lifetimes,)* #(#type_params,)*> #name #ty_generics #where_clause {
-                pub const TYPE: &'static str = #obj_type_value;
-            }
-        ))
-    } else {
-        None
-    };
 
     let mut from_obj_lt: LifetimeParam = parse_quote!('from_obj);
     for lt in generics.lifetimes_mut() {

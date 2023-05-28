@@ -32,7 +32,7 @@ pub struct CidSystemInfo {
 }
 
 #[derive(Debug, FromObj)]
-#[obj_type("Font")]
+#[obj_type("Font", subtype = "CIDFontType0")]
 pub struct CidFontDictionary<'a> {
     /// The PostScript name of the CIDFont. For Type 0 CIDFonts, this shall be
     /// the value of the CIDFontName entry in the CIDFont program. For Type 2

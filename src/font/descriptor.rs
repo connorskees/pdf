@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{data_structures::Rectangle, error::PdfResult, objects::{ Object}, FromObj, Resolve};
+use crate::{data_structures::Rectangle, error::PdfResult, objects::Object, FromObj, Resolve};
 
 use super::embedded::{TrueTypeFontFile, Type1FontFile, Type3FontFile};
 

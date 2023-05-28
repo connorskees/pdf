@@ -13,7 +13,8 @@ pub use cmap::CmapTable;
 pub use cvt::CvtTable;
 pub use font_directory::{DirectoryTableEntry, FontDirectory, OffsetSubtable, TableDirectory};
 pub use glyf::{
-    CompoundGlyphPartDescription, GlyfTable, GlyphDescription, SimpleGlyph, TrueTypeGlyph,OutlineFlag
+    CompoundGlyphPartDescription, GlyfTable, GlyphDescription, OutlineFlag, SimpleGlyph,
+    TrueTypeGlyph,
 };
 pub use head::{Head, HeadFlags, MacStyle};
 pub use loca::LocaTable;
