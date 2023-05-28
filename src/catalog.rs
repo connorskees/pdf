@@ -1,14 +1,11 @@
 /*!
-The catalog contains references to other objects defining
-the document's contents, outline, article threads, named
-destinations, and other attributes.
+The catalog contains references to other objects defining the document's contents,
+outline, article threads, named destinations, and other attributes.
 
-In addition, it contains information about how the
-document shall be displayed on the screen, such as
-whether its outline and thumbnail page images shall
-be displayed automatically and whether some location
-other than the first page shall be shown when the
-document is opened.
+In addition, it contains information about how the document shall be displayed
+on the screen, such as whether its outline and thumbnail page images shall be
+displayed automatically and whether some location other than the first page shall
+be shown when the document is opened.
 */
 
 use crate::{
@@ -30,27 +27,22 @@ pub use crate::color::{ColorSpace, ColorSpaceName};
 #[derive(Debug, FromObj)]
 #[obj_type("Catalog")]
 pub struct DocumentCatalog<'a> {
-    /// The version of the PDF specification
-    /// to which the document conforms(for example,
-    /// 1.4) if later than the version specified in
-    /// the file's header.
+    /// The version of the PDF specification to which the document conforms(for
+    /// example, 1.4) if later than the version specified in the file's header.
     ///
-    /// If the header specifies a later version, or
-    /// if this entry is absent, the document shall
-    /// conform to the version specified in the header.
-    /// This entry enables a conforming writer to
-    /// update the version using an incremental update.
+    /// If the header specifies a later version, or if this entry is absent, the
+    /// document shall conform to the version specified in the header. This entry
+    /// enables a conforming writer to update the version using an incremental
+    /// update.
     ///
-    /// The value of this entry shall be a name object,
-    /// not a number, and therefore shall be preceded
-    /// by a SOLIDUS (2Fh) character (/) when written
+    /// The value of this entry shall be a name object, not a number, and
+    /// therefore shall be preceded by a SOLIDUS (2Fh) character (/) when written
     /// in the PDF file (for example, /1.4).
     #[field("Version")]
     version: Option<String>,
 
-    /// An extensions dictionary containing developer prefix
-    /// identification and version numbers for developer extensions
-    /// that occur in this document
+    /// An extensions dictionary containing developer prefix identification and
+    /// version numbers for developer extensions that occur in this document
     #[field("Extensions")]
     extensions: Option<Extensions>,
 
@@ -69,30 +61,40 @@ pub struct DocumentCatalog<'a> {
 
     /// The document's name dictionary
     #[field("Names")]
-    names: Option<TypedReference<'a, NameDictionary>>,
+    names: Option<TypedReference<'a, NameDictionary<'a>>>,
 
     /// A dictionary of names and corresponding destinations
     #[field("Dests")]
     dests: Option<Reference>,
 
-    /// A viewer preferences dictionary specifying the way
-    /// the document shall be displayed on the screen. If
-    /// this entry is absent, conforming readers shall use
-    /// their own current user preference settings.
+    /// A viewer preferences dictionary specifying the way the document shall
+    /// be displayed on the screen. If this entry is absent, conforming readers
+    /// shall use their own current user preference settings.
     #[field("ViewerPreferences")]
     viewer_preferences: Option<TypedReference<'a, ViewerPreferences>>,
 
+    /// A name object specifying the page layout shall be used when the document
+    /// is opened
     #[field("PageLayout", default = PageLayout::default())]
     page_layout: PageLayout,
 
+    /// A name object specifying how the document shall be displayed when opened
     #[field("PageMode", default = PageMode::default())]
     page_mode: PageMode,
 
+    /// The outline dictionary that shall be the root of the document’s outline
+    /// hierarchy
+    ///
+    /// Shall be an indirect reference
     #[field("Outlines")]
-    outlines: Option<Reference>,
+    outlines: Option<TypedReference<'a, DocumentOutline>>,
 
+    /// An array of thread dictionaries that shall represent the document’s
+    /// article threads
+    ///
+    /// Shall be an indirect reference
     #[field("Threads")]
-    threads: Option<Reference>,
+    threads: Option<TypedReference<'a, ThreadDictionary>>,
 
     /// A value specifying a destination that shall be displayed or an action
     /// that shall be performed when the document is opened. The value shall be
@@ -113,14 +115,19 @@ pub struct DocumentCatalog<'a> {
     #[field("URI")]
     uri: Option<UriDict>,
 
+    /// The document’s interactive form (AcroForm) dictionary
     #[field("AcroForm")]
     acro_form: Option<TypedReference<'a, AcroForm<'a>>>,
 
+    /// A metadata stream that shall contain metadata for the document
+    ///
+    /// Shall be an indirect reference
     #[field("Metadata")]
     metadata: Option<Reference>,
 
+    /// The document’s structure tree root dictionary
     #[field("StructTreeRoot")]
-    struct_tree_root: Option<StructTreeRoot<'a>>,
+    struct_tree_root: Option<TypedReference<'a, StructTreeRoot<'a>>>,
 
     /// A mark information dictionary that shall contain information about the
     /// document's usage of Tagged PDF conventions
@@ -145,6 +152,7 @@ pub struct DocumentCatalog<'a> {
     #[field("OutputIntents")]
     output_intents: Option<Vec<OutputIntent>>,
 
+    /// A page-piece dictionary associated with the document
     #[field("PieceInfo")]
     piece_info: Option<PagePiece<'a>>,
 
@@ -200,16 +208,14 @@ pub struct InformationDictionary<'a> {
     #[field("Keywords")]
     keywords: Option<String>,
 
-    /// If the document was converted to PDF from
-    /// another format, the name of the conforming
-    /// product that created the original document
-    /// from which it was converted
+    /// If the document was converted to PDF from another format, the name of the
+    /// conforming product that created the original document from which it was
+    /// converted
     #[field("Creator")]
     creator: Option<String>,
 
-    /// If the document was converted to PDF from
-    /// another format, the name of the conforming
-    /// product that converted it to PDF
+    /// If the document was converted to PDF from another format, the name of
+    /// the conforming product that converted it to PDF
     #[field("Producer")]
     producer: Option<String>,
 
@@ -225,29 +231,24 @@ pub struct InformationDictionary<'a> {
     other: Dictionary<'a>,
 }
 
-/// A name object indicating whether the document
-/// has been modified to include trapping information
+/// A name object indicating whether the document has been modified to include
+/// trapping information
 #[pdf_enum]
+#[derive(Default)]
 pub enum Trapped {
-    /// The document has been fully trapped; no further
-    /// trapping shall be needed. This shall be the name
-    /// "True", not the boolean value true.
+    /// The document has been fully trapped; no further trapping shall be needed.
+    /// This shall be the name "True", not the boolean value true.
     True = "True",
 
-    /// The document has not yet been trapped. This shall
-    /// be the name "False", not the boolean value false
+    /// The document has not yet been trapped. This shall be the name "False",
+    /// not the boolean value false
     False = "False",
 
-    /// Either it is unknown whether the document has been
-    /// trapped or it has been partly but not yet fully
-    /// trapped; some additional trapping may still be needed
+    /// Either it is unknown whether the document has been trapped or it has been
+    /// partly but not yet fully trapped; some additional trapping may still be
+    /// needed
+    #[default]
     Unknown = "Unknown",
-}
-
-impl Default for Trapped {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 #[derive(Debug, FromObj)]
@@ -256,51 +257,51 @@ pub struct Extensions;
 struct Language;
 
 #[derive(Debug, FromObj)]
-pub struct NameDictionary {
+pub struct NameDictionary<'a> {
     /// A name tree mapping name strings to destinations
     #[field("Dests")]
-    dests: Option<NameTree>,
+    dests: Option<NameTree<'a>>,
 
     /// A name tree mapping name strings to annotation appearance streams
     #[field("AP")]
-    ap: Option<NameTree>,
+    ap: Option<NameTree<'a>>,
 
     /// A name tree mapping name strings to document-level JavaScript actions
     #[field("JavaScript")]
-    java_script: Option<NameTree>,
+    java_script: Option<NameTree<'a>>,
 
     /// A name tree mapping name strings to visible pages for use in interactive
     /// forms
     #[field("Pages")]
-    pages: Option<NameTree>,
+    pages: Option<NameTree<'a>>,
 
     /// A name tree mapping name strings to invisible (template) pages for use
     /// in interactive forms
     #[field("Templates")]
-    templates: Option<NameTree>,
+    templates: Option<NameTree<'a>>,
 
     /// A name tree mapping digital identifiers to Web Capture content sets
     #[field("IDS")]
-    ids: Option<NameTree>,
+    ids: Option<NameTree<'a>>,
 
     /// A name tree mapping uniform resource locators (URLs) to Web Capture
     /// content sets
     #[field("URLS")]
-    urls: Option<NameTree>,
+    urls: Option<NameTree<'a>>,
 
     /// A name tree mapping name strings to file specifications for embedded file
     /// streams
     #[field("EmbeddedFiles")]
-    embedded_files: Option<NameTree>,
+    embedded_files: Option<NameTree<'a>>,
 
     /// A name tree mapping name strings to alternate presentations
     #[field("AlternatePresentations")]
-    alternate_presentations: Option<NameTree>,
+    alternate_presentations: Option<NameTree<'a>>,
 
     /// A name tree mapping name strings (which shall have Unicode encoding) to
     /// rendition objects
     #[field("Renditions")]
-    renditions: Option<NameTree>,
+    renditions: Option<NameTree<'a>>,
 }
 
 #[derive(Debug, FromObj)]
@@ -452,12 +453,15 @@ impl<'a> MetadataStream<'a> {
 pub struct MarkInformationDictionary {
     /// A flag indicating whether the document conforms to Tagged PDF conventions.
     ///
-    /// Default value: false.
-    /// If Suspects is true, the document may not completely conform to Tagged PDF conventions.
+    /// If Suspects is true, the document may not completely conform to Tagged
+    /// PDF conventions.
+    ///
+    /// Default value: false
     #[field("Marked", default = false)]
     marked: bool,
 
-    /// A flag indicating the presence of structure elements that contain user properties attributes
+    /// A flag indicating the presence of structure elements that contain user
+    /// properties attributes
     ///
     /// Default value: false
     #[field("UserProperties", default = false)]
@@ -465,7 +469,7 @@ pub struct MarkInformationDictionary {
 
     /// A flag indicating the presence of tag suspects
     ///
-    /// Default value: false.
+    /// Default value: false
     #[field("Suspects", default = false)]
     suspects: bool,
 }
@@ -583,44 +587,36 @@ pub struct Viewport;
 #[derive(Debug, FromObj)]
 pub struct PropertyList;
 
-#[pdf_enum]
 /// Specifies the page layout when the document is opened
+#[pdf_enum]
+#[derive(Default)]
 enum PageLayout {
     /// Display one page at a time
+    #[default]
     SinglePage = "SinglePage",
 
     /// Display the pages in one column
     OneColumn = "OneColumn",
 
-    /// Display the pages in two columns,
-    /// with odd-numbered pages on the left
+    /// Display the pages in two columns, with odd-numbered pages on the left
     TwoColumnLeft = "TwoColumnLeft",
 
-    /// Display the pages in two columns,
-    /// with odd-numbered pages on the right
+    /// Display the pages in two columns, with odd-numbered pages on the right
     TwoColumnRight = "TwoColumnRight",
 
-    /// Display the pages two at a time,
-    /// with odd-numbered pages on the left
+    /// Display the pages two at a time, with odd-numbered pages on the left
     TwoPageLeft = "TwoPageLeft",
 
-    /// Display the pages two at a time,
-    /// with odd-numbered pages on the right
+    /// Display the pages two at a time, with odd-numbered pages on the right
     TwoPageRight = "TwoPageRight",
 }
 
-impl Default for PageLayout {
-    fn default() -> Self {
-        Self::SinglePage
-    }
-}
-
+/// A name object specifying how the document shall be displayed when opened
 #[pdf_enum]
-/// A name object specifying how the document shall be
-/// displayed when opened
+#[derive(Default)]
 pub enum PageMode {
-    /// Neither document outline nor thumbnail
-    /// images visible
+    /// Neither document outline nor thumbnail images visible
+    #[default]
     UseNone = "UseNone",
 
     /// Document outline visible
@@ -629,8 +625,8 @@ pub enum PageMode {
     /// Thumbnail images visible
     UseThumbs = "UseThumbs",
 
-    /// Full-screen mode, with no menu bar, window
-    /// controls, or any other window visible
+    /// Full-screen mode, with no menu bar, window controls, or any other window
+    /// visible
     FullScreen = "FullScreen",
 
     /// Optional content group panel visible
@@ -638,10 +634,4 @@ pub enum PageMode {
 
     /// Attachments panel visible
     UseAttachments = "UseAttachments",
-}
-
-impl Default for PageMode {
-    fn default() -> Self {
-        Self::UseNone
-    }
 }
