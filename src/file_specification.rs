@@ -18,7 +18,7 @@ impl<'a> FromObj<'a> for FileSpecification<'a> {
             obj @ Object::Dictionary(..) => Ok(FileSpecification::Full(
                 FullFileSpecification::from_obj(obj, resolver)?,
             )),
-            _ => Err(ParseError::MismatchedObjectType {
+            _ => anyhow::bail!(ParseError::MismatchedObjectType {
                 expected: ObjectType::Dictionary,
             }),
         }

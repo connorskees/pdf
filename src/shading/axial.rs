@@ -2,7 +2,7 @@ use std::convert::TryInto;
 
 use crate::{
     catalog::assert_len,
-    error::{ParseError, PdfResult},
+    error::{PdfResult},
     function::Function,
     objects::{Dictionary, Object},
     Resolve,
@@ -45,7 +45,7 @@ impl<'a> AxialShading<'a> {
         let coords = Coords::from_arr(dict.expect_arr("Coords", resolver)?, resolver)?;
         let domain = dict
             .get_arr("Domain", resolver)?
-            .map(|arr| -> Result<_, ParseError> {
+            .map(|arr| -> PdfResult<_> {
                 assert_len(&arr, 2)?;
 
                 Ok(arr
@@ -60,7 +60,7 @@ impl<'a> AxialShading<'a> {
         let function = dict.expect::<Function>("Function", resolver)?;
         let extend = dict
             .get_arr("Extend", resolver)?
-            .map(|arr| -> Result<_, ParseError> {
+            .map(|arr| -> PdfResult<_> {
                 assert_len(&arr, 2)?;
 
                 Ok(arr

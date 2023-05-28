@@ -36,7 +36,7 @@ impl Date {
         match chars.next() {
             Some(b'D') => {}
             found => {
-                return Err(ParseError::MismatchedByte {
+                anyhow::bail!(ParseError::MismatchedByte {
                     expected: b'D',
                     found,
                 });
@@ -46,7 +46,7 @@ impl Date {
         match chars.next() {
             Some(b':') => {}
             found => {
-                return Err(ParseError::MismatchedByte {
+                anyhow::bail!(ParseError::MismatchedByte {
                     expected: b':',
                     found,
                 });
@@ -62,7 +62,7 @@ impl Date {
                         Some(n @ b'0'..=b'9') => n - b'0',
                         None => return Ok(date),
                         found @ Some(..) => {
-                            return Err(ParseError::MismatchedByteMany {
+                            anyhow::bail!(ParseError::MismatchedByteMany {
                                 expected: NUMBERS,
                                 found,
                             });
@@ -89,7 +89,7 @@ impl Date {
                 chars.next();
 
                 if chars.peek().is_some() {
-                    return Err(ParseError::MismatchedByte {
+                    anyhow::bail!(ParseError::MismatchedByte {
                         expected: b'\'',
                         found: chars.next(),
                     });
@@ -101,7 +101,7 @@ impl Date {
         match chars.next() {
             Some(b'\'') => {}
             found => {
-                return Err(ParseError::MismatchedByte {
+                anyhow::bail!(ParseError::MismatchedByte {
                     expected: b'\'',
                     found,
                 })
@@ -111,7 +111,7 @@ impl Date {
         match chars.next() {
             Some(b'\'') | None => {}
             found => {
-                return Err(ParseError::MismatchedByte {
+                anyhow::bail!(ParseError::MismatchedByte {
                     expected: b'\'',
                     found,
                 })
@@ -136,7 +136,7 @@ impl UtRelationship {
             b'-' => Self::Minus,
             b'Z' => Self::Equal,
             found => {
-                return Err(ParseError::MismatchedByteMany {
+                anyhow::bail!(ParseError::MismatchedByteMany {
                     expected: &[b'+', b'-', b'Z'],
                     found: Some(found),
                 })

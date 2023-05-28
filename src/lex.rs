@@ -135,13 +135,13 @@ pub(crate) trait LexBase<'a> {
                 *self.cursor_mut() += 1;
                 b
             })
-            .ok_or(ParseError::UnexpectedEof)
+            .ok_or(anyhow::anyhow!(ParseError::UnexpectedEof))
     }
 
     fn expect_byte(&mut self, expected: u8) -> PdfResult<()> {
         match self.next_byte() {
             Some(found) if expected == found => Ok(()),
-            found => Err(ParseError::MismatchedByte { expected, found }),
+            found => anyhow::bail!(ParseError::MismatchedByte { expected, found }),
         }
     }
 
@@ -162,7 +162,7 @@ pub(crate) trait LexBase<'a> {
                 }
             }
             b => {
-                return Err(ParseError::MismatchedByteMany {
+                anyhow::bail!(ParseError::MismatchedByteMany {
                     expected: &[b'\n', b'\r'],
                     found: b,
                 });

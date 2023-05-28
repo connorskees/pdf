@@ -121,7 +121,11 @@ impl<'a> Dictionary<'a> {
     ) -> PdfResult<Option<T>> {
         self.dict
             .remove(key)
-            .map(|obj| T::from_obj(obj, resolver))
+            .and_then(|obj| match resolver.resolve(obj) {
+                Ok(obj) if obj == Object::Null => None,
+                Ok(obj) => Some(T::from_obj(obj, resolver)),
+                Err(e) => Some(Err(e)),
+            })
             .transpose()
     }
 
@@ -191,12 +195,12 @@ impl<'a> Dictionary<'a> {
 
         match type_val {
             Some(name) if name != val => {
-                return Err(ParseError::MismatchedTypeKey {
+                anyhow::bail!(ParseError::MismatchedTypeKey {
                     expected: val,
                     found: name,
                 });
             }
-            None if required => return Err(ParseError::MissingRequiredKey { key }),
+            None if required => anyhow::bail!(ParseError::MissingRequiredKey { key }),
             Some(..) | None => {}
         }
 

@@ -105,7 +105,7 @@ impl<'a> XrefParser<'a> {
         let xref_stream_dict = match self.lex_object()? {
             Object::Dictionary(dict) => XrefStreamDict::from_dict(dict, is_previous, self)?,
             _ => {
-                return Err(ParseError::MismatchedObjectType {
+                anyhow::bail!(ParseError::MismatchedObjectType {
                     expected: ObjectType::Dictionary,
                 });
             }
@@ -207,7 +207,7 @@ impl<'a> XrefParser<'a> {
                             generation_number,
                         },
                         _ => {
-                            return Err(ParseError::MismatchedByteMany {
+                            anyhow::bail!(ParseError::MismatchedByteMany {
                                 expected: &[b'f', b'n'],
                                 found: Some(entry_kind),
                             })
@@ -220,7 +220,7 @@ impl<'a> XrefParser<'a> {
                 Some(b't') => break,
                 Some(b'0'..=b'9') => continue,
                 found => {
-                    return Err(ParseError::MismatchedByteMany {
+                    anyhow::bail!(ParseError::MismatchedByteMany {
                         found,
                         expected: &[
                             b't', b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9',

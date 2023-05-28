@@ -116,7 +116,7 @@ fn ident_token_from_bytes(bytes: &[u8]) -> PostScriptResult<PostScriptFunctionTo
         b"pop" => PostScriptFunctionToken::Operator(PostScriptFunctionOperator::Pop),
         b"roll" => PostScriptFunctionToken::Operator(PostScriptFunctionOperator::Roll),
         _ => {
-            return Err(PostScriptError::ParseError(Cow::Owned(format!(
+            anyhow::bail!(PostScriptError::ParseError(Cow::Owned(format!(
                 "Unrecognized operator: {:?}",
                 bytes
             ))))

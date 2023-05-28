@@ -40,7 +40,7 @@ impl PostScriptObject {
         match self {
             PostScriptObject::Int(n) => Ok(n),
             PostScriptObject::Float(f) => Ok(f.round() as i32),
-            _ => Err(PostScriptError::TypeCheck),
+            _ => anyhow::bail!(PostScriptError::TypeCheck),
         }
     }
 
@@ -48,7 +48,7 @@ impl PostScriptObject {
         match self {
             PostScriptObject::Int(n) => Ok(n as f32),
             PostScriptObject::Float(f) => Ok(f),
-            _ => Err(PostScriptError::TypeCheck),
+            _ => anyhow::bail!(PostScriptError::TypeCheck),
         }
     }
 }
@@ -128,13 +128,13 @@ impl PostScriptDictionary {
         key: &'static [u8],
         error: PostScriptError,
     ) -> PostScriptResult<DictionaryIndex> {
-        self.get_dict(key)?.ok_or(error)
+        self.get_dict(key)?.ok_or(anyhow::anyhow!(error))
     }
 
     pub fn get_dict(&self, key: &'static [u8]) -> PostScriptResult<Option<DictionaryIndex>> {
         match self.inner.get(&Name::from_bytes(key.to_vec())) {
             Some(PostScriptObject::Dictionary(dict)) => Ok(Some(*dict)),
-            Some(..) => Err(PostScriptError::TypeCheck),
+            Some(..) => anyhow::bail!(PostScriptError::TypeCheck),
             None => Ok(None),
         }
     }
@@ -144,13 +144,13 @@ impl PostScriptDictionary {
         key: &'static [u8],
         error: PostScriptError,
     ) -> PostScriptResult<PostScriptString> {
-        self.get_name(key)?.ok_or(error)
+        self.get_name(key)?.ok_or(anyhow::anyhow!(error))
     }
 
     pub fn get_name(&self, key: &'static [u8]) -> PostScriptResult<Option<PostScriptString>> {
         match self.inner.get(&Name::from_bytes(key.to_vec())) {
             Some(PostScriptObject::Name(s)) => Ok(Some(s.clone())),
-            Some(..) => Err(PostScriptError::TypeCheck),
+            Some(..) => anyhow::bail!(PostScriptError::TypeCheck),
             None => Ok(None),
         }
     }
@@ -160,13 +160,13 @@ impl PostScriptDictionary {
         key: &'static [u8],
         error: PostScriptError,
     ) -> PostScriptResult<StringIndex> {
-        self.get_str(key)?.ok_or(error)
+        self.get_str(key)?.ok_or(anyhow::anyhow!(error))
     }
 
     pub fn get_str(&self, key: &'static [u8]) -> PostScriptResult<Option<StringIndex>> {
         match self.inner.get(&Name::from_bytes(key.to_vec())) {
             Some(PostScriptObject::String(s)) => Ok(Some(*s)),
-            Some(..) => Err(PostScriptError::TypeCheck),
+            Some(..) => anyhow::bail!(PostScriptError::TypeCheck),
             None => Ok(None),
         }
     }
@@ -176,13 +176,13 @@ impl PostScriptDictionary {
         key: &'static [u8],
         error: PostScriptError,
     ) -> PostScriptResult<ArrayIndex> {
-        self.get_array(key)?.ok_or(error)
+        self.get_array(key)?.ok_or(anyhow::anyhow!(error))
     }
 
     pub fn get_array(&self, key: &'static [u8]) -> PostScriptResult<Option<ArrayIndex>> {
         match self.inner.get(&Name::from_bytes(key.to_vec())) {
             Some(PostScriptObject::Array(a)) => Ok(Some(*a)),
-            Some(..) => Err(PostScriptError::TypeCheck),
+            Some(..) => anyhow::bail!(PostScriptError::TypeCheck),
             None => Ok(None),
         }
     }
@@ -192,14 +192,14 @@ impl PostScriptDictionary {
         key: &'static [u8],
         error: PostScriptError,
     ) -> PostScriptResult<f32> {
-        self.get_number(key)?.ok_or(error)
+        self.get_number(key)?.ok_or(anyhow::anyhow!(error))
     }
 
     pub fn get_number(&self, key: &'static [u8]) -> PostScriptResult<Option<f32>> {
         match self.inner.get(&Name::from_bytes(key.to_vec())) {
             Some(PostScriptObject::Float(n)) => Ok(Some(*n)),
             Some(PostScriptObject::Int(n)) => Ok(Some(*n as f32)),
-            Some(..) => Err(PostScriptError::TypeCheck),
+            Some(..) => anyhow::bail!(PostScriptError::TypeCheck),
             None => Ok(None),
         }
     }
@@ -209,14 +209,14 @@ impl PostScriptDictionary {
         key: &'static [u8],
         error: PostScriptError,
     ) -> PostScriptResult<i32> {
-        self.get_integer(key)?.ok_or(error)
+        self.get_integer(key)?.ok_or(anyhow::anyhow!(error))
     }
 
     pub fn get_integer(&self, key: &'static [u8]) -> PostScriptResult<Option<i32>> {
         match self.inner.get(&Name::from_bytes(key.to_vec())) {
             Some(PostScriptObject::Int(n)) => Ok(Some(*n)),
             Some(PostScriptObject::Float(f)) => Ok(Some(f.round() as i32)),
-            Some(..) => Err(PostScriptError::TypeCheck),
+            Some(..) => anyhow::bail!(PostScriptError::TypeCheck),
             None => Ok(None),
         }
     }
@@ -226,13 +226,13 @@ impl PostScriptDictionary {
         key: &'static [u8],
         error: PostScriptError,
     ) -> PostScriptResult<ArrayIndex> {
-        self.get_procedure(key)?.ok_or(error)
+        self.get_procedure(key)?.ok_or(anyhow::anyhow!(error))
     }
 
     pub fn get_procedure(&self, key: &'static [u8]) -> PostScriptResult<Option<ArrayIndex>> {
         match self.inner.get(&Name::from_bytes(key.to_vec())) {
             Some(PostScriptObject::Array(n)) => Ok(Some(*n)),
-            Some(..) => Err(PostScriptError::TypeCheck),
+            Some(..) => anyhow::bail!(PostScriptError::TypeCheck),
             None => Ok(None),
         }
     }
@@ -242,13 +242,13 @@ impl PostScriptDictionary {
         key: &'static [u8],
         error: PostScriptError,
     ) -> PostScriptResult<bool> {
-        self.get_bool(key)?.ok_or(error)
+        self.get_bool(key)?.ok_or(anyhow::anyhow!(error))
     }
 
     pub fn get_bool(&self, key: &'static [u8]) -> PostScriptResult<Option<bool>> {
         match self.inner.get(&Name::from_bytes(key.to_vec())) {
             Some(PostScriptObject::Bool(b)) => Ok(Some(*b)),
-            Some(..) => Err(PostScriptError::TypeCheck),
+            Some(..) => anyhow::bail!(PostScriptError::TypeCheck),
             None => Ok(None),
         }
     }
@@ -308,7 +308,7 @@ impl PostScriptString {
         self.inner
             .get(idx)
             .cloned()
-            .ok_or(PostScriptError::RangeCheck)
+            .ok_or(anyhow::anyhow!(PostScriptError::RangeCheck))
     }
 
     pub fn len(&self) -> usize {
@@ -383,7 +383,9 @@ impl PostScriptArray {
     }
 
     pub fn get(&self, idx: usize) -> PostScriptResult<&PostScriptObject> {
-        self.inner.get(idx).ok_or(PostScriptError::RangeCheck)
+        self.inner
+            .get(idx)
+            .ok_or(anyhow::anyhow!(PostScriptError::RangeCheck))
     }
 
     pub(super) fn set_access(&mut self, access: Access) {
@@ -411,13 +413,13 @@ impl PostScriptArray {
             match obj {
                 PostScriptObject::Float(n) => Ok(*n),
                 PostScriptObject::Int(n) => Ok(*n as f32),
-                _ => Err(PostScriptError::TypeCheck),
+                _ => anyhow::bail!(PostScriptError::TypeCheck),
             }
         }
 
         if self.len() != 6 {
             println!("Invalid PostScript matrix");
-            return Err(PostScriptError::InvalidFont);
+            anyhow::bail!(PostScriptError::InvalidFont);
         }
 
         // todo: LIKELY BUG, this should be indexed in opposite order?

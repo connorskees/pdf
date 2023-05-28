@@ -1,5 +1,6 @@
 use std::{
-    io,
+    error::Error,
+    fmt, io,
     num::{ParseIntError, TryFromIntError},
 };
 
@@ -70,4 +71,12 @@ impl From<ParseIntError> for ParseError {
     }
 }
 
-pub type PdfResult<T> = Result<T, ParseError>;
+impl Error for ParseError {}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:#?}", self)
+    }
+}
+
+pub type PdfResult<T> = anyhow::Result<T>;

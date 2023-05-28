@@ -36,14 +36,14 @@ impl<'a> DecodeParams<'a> {
                 .map(|obj| match resolver.resolve(obj)? {
                     Object::Dictionary(dict) => Ok(Some(dict)),
                     Object::Null => Ok(None),
-                    _ => Err(ParseError::MismatchedObjectTypeAny {
+                    _ => anyhow::bail!(ParseError::MismatchedObjectTypeAny {
                         expected: &[ObjectType::Null, ObjectType::Dictionary],
                     }),
                 })
                 .collect::<PdfResult<Vec<Option<Dictionary>>>>()?,
             Object::Dictionary(dict) => vec![Some(dict)],
             _ => {
-                return Err(ParseError::MismatchedObjectTypeAny {
+                anyhow::bail!(ParseError::MismatchedObjectTypeAny {
                     expected: &[ObjectType::Array, ObjectType::Dictionary],
                 });
             }

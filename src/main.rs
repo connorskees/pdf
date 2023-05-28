@@ -69,7 +69,7 @@ pub(crate) fn assert_empty(dict: Dictionary) {
 pub fn assert_reference(obj: Object) -> PdfResult<Reference> {
     match obj {
         Object::Reference(r) => Ok(r),
-        _ => Err(ParseError::MismatchedObjectType {
+        _ => anyhow::bail!(ParseError::MismatchedObjectType {
             expected: ObjectType::Reference,
         }),
     }
@@ -215,7 +215,7 @@ impl<'a> Lexer<'a> {
                 }
                 "Page" => self.lex_page_object(kid_dict, kid_ref, &mut pages)?,
                 found => {
-                    return Err(ParseError::MismatchedTypeKey {
+                    anyhow::bail!(ParseError::MismatchedTypeKey {
                         expected: "Page",
                         found: found.to_owned(),
                     })

@@ -4,9 +4,7 @@ use crate::{data_structures::Matrix, postscript::object::ArrayIndex};
 
 use super::{
     charstring::{CharString, CharStrings},
-    object::{
-        PostScriptArray, PostScriptDictionary, PostScriptObject, PostScriptString, 
-    },
+    object::{PostScriptArray, PostScriptDictionary, PostScriptObject, PostScriptString},
     PostScriptError, PostScriptResult, PostscriptInterpreter,
 };
 
@@ -21,7 +19,7 @@ impl FontType {
         Ok(match i {
             1 => FontType::One,
             3 => FontType::Three,
-            _ => return Err(PostScriptError::RangeCheck),
+            _ => anyhow::bail!(PostScriptError::RangeCheck),
         })
     }
 }
@@ -37,7 +35,7 @@ impl PaintType {
         Ok(match i {
             0 => PaintType::Fill,
             2 => PaintType::Outline,
-            _ => return Err(PostScriptError::RangeCheck),
+            _ => anyhow::bail!(PostScriptError::RangeCheck),
         })
     }
 }
@@ -58,7 +56,7 @@ impl LanguageGroup {
         Ok(match i {
             0 => LanguageGroup::NonCjk,
             1 => LanguageGroup::Cjk,
-            _ => return Err(PostScriptError::RangeCheck),
+            _ => anyhow::bail!(PostScriptError::RangeCheck),
         })
     }
 }
@@ -98,7 +96,7 @@ impl Encoding {
                 PostScriptObject::Null => Ok(None),
                 PostScriptObject::Name(name) => Ok(Some(name.clone())),
                 &PostScriptObject::String(s) => Ok(Some(interpreter.get_str(s).clone())),
-                _ => Err(PostScriptError::TypeCheck),
+                _ => anyhow::bail!(PostScriptError::TypeCheck),
             })
             .collect::<PostScriptResult<Vec<Option<PostScriptString>>>>()?;
 
@@ -400,7 +398,7 @@ impl Private {
                         PostScriptObject::String(s) => {
                             CharString::parse(interpreter.get_str(s).as_bytes())
                         }
-                        _ => Err(PostScriptError::TypeCheck),
+                        _ => anyhow::bail!(PostScriptError::TypeCheck),
                     })
                     .collect::<PostScriptResult<Vec<CharString>>>()
             })
@@ -414,7 +412,7 @@ impl Private {
                     .into_iter()
                     .map(|obj: PostScriptObject| match obj {
                         PostScriptObject::Array(p) => Ok(interpreter.get_arr(p).clone()),
-                        _ => Err(PostScriptError::TypeCheck),
+                        _ => anyhow::bail!(PostScriptError::TypeCheck),
                     })
                     .collect::<PostScriptResult<Vec<PostScriptArray>>>()
             })

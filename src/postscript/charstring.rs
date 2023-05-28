@@ -38,7 +38,7 @@ impl CharStringStack {
 
     pub fn pop(&mut self) -> PostScriptResult<f32> {
         if self.end == 0 {
-            return Err(PostScriptError::StackUnderflow);
+            anyhow::bail!(PostScriptError::StackUnderflow);
         }
 
         self.end -= 1;
@@ -48,7 +48,7 @@ impl CharStringStack {
 
     pub fn pop_front(&mut self) -> PostScriptResult<f32> {
         if self.end == 0 {
-            return Err(PostScriptError::StackUnderflow);
+            anyhow::bail!(PostScriptError::StackUnderflow);
         }
 
         self.end -= 1;
@@ -62,7 +62,7 @@ impl CharStringStack {
 
     pub fn push(&mut self, n: f32) -> PostScriptResult<()> {
         if self.end >= 24 {
-            return Err(PostScriptError::StackOverflow);
+            anyhow::bail!(PostScriptError::StackOverflow);
         }
 
         self.stack[self.end as usize] = n;
@@ -249,7 +249,7 @@ impl CharStrings {
                 PostScriptObject::String(s) => {
                     CharString::parse(interpreter.get_str(s).clone().as_bytes())?
                 }
-                _ => return Err(PostScriptError::TypeCheck),
+                _ => anyhow::bail!(PostScriptError::TypeCheck),
             };
 
             char_strings.insert(key, char_string);

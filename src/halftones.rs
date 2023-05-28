@@ -23,7 +23,7 @@ impl<'a> FromObj<'a> for Halftones<'a> {
                 Halftones::Dictionary(HalftoneDictionary::from_dict(dict, resolver)?)
             }
             _ => {
-                return Err(ParseError::MismatchedObjectTypeAny {
+                anyhow::bail!(ParseError::MismatchedObjectTypeAny {
                     expected: &[ObjectType::Name, ObjectType::Stream, ObjectType::Dictionary],
                 });
             }

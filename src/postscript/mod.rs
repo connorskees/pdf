@@ -473,7 +473,7 @@ impl<'a> PostscriptInterpreter<'a> {
 
                 self.push(PostScriptObject::Bool(self.get_str(s1) < self.get_str(s2)));
             }
-            _ => return Err(PostScriptError::TypeCheck.into()),
+            _ => anyhow::bail!(PostScriptError::TypeCheck),
         }
 
         Ok(())
@@ -520,7 +520,7 @@ impl<'a> PostscriptInterpreter<'a> {
             PostScriptObject::Array(arr) => {
                 let idx = usize::try_from(match key_or_idx {
                     PostScriptObject::Int(i) => i,
-                    _ => return Err(PostScriptError::TypeCheck.into()),
+                    _ => anyhow::bail!(PostScriptError::TypeCheck),
                 })?;
 
                 let val = self.get_arr_mut(arr).get(idx)?.clone();
@@ -529,7 +529,7 @@ impl<'a> PostscriptInterpreter<'a> {
             PostScriptObject::Dictionary(dict) => {
                 let key = match key_or_idx {
                     PostScriptObject::Name(name) => name,
-                    _ => return Err(PostScriptError::TypeCheck.into()),
+                    _ => anyhow::bail!(PostScriptError::TypeCheck),
                 };
 
                 let val = self
@@ -543,13 +543,13 @@ impl<'a> PostscriptInterpreter<'a> {
             PostScriptObject::String(s) => {
                 let idx = usize::try_from(match key_or_idx {
                     PostScriptObject::Int(i) => i,
-                    _ => return Err(PostScriptError::TypeCheck.into()),
+                    _ => anyhow::bail!(PostScriptError::TypeCheck),
                 })?;
 
                 let val = self.get_str_mut(s).get(idx)?;
                 self.push(PostScriptObject::Int(i32::from(val)));
             }
-            _ => return Err(PostScriptError::TypeCheck.into()),
+            _ => anyhow::bail!(PostScriptError::TypeCheck),
         }
 
         Ok(())
@@ -563,7 +563,7 @@ impl<'a> PostscriptInterpreter<'a> {
             PostScriptObject::Int(i) => {
                 self.push(PostScriptObject::Int(!i));
             }
-            _ => return Err(PostScriptError::TypeCheck.into()),
+            _ => anyhow::bail!(PostScriptError::TypeCheck),
         }
 
         Ok(())
@@ -695,7 +695,7 @@ impl<'a> PostscriptInterpreter<'a> {
                 let ch = u8::try_from(match value {
                     PostScriptObject::Int(i) => i,
                     PostScriptObject::Float(f) => f.round() as i32,
-                    _ => return Err(PostScriptError::TypeCheck.into()),
+                    _ => anyhow::bail!(PostScriptError::TypeCheck),
                 })?;
 
                 self.get_str_mut(s).put(idx, ch);
@@ -703,7 +703,7 @@ impl<'a> PostscriptInterpreter<'a> {
             PostScriptObject::Dictionary(dict) => {
                 let key = match key_or_idx {
                     PostScriptObject::Name(name) => name,
-                    _ => return Err(PostScriptError::TypeCheck.into()),
+                    _ => anyhow::bail!(PostScriptError::TypeCheck),
                 };
 
                 self.get_dict_mut(&dict).insert(key, value);
@@ -713,7 +713,7 @@ impl<'a> PostscriptInterpreter<'a> {
 
                 self.get_arr_mut(arr).put(idx, value);
             }
-            _ => return Err(PostScriptError::TypeCheck.into()),
+            _ => anyhow::bail!(PostScriptError::TypeCheck),
         }
 
         Ok(())
@@ -893,7 +893,7 @@ impl<'a> PostscriptInterpreter<'a> {
     fn begin(&mut self) -> PdfResult<()> {
         let dict = match self.pop()? {
             PostScriptObject::Dictionary(dict) => dict,
-            _ => return Err(PostScriptError::TypeCheck.into()),
+            _ => anyhow::bail!(PostScriptError::TypeCheck),
         };
 
         self.push_dict_stack(dict);
@@ -904,7 +904,7 @@ impl<'a> PostscriptInterpreter<'a> {
     fn dict(&mut self) -> PdfResult<()> {
         let n = match self.pop()? {
             PostScriptObject::Int(i) => usize::try_from(i),
-            _ => return Err(PostScriptError::TypeCheck.into()),
+            _ => anyhow::bail!(PostScriptError::TypeCheck),
         }?;
 
         let dict = self.new_dict(PostScriptDictionary::with_capacity(n));
@@ -982,49 +982,49 @@ impl<'a> PostscriptInterpreter<'a> {
     fn pop(&mut self) -> PostScriptResult<PostScriptObject> {
         self.operand_stack
             .pop()
-            .ok_or(PostScriptError::StackUnderflow)
+            .ok_or(anyhow::anyhow!(PostScriptError::StackUnderflow))
     }
 
     fn pop_int(&mut self) -> PdfResult<i32> {
         match self.pop()? {
             PostScriptObject::Int(i) => Ok(i),
             PostScriptObject::Float(f) => Ok(f.round() as i32),
-            _ => Err(PostScriptError::TypeCheck.into()),
+            _ => anyhow::bail!(PostScriptError::TypeCheck),
         }
     }
 
     fn pop_name(&mut self) -> PdfResult<PostScriptString> {
         match self.pop()? {
             PostScriptObject::Name(name) => Ok(name),
-            _ => Err(PostScriptError::TypeCheck.into()),
+            _ => anyhow::bail!(PostScriptError::TypeCheck),
         }
     }
 
     fn pop_string(&mut self) -> PdfResult<StringIndex> {
         match self.pop()? {
             PostScriptObject::String(s) => Ok(s),
-            _ => Err(PostScriptError::TypeCheck.into()),
+            _ => anyhow::bail!(PostScriptError::TypeCheck),
         }
     }
 
     fn pop_dict(&mut self) -> PdfResult<DictionaryIndex> {
         match self.pop()? {
             PostScriptObject::Dictionary(dict) => Ok(dict),
-            _ => Err(PostScriptError::TypeCheck.into()),
+            _ => anyhow::bail!(PostScriptError::TypeCheck),
         }
     }
 
     fn pop_arr(&mut self) -> PdfResult<ArrayIndex> {
         match self.pop()? {
             PostScriptObject::Array(arr) => Ok(arr),
-            _ => Err(PostScriptError::TypeCheck.into()),
+            _ => anyhow::bail!(PostScriptError::TypeCheck),
         }
     }
 
     fn pop_bool(&mut self) -> PdfResult<bool> {
         match self.pop()? {
             PostScriptObject::Bool(b) => Ok(b),
-            _ => Err(PostScriptError::TypeCheck.into()),
+            _ => anyhow::bail!(PostScriptError::TypeCheck),
         }
     }
 
@@ -1032,7 +1032,7 @@ impl<'a> PostscriptInterpreter<'a> {
         match self.pop()? {
             PostScriptObject::Int(n) => Ok(n as f32),
             PostScriptObject::Float(n) => Ok(n),
-            _ => Err(PostScriptError::TypeCheck.into()),
+            _ => anyhow::bail!(PostScriptError::TypeCheck),
         }
     }
 
@@ -1043,7 +1043,7 @@ impl<'a> PostscriptInterpreter<'a> {
     fn pop_file(&mut self) -> PdfResult<PostScriptObject> {
         match self.pop()? {
             obj @ PostScriptObject::File => Ok(obj),
-            _ => Err(PostScriptError::TypeCheck.into()),
+            _ => anyhow::bail!(PostScriptError::TypeCheck),
         }
     }
 
@@ -1058,14 +1058,14 @@ impl<'a> PostscriptInterpreter<'a> {
     fn pop_dict_stack(&mut self) -> PostScriptResult<DictionaryIndex> {
         self.dictionary_stack
             .pop()
-            .ok_or(PostScriptError::DictStackUnderflow)
+            .ok_or(anyhow::anyhow!(PostScriptError::DictStackUnderflow))
     }
 
     fn get_current_dict(&mut self) -> PostScriptResult<DictionaryIndex> {
         self.dictionary_stack
             .last()
             .cloned()
-            .ok_or(PostScriptError::DictStackUnderflow)
+            .ok_or(anyhow::anyhow!(PostScriptError::DictStackUnderflow))
     }
 
     fn get_dict(&self, key: DictionaryIndex) -> &PostScriptDictionary {
@@ -1083,7 +1083,7 @@ impl<'a> PostscriptInterpreter<'a> {
             }
         }
 
-        Err(PostScriptError::Undefined { key: key.clone() }.into())
+        anyhow::bail!(PostScriptError::Undefined { key: key.clone() })
     }
 }
 

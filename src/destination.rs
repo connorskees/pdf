@@ -30,7 +30,7 @@ impl<'a> FromObj<'a> for Destination {
                 arr, resolver,
             )?)),
             Object::String(s) | Object::Name(s) => Ok(Destination::Named(s)),
-            _ => Err(ParseError::MismatchedObjectTypeAny {
+            _ => anyhow::bail!(ParseError::MismatchedObjectTypeAny {
                 expected: &[ObjectType::Array, ObjectType::String, ObjectType::Name],
             }),
         }
@@ -46,7 +46,7 @@ pub struct ExplicitDestination {
 impl ExplicitDestination {
     pub fn from_arr<'a>(mut arr: Vec<Object>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         if arr.len() < 2 {
-            return Err(ParseError::ArrayOfInvalidLength { expected: 2 });
+            anyhow::bail!(ParseError::ArrayOfInvalidLength { expected: 2 });
         }
 
         let vals = arr.split_off(2);
@@ -108,7 +108,7 @@ impl ExplicitDestination {
                 }
             }
             found => {
-                return Err(ParseError::UnrecognizedVariant {
+                anyhow::bail!(ParseError::UnrecognizedVariant {
                     found: found.to_owned(),
                     ty: "DestinationKey",
                 })

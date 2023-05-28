@@ -176,7 +176,7 @@ impl<'a> StructureElement<'a> {
                 .collect::<PdfResult<Vec<StructureElement>>>()?,
             Object::Dictionary(dict) => vec![StructureElement::from_dict(dict, resolver)?],
             _ => {
-                return Err(ParseError::MismatchedObjectTypeAny {
+                anyhow::bail!(ParseError::MismatchedObjectTypeAny {
                     expected: &[ObjectType::Array, ObjectType::Dictionary],
                 });
             }
@@ -250,7 +250,7 @@ impl<'a> StructureElementChild<'a> {
                     Ok(init)
                 })?,
             _ => {
-                return Err(ParseError::MismatchedObjectTypeAny {
+                anyhow::bail!(ParseError::MismatchedObjectTypeAny {
                     expected: &[
                         ObjectType::Array,
                         ObjectType::Dictionary,

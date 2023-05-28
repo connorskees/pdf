@@ -1,10 +1,10 @@
-use std::{borrow::Cow, num::ParseIntError};
+use std::{borrow::Cow, num::ParseIntError, fmt};
 
 use crate::error::ParseError;
 
 use super::object::PostScriptString;
 
-pub type PostScriptResult<T> = Result<T, PostScriptError>;
+pub type PostScriptResult<T> = anyhow::Result<T>;
 
 /*
 postscript spec page 523
@@ -95,3 +95,11 @@ impl From<PostScriptError> for ParseError {
         Self::PostScriptError(err)
     }
 }
+
+impl fmt::Display for PostScriptError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:#?}", self)
+    }
+}
+
+impl std::error::Error for PostScriptError {}

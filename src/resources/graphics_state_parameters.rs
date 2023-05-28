@@ -199,7 +199,7 @@ impl BlendMode {
                     .collect::<PdfResult<Vec<Self>>>()?,
             ),
             _ => {
-                return Err(ParseError::MismatchedObjectTypeAny {
+                anyhow::bail!(ParseError::MismatchedObjectTypeAny {
                     expected: &[ObjectType::Array, ObjectType::Name],
                 });
             }

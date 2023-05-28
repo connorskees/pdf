@@ -4,8 +4,8 @@ use crate::{
     error::{ParseError, PdfResult},
     filter::decode_stream,
     objects::{Object, ObjectType},
-    Resolve,
-    stream::Stream, FromObj
+    stream::Stream,
+    FromObj, Resolve,
 };
 
 #[derive(Clone)]
@@ -33,7 +33,7 @@ impl<'a> FromObj<'a> for ContentStream {
                 .map(|obj| resolver.assert_stream(obj))
                 .collect::<PdfResult<Vec<Stream>>>()?,
             _ => {
-                return Err(ParseError::MismatchedObjectTypeAny {
+                anyhow::bail!(ParseError::MismatchedObjectTypeAny {
                     expected: &[ObjectType::Array, ObjectType::Stream],
                 });
             }

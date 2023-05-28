@@ -20,7 +20,7 @@ impl<'a> FromObj<'a> for FontEncoding {
                 Self::Dictionary(FontEncodingDict::from_obj(obj, resolver)?)
             }
             _ => {
-                return Err(ParseError::MismatchedObjectTypeAny {
+                anyhow::bail!(ParseError::MismatchedObjectTypeAny {
                     expected: &[ObjectType::Dictionary, ObjectType::Name],
                 });
             }
@@ -104,7 +104,7 @@ impl FontDifferences {
                 }
                 Object::Name(name) => names.push(name),
                 _ => {
-                    return Err(ParseError::MismatchedObjectTypeAny {
+                    anyhow::bail!(ParseError::MismatchedObjectTypeAny {
                         expected: &[ObjectType::Name, ObjectType::Integer],
                     });
                 }

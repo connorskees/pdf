@@ -1,7 +1,7 @@
 use crate::{
     catalog::assert_len,
     error::{ParseError, PdfResult},
-    objects::{Dictionary, Object, ObjectType, Name},
+    objects::{Dictionary, Name, Object, ObjectType},
     stream::Stream,
     FromObj, Resolve,
 };
@@ -19,7 +19,7 @@ impl<'a> FromObj<'a> for Type0FontEncoding<'a> {
         match resolver.resolve(obj)? {
             Object::Name(name) => Ok(Self::Predefined(PredefinedCjkCmapName::from_str(&name)?)),
             Object::Stream(stream) => Ok(Self::Stream(stream)),
-            _ => Err(ParseError::MismatchedObjectTypeAny {
+            _ => anyhow::bail!(ParseError::MismatchedObjectTypeAny {
                 expected: &[ObjectType::Stream, ObjectType::Name],
             }),
         }

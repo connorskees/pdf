@@ -41,7 +41,7 @@ impl<'a> Actions<'a> {
                 .collect::<PdfResult<Vec<Actions>>>()?,
             obj @ Object::Dictionary(..) => vec![Actions::from_obj(obj, resolver)?],
             _ => {
-                return Err(ParseError::MismatchedObjectTypeAny {
+                anyhow::bail!(ParseError::MismatchedObjectTypeAny {
                     expected: &[ObjectType::Array, ObjectType::Dictionary],
                 });
             }

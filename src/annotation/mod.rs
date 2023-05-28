@@ -517,7 +517,7 @@ impl Border {
         resolver: &mut dyn Resolve<'a>,
     ) -> PdfResult<Self> {
         if arr.len() < 3 {
-            return Err(ParseError::ArrayOfInvalidLength {
+            anyhow::bail!(ParseError::ArrayOfInvalidLength {
                 expected: 3,
                 // found: arr,
             });

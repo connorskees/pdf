@@ -1,4 +1,4 @@
-use crate::error::PdfResult;
+use crate::{error::PdfResult, ParseError};
 
 #[derive(Debug)]
 pub(crate) enum StateModel {
@@ -12,7 +12,7 @@ impl StateModel {
             "Marked" => Self::Marked(MarkedState::default()),
             "Review" => Self::Review(ReviewState::default()),
             found => {
-                return Err(crate::error::ParseError::UnrecognizedVariant {
+                anyhow::bail!(ParseError::UnrecognizedVariant {
                     ty: "StateModel",
                     found: found.to_owned(),
                 })

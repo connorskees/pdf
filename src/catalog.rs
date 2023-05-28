@@ -312,7 +312,7 @@ pub struct ThreadDictionary;
 
 pub fn assert_len(arr: &[Object], len: usize) -> PdfResult<()> {
     if arr.len() != len {
-        return Err(ParseError::ArrayOfInvalidLength {
+        anyhow::bail!(ParseError::ArrayOfInvalidLength {
             expected: len,
             // found: arr.to_vec(),
         });

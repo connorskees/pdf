@@ -72,7 +72,7 @@ pub fn pdf_enum_inner(attr: TokenStream, item: TokenStream) -> TokenStream {
             pub fn from_str(s: &str) -> crate::PdfResult<Self> {
                 Ok(match s {
                     #(#field_values => Self::#field_names),*,
-                    _ => return Err(crate::ParseError::UnrecognizedVariant {
+                    _ => anyhow::bail!(crate::ParseError::UnrecognizedVariant {
                         ty: stringify!(#name),
                         found: s.to_owned(),
                     })
@@ -84,7 +84,7 @@ pub fn pdf_enum_inner(attr: TokenStream, item: TokenStream) -> TokenStream {
             pub fn from_integer(s: i32) -> crate::PdfResult<Self> {
                 Ok(match s {
                     #(#field_values => Self::#field_names),*,
-                    _ => return Err(crate::ParseError::UnrecognizedVariant {
+                    _ => anyhow::bail!(crate::ParseError::UnrecognizedVariant {
                         ty: stringify!(#name),
                         found: s.to_string(),
                     })

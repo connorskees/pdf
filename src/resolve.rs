@@ -16,7 +16,7 @@ pub trait Resolve<'a> {
                 let obj = self.lex_object_from_reference(r)?;
                 self.assert_integer(obj)
             }
-            _ => Err(ParseError::MismatchedObjectType {
+            _ => anyhow::bail!(ParseError::MismatchedObjectType {
                 expected: ObjectType::Integer,
             }),
         }
@@ -29,7 +29,7 @@ pub trait Resolve<'a> {
                 let obj = self.lex_object_from_reference(r)?;
                 self.assert_unsigned_integer(obj)
             }
-            _ => Err(ParseError::MismatchedObjectType {
+            _ => anyhow::bail!(ParseError::MismatchedObjectType {
                 expected: ObjectType::Integer,
             }),
         }
@@ -44,7 +44,7 @@ pub trait Resolve<'a> {
                 let obj = self.lex_object_from_reference(r)?;
                 self.assert_number(obj)
             }
-            _ => Err(ParseError::MismatchedObjectType {
+            _ => anyhow::bail!(ParseError::MismatchedObjectType {
                 expected: ObjectType::Real,
             }),
         }
@@ -57,7 +57,7 @@ pub trait Resolve<'a> {
                 let obj = self.lex_object_from_reference(r)?;
                 self.assert_dict(obj)
             }
-            _ => Err(ParseError::MismatchedObjectType {
+            _ => anyhow::bail!(ParseError::MismatchedObjectType {
                 expected: ObjectType::Dictionary,
             }),
         }
@@ -70,7 +70,7 @@ pub trait Resolve<'a> {
                 let obj = self.lex_object_from_reference(r)?;
                 self.assert_name(obj)
             }
-            _ => Err(ParseError::MismatchedObjectType {
+            _ => anyhow::bail!(ParseError::MismatchedObjectType {
                 expected: ObjectType::Name,
             }),
         }
@@ -83,7 +83,7 @@ pub trait Resolve<'a> {
                 let obj = self.lex_object_from_reference(r)?;
                 self.assert_string(obj)
             }
-            _ => Err(ParseError::MismatchedObjectType {
+            _ => anyhow::bail!(ParseError::MismatchedObjectType {
                 expected: ObjectType::String,
             }),
         }
@@ -96,7 +96,7 @@ pub trait Resolve<'a> {
                 let obj = self.lex_object_from_reference(r)?;
                 self.assert_arr(obj)
             }
-            _ => Err(ParseError::MismatchedObjectType {
+            _ => anyhow::bail!(ParseError::MismatchedObjectType {
                 expected: ObjectType::Array,
             }),
         }
@@ -110,7 +110,7 @@ pub trait Resolve<'a> {
                 let obj = self.lex_object_from_reference(r)?;
                 self.assert_bool(obj)
             }
-            _ => Err(ParseError::MismatchedObjectType {
+            _ => anyhow::bail!(ParseError::MismatchedObjectType {
                 expected: ObjectType::Boolean,
             }),
         }
@@ -123,7 +123,7 @@ pub trait Resolve<'a> {
                 let obj = self.lex_object_from_reference(r)?;
                 self.assert_stream(obj)
             }
-            _ => Err(ParseError::MismatchedObjectType {
+            _ => anyhow::bail!(ParseError::MismatchedObjectType {
                 expected: ObjectType::Stream,
             }),
         }

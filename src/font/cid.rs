@@ -2,7 +2,7 @@ use std::convert::TryInto;
 
 use crate::{
     catalog::assert_len,
-    error::PdfResult,
+    error::{PdfResult, ParseError},
     objects::{Dictionary, Object, ObjectType},
     stream::Stream,
     Resolve,
@@ -141,7 +141,7 @@ impl<'a> CidToGidMap<'a> {
             Object::Name(ref name) if name == "Identity" => Self::Identity,
             Object::Stream(stream) => Self::Stream(stream),
             _ => {
-                return Err(crate::error::ParseError::MismatchedObjectTypeAny {
+                anyhow::bail!(ParseError::MismatchedObjectTypeAny {
                     expected: &[ObjectType::Name, ObjectType::Stream],
                 });
             }
