@@ -962,15 +962,14 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     fn draw_text(&mut self, arr: Vec<Object<'b>>) -> PdfResult<()> {
         let (font_stream, widths) = match self.text_state.font.as_deref() {
             Some(Font::Type1(Type1Font { base, .. })) => {
-                let font_stream = base
-                    .font_descriptor
-                    .as_ref()
-                    .unwrap()
-                    .font_file
-                    .clone()
-                    .unwrap();
+                let font_file = base.font_descriptor.as_ref().unwrap().font_file.clone();
 
-                (font_stream, &base.widths)
+                if font_file.is_none() {
+                    println!("skipping unsupported type 1 font");
+                    return Ok(());
+                }
+
+                (font_file.unwrap(), &base.widths)
             }
             Some(Font::TrueType(TrueTypeFont { base, .. })) => {
                 let font_stream = base
@@ -987,12 +986,13 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     self.resolver,
                 )?;
 
+                println!("skipping unsupported true type font");
+
                 // (font_stream, &base.widths)
-                todo!()
+                return Ok(());
             }
-            _ => return Ok(()),
-            // Some(font) => todo!("unimplement font type: {:#?}", font),
-            // None => todo!("no font selected in text state"),
+            Some(font) => todo!("unimplement font type: {:#?}", font),
+            None => todo!("no font selected in text state"),
         };
 
         let stream = decode_stream(
@@ -1241,7 +1241,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     fn begin_marked_content_sequence(&mut self) -> PdfResult<()> {
         let tag = self.pop_name()?;
 
-        dbg!("unimplemented marked content operator: BDC", tag);
+        println!("unimplemented marked content operator: BDC {}", tag);
 
         Ok(())
     }
@@ -1256,14 +1256,14 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         let _properties = self.pop()?;
         let _tag = self.pop_name()?;
 
-        dbg!("todo: unimplemented marked content operator: BDC");
+        println!("todo: unimplemented marked content operator: BDC");
 
         Ok(())
     }
 
     /// End a marked-content sequence begun by a BMC or BDC operator.
     fn end_marked_content_sequence(&mut self) -> PdfResult<()> {
-        dbg!("todo: unimplemented marked content operator: EMC");
+        println!("todo: unimplemented marked content operator: EMC");
 
         Ok(())
     }
