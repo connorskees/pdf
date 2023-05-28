@@ -1,7 +1,6 @@
 use std::rc::Rc;
 
 use crate::{
-    assert_empty,
     catalog::assert_len,
     error::{ParseError, PdfResult},
     font::Font,
@@ -19,8 +18,8 @@ enum FunctionOrDefault<'a> {
     Default,
 }
 
-impl<'a> FunctionOrDefault<'a> {
-    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for FunctionOrDefault<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let obj = resolver.resolve(obj)?;
 
         if let Ok(name) = resolver.assert_name(obj.clone()) {
@@ -33,18 +32,25 @@ impl<'a> FunctionOrDefault<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
+#[obj_type("ExtGState")]
 pub struct GraphicsStateParameters<'a> {
+    #[field("LW")]
     line_width: Option<f32>,
+    #[field("LC")]
     line_cap_style: Option<LineCapStyle>,
+    #[field("LJ")]
     line_join_style: Option<LineJoinStyle>,
+    #[field("ML")]
     miter_limit: Option<f32>,
 
     /// The line dash pattern, expressed as an array of the form [dashArray dashPhase],
     /// where dashArray shall be itself an array and dashPhase shall be an integer
+    #[field("D")]
     line_dash_pattern: Option<LineDashPattern>,
 
     /// The name of the rendering intent
+    #[field("RI")]
     rendering_intent: Option<RenderingIntent>,
 
     /// A flag specifying whether to apply overprint. In PDF 1.2 and earlier, there is a
@@ -53,64 +59,79 @@ pub struct GraphicsStateParameters<'a> {
     /// all other painting operations. Specifying an OP entry shall set both parameters unless
     /// there is also an op entry in the same graphics state parameter dictionary, in which
     /// case the OP entry shall set only the overprint parameter for stroking.
+    #[field("OP")]
     should_overprint_stroking: Option<bool>,
 
     /// A flag specifying whether to apply overprint for painting operations other than stroking.
     ///
     /// If this entry is absent, the OP entry, if any, shall also set this parameter.
+    #[field("op")]
     should_overprint: Option<bool>,
 
+    #[field("OPM")]
     overprint_mode: Option<i32>,
 
     /// An array of the form [font size], where font shall be an indirect reference to a font
     /// dictionary and size shall be a number expressed in text space units. These two objects
     /// correspond to the operands of the Tf operator; however, the first operand shall be an
     /// indirect object reference instead of a resource name.
+    #[field("Font")]
     font: Option<(Rc<Font<'a>>, f32)>,
 
     /// The black-generation function, which maps the interval [0.0 1.0] to the interval [0.0 1.0]
+    #[field("BG")]
     black_generation: Option<Function<'a>>,
 
     /// Same as BG except that the value may also be the name Default, denoting the black-generation
     /// function that was in effect at the start of the page. If both BG and BG2 are present in
     /// the same graphics state parameter dictionary, BG2 shall take precedence
+    #[field("BG2")]
     black_generation_two: Option<FunctionOrDefault<'a>>,
 
     /// The undercolor-removal function, which maps the interval [0.0 1.0] to the interval [-1.0 1.0]
+    #[field("UCR")]
     undercolor_removal: Option<Function<'a>>,
 
     /// Same as UCR except that the value may also be the name Default, denoting the undercolor-removal
     /// function that was in effect at the start of the page. If both UCR and UCR2 are present in the
     /// same graphics state parameter dictionary, UCR2 shall take precedence
+    #[field("UCR2")]
     undercolor_removal_two: Option<FunctionOrDefault<'a>>,
 
     /// The transfer function, which maps the interval [0.0 1.0] to the interval [0.0 1.0]. The value
     /// shall be either a single function (which applies to all process colorants) or an array of four
     /// functions (which apply to the process colorants individually). The name Identity may be used to
     /// represent the identity function.
+    #[field("TR")]
     transfer: Option<TransferFunction<'a>>,
 
     /// Same as TR except that the value may also be the name Default, denoting the transfer function
     /// that was in effect at the start of the page. If both TR and TR2 are present in the same graphics
     /// state parameter dictionary, TR2 shall take precedence
+    #[field("TR2")]
     transfer_two: Option<TransferFunction<'a>>,
 
     /// The halftone dictionary or stream or the name Default, denoting the halftone that was in effect
     /// at the start of the page.
+    #[field("HT")]
     halftones: Option<Halftones<'a>>,
 
     /// The flatness tolerance controls the maximum permitted distance in device pixels between the
     /// mathematically correct path and an approximation constructed from straight line segments
+    #[field("FL")]
     flatness_tolerance: Option<f32>,
 
     /// The smoothness tolerance controls the quality of smooth shading (type 2 patterns and the sh
     /// operator) and thus indirectly controls the rendering performance
+    #[field("SM")]
     smoothness_tolerance: Option<f32>,
 
     /// A flag specifying whether to apply automatic stroke adjustment
+    #[field("SA")]
     stroke_adjustment: Option<bool>,
 
     /// The current blend mode to be used in the transparent imaging model
+    #[field("BM")]
     blend_mode: Option<BlendMode>,
 
     /// The current soft mask, specifying the mask shape or mask opacity values that shall
@@ -120,27 +141,33 @@ pub struct GraphicsStateParameters<'a> {
     /// it with the gs operator completely replaces the old value with the new one, rather
     /// than intersecting the two as is done with the current clipping path parameter.
     // todo: can also be name
+    #[field("SMask")]
     soft_mask: Option<SoftMask<'a>>,
 
     /// The current stroking alpha constant, specifying the constant shape or constant
     /// opacity value that shall be used for stroking operations in the transparent imaging
     /// model
+    #[field("CA")]
     stroking_alpha_constant: Option<f32>,
 
     /// Same as CA, but for nonstroking operations
+    #[field("ca")]
     nonstroking_alpha_constant: Option<f32>,
 
     /// The alpha source flag, specifying whether the current soft mask and alpha constant
     /// shall be interpreted as shape values (true) or opacity values (false).
+    #[field("AIS")]
     alpha_source: Option<bool>,
 
     /// The text knockout flag, shall determine the behaviour of overlapping glyphs within
     /// a text object in the transparent imaging model
+    #[field("TK")]
     is_knockout: Option<bool>,
 
     /// Apple-specific rendering hint, whether or not to disable anti-aliasing
     /// Key of "AAPL:AA"
     /// See <http://www.sibelius.com/cgi-bin/helpcenter/chat/chat.pl?com=thread&start=393193&groupid=3&&guest=1>
+    #[field("AAPL:AA")]
     apple_antialiasing: Option<bool>,
 }
 
@@ -215,8 +242,8 @@ pub enum SoftMask<'a> {
     None,
 }
 
-impl<'a> SoftMask<'a> {
-    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for SoftMask<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let obj = resolver.resolve(obj)?;
 
         if obj.name_is("None") {
@@ -325,125 +352,16 @@ impl<'a> FromObj<'a> for LineDashPattern {
     }
 }
 
-fn graphics_state_parameters_font_from_obj<'a>(
-    obj: Object<'a>,
-    resolver: &mut dyn Resolve<'a>,
-) -> PdfResult<(Rc<Font<'a>>, f32)> {
-    let mut arr = resolver.assert_arr(obj)?;
-
-    assert_len(&arr, 2)?;
-
-    let size = resolver.assert_number(arr.pop().unwrap())?;
-    let font_dict = resolver.assert_dict(arr.pop().unwrap())?;
-
-    Ok((Rc::new(Font::from_dict(font_dict, resolver)?), size))
-}
-
-impl<'a> FromObj<'a> for GraphicsStateParameters<'a> {
+impl<'a> FromObj<'a> for (Rc<Font<'a>>, f32) {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let mut dict = resolver.assert_dict(obj)?;
+        let mut arr = resolver.assert_arr(obj)?;
 
-        dict.expect_type("ExtGState", resolver, false)?;
+        assert_len(&arr, 2)?;
 
-        let line_width = dict.get_number("LW", resolver)?;
-        let line_cap_style = dict
-            .get_integer("LC", resolver)?
-            .map(LineCapStyle::from_integer)
-            .transpose()?;
-        let line_join_style = dict
-            .get_integer("LJ", resolver)?
-            .map(LineJoinStyle::from_integer)
-            .transpose()?;
-        let miter_limit = dict.get_number("ML", resolver)?;
-        let line_dash_pattern = dict
-            .get_arr("D", resolver)?
-            .map(|arr| LineDashPattern::from_arr(arr, resolver))
-            .transpose()?;
-        let rendering_intent = dict
-            .get_name("RI", resolver)?
-            .map(|ref s| RenderingIntent::from_str(s))
-            .transpose()?;
-        let should_overprint_stroking = dict.get_bool("OP", resolver)?;
-        let should_overprint = dict.get_bool("op", resolver)?;
-        let overprint_mode = dict.get_integer("OPM", resolver)?;
-        let font = dict
-            .get_object("Font", resolver)?
-            .map(|obj| graphics_state_parameters_font_from_obj(obj, resolver))
-            .transpose()?;
-        let black_generation = dict.get::<Function>("BG", resolver)?;
-        let black_generation_two = dict
-            .get_object("BG2", resolver)?
-            .map(|obj| FunctionOrDefault::from_obj(obj, resolver))
-            .transpose()?;
-        let undercolor_removal = dict.get::<Function>("UCR", resolver)?;
-        let undercolor_removal_two = dict
-            .get_object("UCR2", resolver)?
-            .map(|obj| FunctionOrDefault::from_obj(obj, resolver))
-            .transpose()?;
-        let transfer = dict
-            .get_object("TR", resolver)?
-            .map(|obj| TransferFunction::from_obj(obj, resolver))
-            .transpose()?;
-        let transfer_two = dict
-            .get_object("TR2", resolver)?
-            .map(|obj| TransferFunction::from_obj(obj, resolver))
-            .transpose()?;
-        let halftones = dict
-            .get_object("HT", resolver)?
-            .map(|obj| Halftones::from_obj(obj, resolver))
-            .transpose()?;
+        let size = resolver.assert_number(arr.pop().unwrap())?;
+        let font_dict = resolver.assert_dict(arr.pop().unwrap())?;
 
-        let flatness_tolerance = dict.get_number("FL", resolver)?;
-        let smoothness_tolerance = dict.get_number("SM", resolver)?;
-        let stroke_adjustment = dict.get_bool("SA", resolver)?;
-
-        let blend_mode = dict
-            .get_object("BM", resolver)?
-            .map(|obj| BlendMode::from_obj(obj, resolver))
-            .transpose()?;
-
-        let soft_mask = dict
-            .get_object("SMask", resolver)?
-            .map(|obj| SoftMask::from_obj(obj, resolver))
-            .transpose()?;
-
-        let stroking_alpha_constant = dict.get_number("CA", resolver)?;
-        let nonstroking_alpha_constant = dict.get_number("ca", resolver)?;
-        let alpha_source = dict.get_bool("AIS", resolver)?;
-        let is_knockout = dict.get_bool("TK", resolver)?;
-        let apple_antialiasing = dict.get_bool("AAPL:AA", resolver)?;
-
-        assert_empty(dict);
-
-        Ok(GraphicsStateParameters {
-            line_width,
-            line_cap_style,
-            line_join_style,
-            miter_limit,
-            line_dash_pattern,
-            rendering_intent,
-            should_overprint_stroking,
-            should_overprint,
-            overprint_mode,
-            font,
-            black_generation,
-            black_generation_two,
-            undercolor_removal,
-            undercolor_removal_two,
-            transfer,
-            transfer_two,
-            halftones,
-            flatness_tolerance,
-            smoothness_tolerance,
-            stroke_adjustment,
-            blend_mode,
-            soft_mask,
-            stroking_alpha_constant,
-            nonstroking_alpha_constant,
-            alpha_source,
-            is_knockout,
-            apple_antialiasing,
-        })
+        Ok((Rc::new(Font::from_dict(font_dict, resolver)?), size))
     }
 }
 
@@ -507,11 +425,11 @@ pub enum RenderingIntent {
     Perceptual = "Perceptual",
 }
 
-#[pdf_enum(Integer)]
 /// The line join style shall specify the shape to be used at the corners of
 /// paths that are stroked. Join styles shall be significant only at points
 /// where consecutive segments of a path connect at an angle; segments that
 /// meet or intersect fortuitously shall receive no special treatment.
+#[pdf_enum(Integer)]
 pub enum LineJoinStyle {
     /// The outer edges of the strokes for the two segments shall be extended
     /// until they meet at an angle, as in a picture frame. If the segments
@@ -529,9 +447,9 @@ pub enum LineJoinStyle {
     Bevel = 2,
 }
 
-#[pdf_enum(Integer)]
 /// The line cap style shall specify the shape that shall be used at the
 /// ends of open subpaths (and dashes, if any) when they are stroked.
+#[pdf_enum(Integer)]
 pub enum LineCapStyle {
     /// Butt cap. The stroke shall be squared off at the endpoint of the
     /// path. There shall be no projection beyond the end of the path.

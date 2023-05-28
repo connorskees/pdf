@@ -76,16 +76,8 @@ struct FontDifferences(HashMap<u32, Vec<String>>);
 
 impl<'a> FromObj<'a> for FontDifferences {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let arr = resolver.assert_arr(obj)?;
-        FontDifferences::from_arr(arr, resolver)
-    }
-}
+        let mut arr = resolver.assert_arr(obj)?;
 
-impl FontDifferences {
-    pub fn from_arr<'a>(
-        mut arr: Vec<Object<'a>>,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Self> {
         if arr.is_empty() {
             return Ok(FontDifferences(HashMap::new()));
         }

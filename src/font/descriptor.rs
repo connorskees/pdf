@@ -1,36 +1,49 @@
 use std::fmt;
 
-use crate::{data_structures::Rectangle, error::PdfResult, objects::Object, FromObj, Resolve};
+use crate::{
+    data_structures::Rectangle,
+    error::PdfResult,
+    objects::{Dictionary, Name, Object, TypedReference},
+    stream::Stream,
+    FromObj, Resolve,
+};
 
 use super::embedded::{TrueTypeFontFile, Type1FontFile, Type3FontFile};
 
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
+#[obj_type("FontDescriptor")]
 pub struct FontDescriptor<'a> {
     /// The PostScript name of the font. This name shall be the same as the value of
     /// BaseFont in the font or CIDFont dictionary that refers to this font descriptor
-    font_name: String,
+    #[field("FontName")]
+    font_name: Name,
 
     /// A byte string specifying the preferred font family name
+    #[field("FontFamily")]
     font_family: Option<String>,
 
     /// The font stretch value
     ///
     /// The specific interpretation of this value varies from font to font
+    #[field("FontStretch")]
     font_stretch: Option<FontStretch>,
 
     /// The weight (thickness) component of the fully-qualified font name or font
     /// specifier
     ///
     /// The specific interpretation of these values varies from font to font
+    #[field("FontWeight")]
     font_weight: Option<f32>,
 
     /// A collection of flags defining various characteristics of the font
+    #[field("Flags")]
     flags: FontDescriptorFlags,
 
     /// A rectangle, expressed in the glyph coordinate system, that shall specify
     /// the font bounding box. This should be the smallest rectangle enclosing the
     /// shape that would result if all of the glyphs of the font were placed with
     /// their origins coincident and then filled
+    #[field("FontBBox")]
     font_bounding_box: Option<Rectangle>,
 
     /// The angle, expressed in degrees counterclockwise from the vertical, of the dominant
@@ -39,47 +52,57 @@ pub struct FontDescriptor<'a> {
     /// EXAMPLE 4 The 9-o’clock position is 90 degrees, and the 3-o’clock position is –90 degrees.
     ///
     /// The value shall be negative for fonts that slope to the right, as almost all italic fonts do
+    #[field("ItalicAngle")]
     italic_angle: f32,
 
     /// The maximum height above the baseline reached by glyphs in this font. The height of
     /// glyphs for accented characters shall be excluded
+    #[field("Ascent")]
     ascent: Option<f32>,
 
     /// The maximum depth below the baseline reached by glyphs in this font
     ///
     /// The value shall be a negative number
+    #[field("Descent")]
     descent: Option<f32>,
 
     /// The spacing between baselines of consecutive lines of text.
     ///
     /// Default value: 0
+    #[field("Leading", default = 0.0)]
     leading: f32,
 
     /// The vertical coordinate of the top of flat capital letters, measured from the baseline
+    #[field("CapHeight")]
     cap_height: Option<f32>,
 
     /// The font’s x height: the vertical coordinate of the top of flat nonascending lowercase
     /// letters (like the letter x), measured from the baseline, in fonts that have Latin characters
     ///
     /// Default value: 0
+    #[field("XHeight", default = 0.0)]
     x_height: f32,
 
     /// The thickness, measured horizontally, of the dominant vertical stems of glyphs in the font
+    #[field("StemV")]
     stem_v: Option<f32>,
 
     /// The thickness, measured vertically, of the dominant horizontal stems of glyphs in the font
     ///
     /// Default value: 0
+    #[field("StemH", default = 0.0)]
     stem_h: f32,
 
     /// The average width of glyphs in the font
     ///
     /// Default value: 0
+    #[field("AvgWidth", default = 0.0)]
     avg_width: f32,
 
     /// The maximum width of glyphs in the font
     ///
     /// Default value: 0
+    #[field("MaxWidth", default = 0.0)]
     max_width: f32,
 
     /// The width to use for character codes whose widths are not specified in a font dictionary’s
@@ -87,16 +110,20 @@ pub struct FontDescriptor<'a> {
     /// actual widths are the same as the value of the MissingWidth entry
     ///
     /// Default value: 0
+    #[field("MissingWidth", default = 0.0)]
     pub missing_width: f32,
 
     /// A stream containing a Type 1 font program
+    #[field("FontFile")]
     pub font_file: Option<Type1FontFile<'a>>,
 
     /// A stream containing a TrueType font program
+    #[field("FontFile2")]
     pub font_file_two: Option<TrueTypeFontFile<'a>>,
 
     /// A stream containing a font program whose format is specified by the Subtype entry in the
     /// stream dictionary
+    #[field("FontFile3")]
     font_file_three: Option<Type3FontFile<'a>>,
 
     /// A string listing the character names defined in a font subset. The names in this string
@@ -105,7 +132,47 @@ pub struct FontDescriptor<'a> {
     /// is absent, the only indication of a font subset shall be the subset tag in the FontName entry
     ///
     /// Meaningful only in Type 1 fonts
+    #[field("CharSet")]
     charset: Option<String>,
+
+    /// A dictionary containing entries that describe the style of the glyphs in
+    /// the font
+    ///
+    /// Meaningful only in CID fonts
+    #[field("Style")]
+    style: Option<Dictionary<'a>>,
+
+    /// A name specifying the language of the font, which may be used for encodings
+    /// where the language is not implied by the encoding itself.
+    ///
+    /// Meaningful only in CID fonts
+    #[field("Lang")]
+    lang: Option<Name>,
+
+    /// A dictionary whose keys identify a class of glyphs in a CIDFont.
+    ///
+    /// Each value shall be a dictionary containing entries that shall override
+    /// the corresponding values in the main font descriptor dictionary for that
+    /// class of glyphs
+    ///
+    /// Meaningful only in CID fonts
+    #[field("FD")]
+    fd: Option<Dictionary<'a>>,
+
+    /// A stream identifying which CIDs are present in the CIDFont file. If this
+    /// entry is present, the CIDFont shall contain only a subset of the glyphs
+    /// in the character collection defined by the CIDSystemInfo dictionary. If
+    /// it is absent, the only indication of a CIDFont subset shall be the subset
+    /// tag in the FontName entry
+    ///
+    /// The stream’s data shall be organized as a table of bits indexed by CID.
+    /// The bits shall be stored in bytes with the high-order bit first. Each bit
+    /// shall correspond to a CID. The most significant bit of the first byte
+    /// shall correspond to CID 0, the next bit to CID 1, and so on.
+    ///
+    /// Meaningful only in CID fonts
+    #[field("CIDSet")]
+    cid_set: Option<TypedReference<'a, Stream<'a>>>,
 }
 
 #[derive(Debug)]
@@ -113,85 +180,19 @@ struct CidFontDescriptor<'a> {
     base: FontDescriptor<'a>,
 }
 
-impl<'a> FontDescriptor<'a> {
-    const TYPE: &'static str = "FontDescriptor";
-}
-
-impl<'a> FromObj<'a> for FontDescriptor<'a> {
-    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let mut dict = resolver.assert_dict(obj)?;
-
-        dict.expect_type(Self::TYPE, resolver, true)?;
-
-        let font_name = dict.expect_name("FontName", resolver)?;
-        let font_family = dict.get_string("FontFamily", resolver)?;
-        let font_stretch = dict
-            .get_name("FontStretch", resolver)?
-            .as_deref()
-            .map(FontStretch::from_str)
-            .transpose()?;
-        let font_weight = dict.get_number("FontWeight", resolver)?;
-        let flags = FontDescriptorFlags(dict.expect_unsigned_integer("Flags", resolver)?);
-        let font_bounding_box = dict.get::<Rectangle>("FontBBox", resolver)?;
-        let italic_angle = dict.expect_number("ItalicAngle", resolver)?;
-
-        let ascent = dict.get_number("Ascent", resolver)?;
-        let descent = dict.get_number("Descent", resolver)?;
-        let leading = dict.get_number("Leading", resolver)?.unwrap_or(0.0);
-        let cap_height = dict.get_number("CapHeight", resolver)?;
-        let x_height = dict.get_number("XHeight", resolver)?.unwrap_or(0.0);
-        let stem_v = dict.get_number("StemV", resolver)?;
-        let stem_h = dict.get_number("StemH", resolver)?.unwrap_or(0.0);
-        let avg_width = dict.get_number("AvgWidth", resolver)?.unwrap_or(0.0);
-        let max_width = dict.get_number("MaxWidth", resolver)?.unwrap_or(0.0);
-        let missing_width = dict.get_number("MissingWidth", resolver)?.unwrap_or(0.0);
-        let font_file = dict
-            .get_stream("FontFile", resolver)?
-            .map(|stream| Type1FontFile::from_stream(stream, resolver))
-            .transpose()?;
-        let font_file_two = dict
-            .get_stream("FontFile2", resolver)?
-            .map(|stream| TrueTypeFontFile::from_stream(stream, resolver))
-            .transpose()?;
-        let font_file_three = dict
-            .get_stream("FontFile3", resolver)?
-            .map(|stream| Type3FontFile::from_stream(stream, resolver))
-            .transpose()?;
-
-        let charset = dict.get_string("CharSet", resolver)?;
-
-        Ok(Self {
-            font_name,
-            font_family,
-            font_stretch,
-            font_weight,
-            flags,
-            font_bounding_box,
-            italic_angle,
-            ascent,
-            descent,
-            leading,
-            cap_height,
-            x_height,
-            stem_v,
-            stem_h,
-            avg_width,
-            max_width,
-            missing_width,
-            font_file,
-            font_file_two,
-            font_file_three,
-            charset,
-        })
-    }
-}
-
+// todo: derive FromObj for tuple structs
 #[derive(Clone, Copy)]
 struct FontDescriptorFlags(u32);
 
 impl fmt::Debug for FontDescriptorFlags {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:b}", self.0)
+    }
+}
+
+impl<'a> FromObj<'a> for FontDescriptorFlags {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        Ok(Self(u32::from_obj(obj, resolver)?))
     }
 }
 

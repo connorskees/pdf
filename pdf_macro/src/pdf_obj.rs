@@ -2,9 +2,8 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{
-    parse::Parse, parse_macro_input, parse_quote, Attribute, Data, DeriveInput, Expr,
-    GenericArgument, LifetimeParam, LitStr, Path, PathArguments, PathSegment, Token, Type,
-    TypePath,
+    parse::Parse, parse_macro_input, parse_quote, Data, DeriveInput, Expr, GenericArgument,
+    LifetimeParam, LitStr, Path, PathArguments, PathSegment, Token, Type, TypePath,
 };
 
 fn extract_type_from_option(ty: &syn::Type) -> Option<&syn::Type> {

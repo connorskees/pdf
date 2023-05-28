@@ -1,5 +1,9 @@
 use crate::{
-    catalog::MetadataStream, error::PdfResult, objects::Dictionary, stream::Stream, Resolve,
+    catalog::MetadataStream,
+    error::PdfResult,
+    objects::{Dictionary, Object},
+    stream::Stream,
+    FromObj, Resolve,
 };
 
 #[derive(Debug, Clone)]
@@ -51,8 +55,9 @@ pub struct Type1FontFile<'a> {
     pub stream: Stream<'a>,
 }
 
-impl<'a> Type1FontFile<'a> {
-    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for Type1FontFile<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut stream = resolver.assert_stream(obj)?;
         let dict = EmbeddedFontDictionary::from_dict(&mut stream.dict.other, resolver)?;
 
         Ok(Self { dict, stream })
@@ -67,8 +72,9 @@ pub struct TrueTypeFontFile<'a> {
     pub(crate) stream: Stream<'a>,
 }
 
-impl<'a> TrueTypeFontFile<'a> {
-    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for TrueTypeFontFile<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut stream = resolver.assert_stream(obj)?;
         let dict = EmbeddedFontDictionary::from_dict(&mut stream.dict.other, resolver)?;
 
         Ok(Self { dict, stream })
@@ -134,8 +140,9 @@ enum Type3Subtype {
     OpenType = "OpenType",
 }
 
-impl<'a> Type3FontFile<'a> {
-    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for Type3FontFile<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut stream = resolver.assert_stream(obj)?;
         let subtype = Type3Subtype::from_str(&stream.dict.other.expect_name("Subtype", resolver)?)?;
 
         Ok(match subtype {

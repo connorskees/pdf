@@ -5,7 +5,7 @@ use crate::{
     file_specification::FileSpecification,
     filter::FilterKind,
     objects::{Dictionary, Object, ObjectType},
-    Resolve,
+    Resolve, FromObj
 };
 
 #[derive(Clone, PartialEq)]
@@ -29,7 +29,13 @@ pub(crate) struct DecodeParams<'a> {
 }
 
 impl<'a> DecodeParams<'a> {
-    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+    pub fn get(&self, idx: usize) -> Option<&Dictionary<'a>> {
+        self.params.get(idx).and_then(|d| d.as_ref())
+    }
+}
+
+impl<'a> FromObj<'a> for DecodeParams<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let params = match resolver.resolve(obj)? {
             Object::Array(arr) => arr
                 .into_iter()
@@ -50,10 +56,6 @@ impl<'a> DecodeParams<'a> {
         };
 
         Ok(Self { params })
-    }
-
-    pub fn get(&self, idx: usize) -> Option<&Dictionary<'a>> {
-        self.params.get(idx).and_then(|d| d.as_ref())
     }
 }
 

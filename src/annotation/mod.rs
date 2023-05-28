@@ -482,6 +482,7 @@ enum BorderStyleKind {
     Other(String),
 }
 
+// todo: derive for enums with "other" variant
 impl<'a> FromObj<'a> for BorderStyleKind {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let s = resolver.assert_name(obj)?;
