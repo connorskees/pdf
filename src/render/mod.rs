@@ -283,8 +283,8 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                 .current_transformation_matrix,
         );
 
-        self.canvas.stroke_path(&path, stroke_color);
-        self.canvas.fill_path(&path, fill_color, fill_rule);
+        self.canvas.stroke_path(path, stroke_color);
+        self.canvas.fill_path(path, fill_color, fill_rule);
 
         self.current_path = None;
 
@@ -712,7 +712,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                 .current_transformation_matrix,
         );
 
-        self.canvas.stroke_path(&path, color);
+        self.canvas.stroke_path(path, color);
 
         self.current_path = None;
 
@@ -736,7 +736,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                 .current_transformation_matrix,
         );
 
-        self.canvas.stroke_path(&path, color);
+        self.canvas.stroke_path(path, color);
 
         self.current_path = None;
 

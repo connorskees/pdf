@@ -1,4 +1,4 @@
-use std::{borrow::Cow, num::ParseIntError, fmt};
+use std::{borrow::Cow, fmt, num::ParseIntError};
 
 use crate::error::ParseError;
 

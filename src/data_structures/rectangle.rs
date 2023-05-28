@@ -10,24 +10,8 @@ pub struct Rectangle {
 
 impl<'a> FromObj<'a> for Rectangle {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let arr = resolver.assert_arr(obj)?;
-        Self::from_arr(arr, resolver)
-    }
-}
+        let mut arr = resolver.assert_arr(obj)?;
 
-impl Rectangle {
-    pub fn width(&self) -> f32 {
-        self.upper_right_x - self.lower_left_x
-    }
-
-    pub fn height(&self) -> f32 {
-        self.upper_right_y - self.lower_left_y
-    }
-
-    pub(crate) fn from_arr<'a>(
-        mut arr: Vec<Object>,
-        resolver: &mut dyn Resolve<'a>,
-    ) -> PdfResult<Self> {
         assert_len(&arr, 4)?;
 
         let upper_right_y = resolver.assert_number(arr.pop().unwrap())?;
@@ -41,5 +25,15 @@ impl Rectangle {
             upper_right_x,
             upper_right_y,
         })
+    }
+}
+
+impl Rectangle {
+    pub fn width(&self) -> f32 {
+        self.upper_right_x - self.lower_left_x
+    }
+
+    pub fn height(&self) -> f32 {
+        self.upper_right_y - self.lower_left_y
     }
 }

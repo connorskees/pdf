@@ -59,7 +59,7 @@ impl<'a> StreamOrDict<'a> {
         }
     }
 
-    pub fn to_obj(self) -> Object<'a> {
+    pub fn into_obj(self) -> Object<'a> {
         match self {
             Self::Dict(dict) => Object::Dictionary(dict),
             Self::Stream(stream) => Object::Stream(stream),
@@ -93,7 +93,7 @@ impl<'a> FromObj<'a> for Function<'a> {
             })
             .transpose()?;
 
-        let subtype = FunctionSubtype::from_obj(stream_or_dict.to_obj(), resolver)?;
+        let subtype = FunctionSubtype::from_obj(stream_or_dict.into_obj(), resolver)?;
 
         Ok(Self {
             domain,

@@ -367,7 +367,7 @@ impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
 
 impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
     fn push_bytes(&mut self, abc: u8) -> anyhow::Result<()> {
-        let (a, b, c) = ((abc >> 2) & 1, (abc >> 1) & 1, (abc >> 0) & 1);
+        let (a, b, c) = ((abc >> 2) & 1, (abc >> 1) & 1, abc & 1);
         let n = 4 * a + 2 * b + c;
 
         for _ in 0..=n {

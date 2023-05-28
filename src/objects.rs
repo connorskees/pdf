@@ -1,8 +1,8 @@
 use std::{borrow::Cow, collections::HashMap, convert::TryFrom, fmt, marker::PhantomData, rc::Rc};
 
 use crate::{
-    assert_reference, data_structures::Matrix, date::Date, stream::Stream, ParseError, PdfResult,
-    Resolve,
+    assert_reference, catalog::assert_len, data_structures::Matrix, date::Date, stream::Stream,
+    ParseError, PdfResult, Resolve,
 };
 
 #[derive(Debug)]
@@ -512,5 +512,23 @@ impl<'a, T: FromObj<'a>> FromObj<'a> for TypedReference<'a, T> {
             },
             _ => Self::Direct(T::from_obj(obj, resolver)?),
         })
+    }
+}
+
+impl<'a, T: FromObj<'a> + Sync, const N: usize> FromObj<'a> for [T; N] {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let arr = resolver.assert_arr(obj)?;
+
+        assert_len(&arr, N)?;
+
+        let vec = arr
+            .into_iter()
+            .map(|obj| T::from_obj(obj, resolver))
+            .collect::<PdfResult<Vec<T>>>()?;
+
+        match <[T; N]>::try_from(vec) {
+            Ok(v) => Ok(v),
+            Err(..) => unreachable!(),
+        }
     }
 }

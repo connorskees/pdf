@@ -247,8 +247,8 @@ impl Canvas {
         let mut start = (line.start.x as i32, line.start.y as i32);
         let end = (line.end.x as i32, line.end.y as i32);
 
-        let dx = (end.0 - start.0).abs() as i32;
-        let dy = -(end.1 - start.1).abs() as i32;
+        let dx = (end.0 - start.0).abs();
+        let dy = -(end.1 - start.1).abs();
 
         let x_step = if start.0 < end.0 { 1 } else { -1 };
         let y_step = if start.1 < end.1 { 1 } else { -1 };
@@ -301,7 +301,7 @@ impl Canvas {
 
         let idx = point.x as usize + (end - self.width) - point.y as usize * self.height;
 
-        self.buffer[(idx as usize).min(self.width * self.height - 1)] = color;
+        self.buffer[idx.min(self.width * self.height - 1)] = color;
     }
 
     pub fn draw_cubic_bezier_curve(&mut self, curve: CubicBezierCurve, color: u32) {
@@ -323,7 +323,7 @@ impl Canvas {
     ) -> PdfResult<()> {
         let pixel_data = decode_stream(&image.stream.stream, &image.stream.dict, resolver)?;
 
-        assert!(pixel_data.len() % 3 == 0);
+        // assert!(pixel_data.len() % 3 == 0);
 
         let rgb_data = pixel_data
             .chunks_exact(3)
@@ -358,7 +358,7 @@ impl Canvas {
 
     fn render_to_image(&mut self, p: impl AsRef<FilePath>) {
         let file = File::create(p).unwrap();
-        let ref mut w = BufWriter::new(file);
+        let w = &mut BufWriter::new(file);
         let mut encoder = png::Encoder::new(w, self.width as u32, self.height as u32); // Width is 2 pixels and height is 1.
         encoder.set_color(png::ColorType::Rgba);
         encoder.set_depth(png::BitDepth::Eight);

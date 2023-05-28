@@ -1,11 +1,8 @@
-use std::convert::TryInto;
-
 use crate::{
-    catalog::assert_len,
-    error::{PdfResult, ParseError},
+    error::{ParseError, PdfResult},
     objects::{Dictionary, Object, ObjectType},
     stream::Stream,
-    Resolve,
+    Resolve, FromObj
 };
 
 use super::descriptor::FontDescriptor;
@@ -95,20 +92,7 @@ impl<'a> CidFontDictionary<'a> {
             FontDescriptor::from_dict(dict.expect_dict("FontDescriptor", resolver)?, resolver)?;
         let dw = dict.get_integer("DW", resolver)?.unwrap_or(1000);
         let w = dict.get_arr("W", resolver)?;
-        let dw2 = dict
-            .get_arr("DW2", resolver)?
-            .map(|arr| -> PdfResult<[f32; 2]> {
-                assert_len(&arr, 2)?;
-
-                Ok(arr
-                    .into_iter()
-                    .map(|obj| resolver.assert_number(obj))
-                    .collect::<PdfResult<Vec<f32>>>()?
-                    .try_into()
-                    .unwrap())
-            })
-            .transpose()?
-            .unwrap_or([880.0, -1000.0]);
+        let dw2 = dict.get("DW2", resolver)?.unwrap_or([880.0, -1000.0]);
         let w2 = dict.get_arr("W2", resolver)?;
         let cid_to_gid_map = dict
             .get_object("CIDToGIDMap", resolver)?
@@ -135,8 +119,8 @@ enum CidToGidMap<'a> {
     Stream(Stream<'a>),
 }
 
-impl<'a> CidToGidMap<'a> {
-    pub fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for CidToGidMap<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         Ok(match resolver.resolve(obj)? {
             Object::Name(ref name) if name == "Identity" => Self::Identity,
             Object::Stream(stream) => Self::Stream(stream),

@@ -1,4 +1,3 @@
-use core::panic;
 use std::{borrow::Cow, collections::HashMap, convert::TryFrom};
 
 use crate::{error::PdfResult, lex::LexBase};
@@ -367,8 +366,8 @@ impl<'a> PostscriptInterpreter<'a> {
         let n1 = self.pop()?;
 
         if n1.is_int() && n2.is_int() {
-            let n1 = n1.as_int()?;
-            let n2 = n2.as_int()?;
+            let n1 = n1.into_int()?;
+            let n2 = n2.into_int()?;
 
             match n1.checked_add(n2) {
                 Some(sum) => self.push(PostScriptObject::Int(sum)),
@@ -378,8 +377,8 @@ impl<'a> PostscriptInterpreter<'a> {
             return Ok(());
         }
 
-        let n1 = n1.as_float()?;
-        let n2 = n2.as_float()?;
+        let n1 = n1.into_float()?;
+        let n2 = n2.into_float()?;
 
         self.push(PostScriptObject::Float(n1 + n2));
 
@@ -690,7 +689,7 @@ impl<'a> PostscriptInterpreter<'a> {
 
         match composite_obj {
             PostScriptObject::String(s) => {
-                let idx = usize::try_from(key_or_idx.as_int()?)?;
+                let idx = usize::try_from(key_or_idx.into_int()?)?;
 
                 let ch = u8::try_from(match value {
                     PostScriptObject::Int(i) => i,
@@ -709,7 +708,7 @@ impl<'a> PostscriptInterpreter<'a> {
                 self.get_dict_mut(&dict).insert(key, value);
             }
             PostScriptObject::Array(arr) => {
-                let idx = usize::try_from(key_or_idx.as_int()?)?;
+                let idx = usize::try_from(key_or_idx.into_int()?)?;
 
                 self.get_arr_mut(arr).put(idx, value);
             }

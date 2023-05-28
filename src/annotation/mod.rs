@@ -310,7 +310,7 @@ impl BaseAnnotation {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct AnnotationFlags(u16);
 
 impl AnnotationFlags {
@@ -416,12 +416,6 @@ impl AnnotationFlags {
     /// properties, such as position and size.
     pub fn is_locked_contents(&self) -> bool {
         self.0 & Self::LOCKED_CONTENTS != 0
-    }
-}
-
-impl Default for AnnotationFlags {
-    fn default() -> Self {
-        Self(0)
     }
 }
 

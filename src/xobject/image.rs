@@ -160,10 +160,7 @@ impl<'a> ImageXObject<'a> {
             .transpose()?;
 
         let image_mask = dict.get_bool("ImageMask", resolver)?.unwrap_or(false);
-        let mask = dict
-            .get_object("Mask", resolver)?
-            .map(|obj| ImageMask::from_obj(obj, resolver))
-            .transpose()?;
+        let mask = dict.get("Mask", resolver)?;
         let decode = dict
             .get_arr("Decode", resolver)?
             .map(|arr| {
@@ -191,10 +188,7 @@ impl<'a> ImageXObject<'a> {
         let name = dict.get_name("Name", resolver)?;
         let struct_parent = dict.get_integer("StructParent", resolver)?;
         let id = dict.get_string("ID", resolver)?;
-        let opi = dict
-            .get_dict("OPI", resolver)?
-            .map(|dict| OpenPrepressInterface::from_dict(dict, resolver))
-            .transpose()?;
+        let opi = dict.get("OPI", resolver)?;
         let metadata = dict
             .get_stream("Metadata", resolver)?
             .map(|stream| MetadataStream::from_stream(stream, resolver))
@@ -327,11 +321,5 @@ impl<'a> AlternateImage<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
 pub struct ImageMask;
-
-impl ImageMask {
-    pub fn from_obj<'a>(_obj: Object, _resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        todo!()
-    }
-}

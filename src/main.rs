@@ -1,4 +1,13 @@
-#![allow(dead_code)]
+#![allow(
+    dead_code,
+    // sometimes we want to model the pdf names better
+    clippy::enum_variant_names,
+    // todo: someday we do want to fix these
+    clippy::large_enum_variant,
+    clippy::unit_arg,
+    clippy::manual_range_contains,
+    clippy::never_loop,
+)]
 
 #[macro_use]
 extern crate pdf_macro;
@@ -155,7 +164,7 @@ impl<'a> Lexer<'a> {
             None => {
                 let ObjectStream { stream, dict } = self.lex_object_stream(byte_offset)?;
 
-                let decoded_stream = decode_stream(&*stream, &dict.stream_dict, self)?;
+                let decoded_stream = decode_stream(&stream, &dict.stream_dict, self)?;
 
                 let parser = ObjectStreamParser::new(decoded_stream.into_owned(), dict)?;
 
@@ -169,7 +178,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn lex_page_tree(&mut self, xref: &Xref, root_reference: Reference) -> PdfResult<PageNode<'a>> {
-        if xref.get_offset(root_reference, self)?.is_none() {
+        if xref.get_offset(root_reference)?.is_none() {
             return Ok(PageNode::Root(Rc::new(RefCell::new(PageTree {
                 kids: Vec::new(),
                 pages: HashMap::new(),
@@ -357,7 +366,7 @@ impl<'a> Resolve<'a> for Lexer<'a> {
     fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object<'a>> {
         let init_pos = self.pos;
 
-        self.pos = match Rc::clone(&self.xref).get_offset(reference, self)? {
+        self.pos = match Rc::clone(&self.xref).get_offset(reference)? {
             Some(ByteOffset::MainFile(p)) => p,
             Some(ByteOffset::ObjectStream { byte_offset, .. }) => {
                 return self.lex_object_from_object_stream(byte_offset, reference);
@@ -485,7 +494,7 @@ fn main() -> PdfResult<()> {
     let mut parser = Parser::new("corpus/Christopher Smith Resume.pdf")?;
 
     for page in parser.pages() {
-        let mut content = parser.page_contents(&*page).unwrap();
+        let mut content = parser.page_contents(&page).unwrap();
 
         let renderer = render::Renderer::new(&mut content, &mut parser.lexer, Rc::clone(&page));
 

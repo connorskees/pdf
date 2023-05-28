@@ -1,6 +1,6 @@
 use std::{collections::HashMap, convert::TryFrom};
 
-use crate::{Lexer, PdfResult, Reference};
+use crate::{PdfResult, Reference};
 
 pub(crate) use parser::{TrailerOrOffset, XrefParser};
 
@@ -24,11 +24,7 @@ pub enum ByteOffset {
 }
 
 impl Xref {
-    pub fn get_offset(
-        &self,
-        reference: Reference,
-        lexer: &mut Lexer,
-    ) -> PdfResult<Option<ByteOffset>> {
+    pub fn get_offset(&self, reference: Reference) -> PdfResult<Option<ByteOffset>> {
         Ok(
             if let Some(entry) = self.objects.get(&reference.object_number) {
                 match entry {
@@ -40,13 +36,10 @@ impl Xref {
                         object_number,
                         index,
                     } => {
-                        let byte_offset = match self.get_offset(
-                            Reference {
-                                object_number: usize::try_from(object_number)?,
-                                generation: 0,
-                            },
-                            lexer,
-                        )? {
+                        let byte_offset = match self.get_offset(Reference {
+                            object_number: usize::try_from(object_number)?,
+                            generation: 0,
+                        })? {
                             Some(ByteOffset::MainFile(v)) => v,
                             Some(ByteOffset::ObjectStream { .. }) => todo!(),
                             None => return Ok(None),

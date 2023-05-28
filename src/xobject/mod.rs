@@ -1,4 +1,4 @@
-use crate::{error::PdfResult, objects::Dictionary, stream::Stream, Resolve};
+use crate::{error::PdfResult, stream::Stream, Resolve};
 
 pub use self::{form::FormXObject, image::ImageXObject, postscript::PostScriptXObject};
 
@@ -44,11 +44,5 @@ impl<'a> XObject<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
 pub struct OpenPrepressInterface;
-
-impl OpenPrepressInterface {
-    pub fn from_dict<'a>(_dict: Dictionary, _resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        todo!()
-    }
-}

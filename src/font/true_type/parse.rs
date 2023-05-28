@@ -296,7 +296,8 @@ impl<'a> TrueTypeParser<'a> {
         let version = self.read_u32()?;
         assert_eq!(version, 0x00010000);
         let font_revision = self.read_fixed()?;
-        let check_sum_adjustment = self.read_u32()?;
+        // todo: perhaps verify this?
+        let _check_sum_adjustment = self.read_u32()?;
         let magic_number = self.read_u32()?;
         assert_eq!(magic_number, 0x5F0F3CF5);
 
@@ -313,9 +314,6 @@ impl<'a> TrueTypeParser<'a> {
         let font_direction_hint = self.read_i16()?;
         let index_to_loc_format = self.read_i16()?;
         let glyph_data_format = self.read_i16()?;
-
-        // todo: perhaps verify this?
-        drop(check_sum_adjustment);
 
         Some(Head {
             font_revision,

@@ -36,7 +36,7 @@ impl PostScriptObject {
         matches!(self, Self::Int(..))
     }
 
-    pub fn as_int(self) -> PostScriptResult<i32> {
+    pub fn into_int(self) -> PostScriptResult<i32> {
         match self {
             PostScriptObject::Int(n) => Ok(n),
             PostScriptObject::Float(f) => Ok(f.round() as i32),
@@ -44,7 +44,7 @@ impl PostScriptObject {
         }
     }
 
-    pub fn as_float(self) -> PostScriptResult<f32> {
+    pub fn into_float(self) -> PostScriptResult<f32> {
         match self {
             PostScriptObject::Int(n) => Ok(n as f32),
             PostScriptObject::Float(f) => Ok(f),
@@ -53,11 +53,12 @@ impl PostScriptObject {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(super) enum Access {
     /// Normally, objects have unlimited access: all operations defined for that
     /// object are allowed. However, packed array objects always have read-only
     /// (or even more restricted) access
+    #[default]
     Unlimited,
 
     /// An object with read-only access may not have its value written, but may
@@ -72,12 +73,6 @@ pub(super) enum Access {
     /// language program. Such objects are not of any direct use to PostScript language
     /// programs, but serve internal purposes that are not documented
     None,
-}
-
-impl Default for Access {
-    fn default() -> Self {
-        Access::Unlimited
-    }
 }
 
 #[derive(Debug, Clone)]

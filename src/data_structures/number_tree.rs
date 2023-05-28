@@ -5,7 +5,7 @@ use crate::{
     catalog::assert_len,
     error::PdfResult,
     objects::{Dictionary, Object},
-    Resolve, FromObj
+    FromObj, Resolve,
 };
 
 /// A number tree is similar to a name tree, except that its keys shall be integers instead of
@@ -90,7 +90,7 @@ struct Limit {
 }
 
 impl Limit {
-    pub fn from_arr<'a>(mut arr: Vec<Object>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         assert_len(&arr, 2)?;
 
         let max = resolver.assert_integer(arr.pop().unwrap())?;

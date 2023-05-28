@@ -101,7 +101,7 @@ impl Matrix {
         Self::new(1.0, a.tan(), b.tan(), 1.0, 0.0, 0.0)
     }
 
-    pub fn from_arr<'a>(mut arr: Vec<Object>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         assert_len(&arr, 6)?;
 
         let f = resolver.assert_number(arr.pop().unwrap())?;

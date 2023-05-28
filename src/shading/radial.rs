@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use crate::{
     catalog::assert_len,
     error::PdfResult,
@@ -48,35 +46,9 @@ pub struct RadialShading<'a> {
 impl<'a> RadialShading<'a> {
     pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let coords = Coords::from_arr(dict.expect_arr("Coords", resolver)?, resolver)?;
-        let domain = dict
-            .get_arr("Domain", resolver)?
-            .map(|arr| -> PdfResult<[f32; 2]> {
-                assert_len(&arr, 2)?;
-
-                Ok(arr
-                    .into_iter()
-                    .map(|obj| resolver.assert_number(obj))
-                    .collect::<PdfResult<Vec<f32>>>()?
-                    .try_into()
-                    .unwrap())
-            })
-            .transpose()?
-            .unwrap_or([0.0, 1.0]);
+        let domain = dict.get("Domain", resolver)?.unwrap_or([0.0, 1.0]);
         let function = dict.expect::<Function>("Function", resolver)?;
-        let extend = dict
-            .get_arr("Domain", resolver)?
-            .map(|arr| -> PdfResult<[bool; 2]> {
-                assert_len(&arr, 2)?;
-
-                Ok(arr
-                    .into_iter()
-                    .map(|obj| resolver.assert_bool(obj))
-                    .collect::<PdfResult<Vec<bool>>>()?
-                    .try_into()
-                    .unwrap())
-            })
-            .transpose()?
-            .unwrap_or([false, false]);
+        let extend = dict.get("Domain", resolver)?.unwrap_or([false, false]);
 
         Ok(Self {
             coords,
@@ -94,7 +66,7 @@ struct Coords {
 }
 
 impl Coords {
-    pub fn from_arr<'a>(mut arr: Vec<Object>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         assert_len(&arr, 6)?;
 
         let end = Circle::from_arr(arr.split_off(3), resolver)?;
@@ -112,7 +84,7 @@ struct Circle {
 }
 
 impl Circle {
-    pub fn from_arr<'a>(mut arr: Vec<Object>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         assert_len(&arr, 3)?;
 
         let radius = resolver.assert_number(arr.pop().unwrap())?;

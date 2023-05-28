@@ -69,7 +69,6 @@ impl<'a> XrefStreamDict<'a> {
             .map(|index| {
                 index
                     .chunks_exact(2)
-                    .into_iter()
                     .map(|obj| {
                         let obj_number = obj[0].clone();
                         let num_of_entries = obj[1].clone();
@@ -112,7 +111,10 @@ pub(crate) struct XrefStreamFieldWidths {
 }
 
 impl XrefStreamFieldWidths {
-    pub fn from_arr<'a>(mut arr: Vec<Object>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+    pub fn from_arr<'a>(
+        mut arr: Vec<Object<'a>>,
+        resolver: &mut dyn Resolve<'a>,
+    ) -> PdfResult<Self> {
         assert_len(&arr, 3)?;
 
         let field2 = resolver.assert_unsigned_integer(arr.pop().unwrap())?;

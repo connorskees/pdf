@@ -44,7 +44,7 @@ pub struct ExplicitDestination {
 }
 
 impl ExplicitDestination {
-    pub fn from_arr<'a>(mut arr: Vec<Object>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         if arr.len() < 2 {
             anyhow::bail!(ParseError::ArrayOfInvalidLength { expected: 2 });
         }

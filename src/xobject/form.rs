@@ -122,10 +122,7 @@ impl<'a> FormXObject<'a> {
         let last_modified = dict.get::<Date>("LastModified", resolver)?;
         let struct_parent = dict.get_integer("StructParent", resolver)?;
         let struct_parents = dict.get_integer("StructParents", resolver)?;
-        let opi = dict
-            .get_dict("OPI", resolver)?
-            .map(|dict| OpenPrepressInterface::from_dict(dict, resolver))
-            .transpose()?;
+        let opi = dict.get("OPI", resolver)?;
         let oc = dict.get("OC", resolver)?;
 
         let name = dict.get_name("Name", resolver)?;

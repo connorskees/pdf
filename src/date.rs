@@ -84,18 +84,15 @@ impl Date {
         unit!(minute, 2);
         unit!(second, 2);
         date.ut_relationship = chars.next().map(UtRelationship::from_byte).transpose()?;
-        match chars.peek().cloned() {
-            Some(b'\'') => {
-                chars.next();
+        if chars.peek() == Some(&b'\'') {
+            chars.next();
 
-                if chars.peek().is_some() {
-                    anyhow::bail!(ParseError::MismatchedByte {
-                        expected: b'\'',
-                        found: chars.next(),
-                    });
-                }
+            if chars.peek().is_some() {
+                anyhow::bail!(ParseError::MismatchedByte {
+                    expected: b'\'',
+                    found: chars.next(),
+                });
             }
-            _ => {}
         }
         unit!(ut_hour_offset, 2);
         match chars.next() {

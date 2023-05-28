@@ -91,7 +91,7 @@ struct Limit {
 }
 
 impl Limit {
-    pub fn from_arr<'a>(mut arr: Vec<Object>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
         assert_len(&arr, 2)?;
 
         let max = resolver.assert_string(arr.pop().unwrap())?;

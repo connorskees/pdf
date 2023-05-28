@@ -189,13 +189,15 @@ impl BlendMode {
             _ => Self::Unknown(s),
         }
     }
+}
 
-    pub fn from_obj<'a>(obj: Object<'a>, lexer: &mut dyn Resolve) -> PdfResult<Self> {
-        Ok(match obj {
+impl<'a> FromObj<'a> for BlendMode {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        Ok(match resolver.resolve(obj)? {
             Object::Name(name) => Self::from_str(name),
             Object::Array(objs) => Self::Array(
                 objs.into_iter()
-                    .map(|obj| lexer.assert_name(obj).map(Self::from_str))
+                    .map(|obj| resolver.assert_name(obj).map(Self::from_str))
                     .collect::<PdfResult<Vec<Self>>>()?,
             ),
             _ => {

@@ -258,7 +258,7 @@ impl CharStrings {
         Ok(Self(char_strings))
     }
 
-    pub(crate) fn from_string(&self, s: &PostScriptString) -> Option<&CharString> {
+    pub(crate) fn get_by_name(&self, s: &PostScriptString) -> Option<&CharString> {
         self.0.get(s).or_else(|| {
             self.0
                 .get(&PostScriptString::from_bytes(b".notdef".to_vec()))
@@ -316,7 +316,7 @@ impl<'a> CharStringPainter<'a> {
 
         let charstring_name = self.encoding.get(char_code);
 
-        if let Some(charstring) = self.char_strings.from_string(charstring_name.borrow()) {
+        if let Some(charstring) = self.char_strings.get_by_name(charstring_name.borrow()) {
             let glyph = self.evaluate_as_subroutine(charstring)?;
 
             self.gylph_cache.insert(char_code, glyph.clone());

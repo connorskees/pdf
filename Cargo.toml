@@ -2,7 +2,7 @@
 name = "pdf_parser"
 version = "0.1.0"
 authors = ["Connor Skees <connor1skees@gmail.com>"]
-edition = "2018"
+edition = "2021"
 documentation = "https://docs.rs/pdf_parser"
 readme = "README.md"
 repository = "https://github.com/connorskees/pdf/"
