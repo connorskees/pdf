@@ -1,4 +1,6 @@
-use super::{CubicBezierCurve, Line, Point};
+use crate::data_structures::Matrix;
+
+use super::{BoundingBox, CubicBezierCurve, Line, Point};
 
 #[derive(Debug, Clone, Copy)]
 pub struct QuadraticBezierCurve {
@@ -16,6 +18,14 @@ struct Parabola {
 }
 
 impl QuadraticBezierCurve {
+    pub fn new(start: Point, end: Point, control_point: Point) -> Self {
+        Self {
+            start,
+            control_point,
+            end,
+        }
+    }
+
     fn into_cubic(self) -> CubicBezierCurve {
         let q0 = self.start;
         let q1 = (1.0 / 3.0) * self.start + (2.0 / 3.0) * self.control_point;
@@ -25,7 +35,7 @@ impl QuadraticBezierCurve {
         CubicBezierCurve::new(q0, q3, q1, q2)
     }
 
-    fn basis(&self, t: f32) -> Point {
+    pub fn basis(&self, t: f32) -> Point {
         let t2 = t * t;
         let mt = 1.0 - t;
         let mt2 = mt * mt;
@@ -105,5 +115,16 @@ impl QuadraticBezierCurve {
             scale,
             cross,
         }
+    }
+
+    pub fn bounding_box(&self) -> BoundingBox {
+        // todo: suboptimal
+        self.into_cubic().bounding_box()
+    }
+
+    pub fn apply_transform(&mut self, transformation: Matrix) {
+        self.start *= transformation;
+        self.end *= transformation;
+        self.control_point *= transformation;
     }
 }

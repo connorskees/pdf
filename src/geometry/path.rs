@@ -1,10 +1,11 @@
 use crate::data_structures::Matrix;
 
-use super::{BoundingBox, CubicBezierCurve, Line, Point};
+use super::{BoundingBox, CubicBezierCurve, Line, Point, QuadraticBezierCurve};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Subpath {
     Line(Line),
+    Quadratic(QuadraticBezierCurve),
     Cubic(CubicBezierCurve),
 }
 
@@ -12,6 +13,7 @@ impl Subpath {
     pub fn apply_transform(&mut self, transformation: Matrix) {
         match self {
             Self::Line(line) => line.apply_transform(transformation),
+            Self::Quadratic(curve) => curve.apply_transform(transformation),
             Self::Cubic(curve) => curve.apply_transform(transformation),
         }
     }
@@ -19,6 +21,7 @@ impl Subpath {
     pub fn bounding_box(&self) -> BoundingBox {
         match self {
             Self::Line(line) => line.bounding_box(),
+            Self::Quadratic(curve) => curve.bounding_box(),
             Self::Cubic(curve) => curve.bounding_box(),
         }
     }
@@ -103,6 +106,13 @@ impl Path {
                         count += 1;
                     }
                 }
+                Subpath::Quadratic(curve) => {
+                    for line2 in curve.subdivide(0.01) {
+                        if line2.intersects_line(line) {
+                            count += 1;
+                        }
+                    }
+                }
                 Subpath::Cubic(curve) => {
                     for line2 in curve.approximate_quadratic().subdivide(0.01) {
                         if line2.intersects_line(line) {
@@ -114,6 +124,16 @@ impl Path {
         }
 
         (count & 1) != 0
+    }
+
+    pub fn quadratic_curve_to(&mut self, control_point: Point, end: Point) {
+        self.subpaths
+            .push(Subpath::Quadratic(QuadraticBezierCurve::new(
+                self.current_point,
+                end,
+                control_point,
+            )));
+        self.current_point = end;
     }
 
     pub fn cubic_curve_to(
