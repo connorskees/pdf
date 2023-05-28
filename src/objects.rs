@@ -121,10 +121,16 @@ impl<'a> Dictionary<'a> {
     ) -> PdfResult<Option<T>> {
         self.dict
             .remove(key)
-            .and_then(|obj| match resolver.resolve(obj) {
-                Ok(obj) if obj == Object::Null => None,
-                Ok(obj) => Some(T::from_obj(obj, resolver)),
-                Err(e) => Some(Err(e)),
+            .and_then(|obj| match obj {
+                Object::Null => None,
+                Object::Reference(reference) => {
+                    match resolver.resolve(Object::Reference(reference)) {
+                        Ok(obj) if obj == Object::Null => None,
+                        Ok(..) => Some(T::from_obj(obj, resolver)),
+                        Err(e) => Some(Err(e)),
+                    }
+                }
+                obj => Some(T::from_obj(obj, resolver)),
             })
             .transpose()
     }
