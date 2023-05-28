@@ -32,11 +32,11 @@ pub struct SimpleGlyph {
 
     /// Array of x-coordinates; the first is relative to (0,0), others are relative
     /// to previous point
-    pub(crate) x_coords: Vec<u16>,
+    pub(crate) x_coords: Vec<i16>,
 
     /// Array of y-coordinates; the first is relative to (0,0), others are relative
     /// to previous point
-    pub(crate) y_coords: Vec<u16>,
+    pub(crate) y_coords: Vec<i16>,
 }
 
 #[derive(Debug)]
@@ -46,15 +46,39 @@ pub enum TrueTypeGlyph {
 }
 
 #[derive(Debug)]
-struct OutlineFlag(u8);
+pub struct OutlineFlag(u8);
 
 impl OutlineFlag {
+    /// If set, the point is on the curve; otherwise, it is off the curve
     pub const ON_CURVE: u8 = 1 << 0;
+
+    /// If set, the corresponding x-coordinate is 1 byte long; Otherwise, the
+    /// corresponding x-coordinate is 2 bytes long
     pub const X_SHORT_VECTOR: u8 = 1 << 1;
+
+    /// If set, the corresponding y-coordinate is 1 byte long; Otherwise, the
+    /// corresponding y-coordinate is 2 bytes long
     pub const Y_SHORT_VECTOR: u8 = 1 << 2;
+
+    /// If set, the next byte specifies the number of additional times this set
+    /// of flags is to be repeated. In this way, the number of flags listed can
+    /// be smaller than the number of points in a character.
     pub const REPEAT: u8 = 1 << 3;
-    pub const POSITIVE_X_SHORT_VECTOR: u8 = 1 << 4;
-    pub const POSITIVE_Y_SHORT_VECTOR: u8 = 1 << 5;
+
+    /// This flag has one of two meanings, depending on how the x-Short Vector
+    /// flag is set.
+    ///
+    /// If the x-Short Vector bit is set, this bit describes the sign of the
+    /// value, with a value of 1 equalling positive and a zero value negative.
+    ///
+    /// If the x-short Vector bit is not set, and this bit is set, then the
+    /// current x-coordinate is the same as the previous x-coordinate.
+    ///
+    /// If the x-short Vector bit is not set, and this bit is not set, the current
+    /// x-coordinate is a signed 16-bit delta vector. In this case, the delta
+    /// vector is the change in x
+    pub const X_SAME_OR_POSITIVE: u8 = 1 << 4;
+    pub const Y_SAME_OR_POSITIVE: u8 = 1 << 5;
 }
 
 #[derive(Debug)]

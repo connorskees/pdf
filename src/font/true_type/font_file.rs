@@ -9,11 +9,11 @@ use super::{
 
 #[derive(Debug)]
 pub struct ParsedTrueTypeFontFile<'a> {
-    font_directory: FontDirectory,
-    head: Head,
-    maxp: MaxpTable,
-    loca: LocaTable,
-    cvt: CvtTable,
+    pub font_directory: FontDirectory,
+    pub head: Head,
+    pub maxp: MaxpTable,
+    pub loca: LocaTable,
+    pub cvt: CvtTable,
     parser: TrueTypeParser<'a>,
 }
 
@@ -91,6 +91,12 @@ impl<'a> ParsedTrueTypeFontFile<'a> {
 
         self.parser.cursor = glyf_offset as usize;
         let glyf = self.parser.parse_glyph().unwrap();
+
+        // todo: this should be true
+        // assert_eq!(
+        //     glyf_entry.len as usize,
+        //     self.parser.cursor - glyf_offset as usize
+        // );
 
         Ok(glyf)
     }

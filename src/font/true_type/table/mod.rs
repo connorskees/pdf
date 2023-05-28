@@ -1,3 +1,4 @@
+mod cmap;
 mod cvt;
 mod font_directory;
 mod glyf;
@@ -8,10 +9,11 @@ mod name;
 mod table_name;
 mod tag;
 
+pub use cmap::CmapTable;
 pub use cvt::CvtTable;
 pub use font_directory::{DirectoryTableEntry, FontDirectory, OffsetSubtable, TableDirectory};
 pub use glyf::{
-    CompoundGlyphPartDescription, GlyfTable, GlyphDescription, SimpleGlyph, TrueTypeGlyph,
+    CompoundGlyphPartDescription, GlyfTable, GlyphDescription, SimpleGlyph, TrueTypeGlyph,OutlineFlag
 };
 pub use head::{Head, HeadFlags, MacStyle};
 pub use loca::LocaTable;

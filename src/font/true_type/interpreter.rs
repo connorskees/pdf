@@ -1,15 +1,18 @@
 #![allow(unused)]
 
+use std::collections::VecDeque;
+
 use anyhow::anyhow;
 
 use crate::{
     font::{true_type::table::TrueTypeGlyph, Glyph},
-    geometry::Point,
+    geometry::{Outline, Path, Point},
 };
 
 use super::{
-    graphics_state::{RoundState, TrueTypeGraphicsState, Vector},
+    graphics_state::{RoundState, TrueTypeGraphicsState, Vector, Zone},
     instruction::TrueTypeInstruction,
+    table::OutlineFlag,
     F26Dot6, ParsedTrueTypeFontFile,
 };
 
@@ -90,7 +93,7 @@ impl InstructionStream {
             0x3E..=0x3F => TrueTypeInstruction::MoveIndirectAbsolutePoint(b - 0x3E),
             0x8C => TrueTypeInstruction::Min,
             0x26 => TrueTypeInstruction::MoveIndexed,
-            0xE0..=0xFF => TrueTypeInstruction::MoveIndirectRelativePoint,
+            0xE0..=0xFF => TrueTypeInstruction::MoveIndirectRelativePoint(b - 0xE0),
             0x4B => TrueTypeInstruction::MeasurePixelsPerEm,
             0x4C => TrueTypeInstruction::MeasurePointSize,
             0x3A..=0x3B => TrueTypeInstruction::MoveStackIndirectRelativePoint,
@@ -163,8 +166,95 @@ pub struct TrueTypeInterpreter<'a, 'b> {
     graphics_state: TrueTypeGraphicsState,
     ttf_file: &'b mut ParsedTrueTypeFontFile<'a>,
     storage_area: Vec<u32>,
+    original_positions: Vec<Point>,
     glyph_zone: Vec<Point>,
     twilight_zone: Vec<Point>,
+}
+
+struct PointIterator<'a> {
+    x_coords: &'a [i16],
+    y_coords: &'a [i16],
+    flags: &'a [u8],
+    cursor: usize,
+    queue: VecDeque<(Point, u8)>,
+    last_point: Point,
+    last_on_curve: bool,
+    first_point_on_curve: Option<Point>,
+}
+
+impl<'a> PointIterator<'a> {
+    pub fn new(x_coords: &'a [i16], y_coords: &'a [i16], flags: &'a [u8]) -> Self {
+        assert_eq!(x_coords.len(), y_coords.len());
+        assert_eq!(x_coords.len(), flags.len());
+
+        assert!(flags[0] & OutlineFlag::ON_CURVE != 0 || flags[1] & OutlineFlag::ON_CURVE != 0);
+
+        Self {
+            x_coords,
+            y_coords,
+            flags,
+            cursor: 0,
+            queue: VecDeque::new(),
+            last_point: Point::origin(),
+            last_on_curve: false,
+            first_point_on_curve: None,
+        }
+    }
+
+    fn next_point(&mut self) -> Option<Point> {
+        if let Some((point, flag)) = self.queue.pop_front() {
+            return Some(point);
+        }
+
+        let is_last = self.x_coords.get(self.cursor).is_none();
+
+        if is_last && !self.last_on_curve {
+            self.last_on_curve = true;
+            return self.first_point_on_curve;
+        }
+
+        let x = *self.x_coords.get(self.cursor)? as f32 / 2048.0;
+        let y = *self.y_coords.get(self.cursor)? as f32 / 2048.0;
+        let flag = *self.flags.get(self.cursor)?;
+
+        let mut point = Point { x, y };
+        let on_curve = flag & OutlineFlag::ON_CURVE != 0;
+
+        if self.cursor == 0 && !on_curve {
+            self.queue.push_back((point, flag));
+
+            self.last_on_curve = true;
+            self.cursor += 1;
+
+            self.first_point_on_curve = Some(point.midpoint(Point::origin()));
+
+            return Some(point.midpoint(Point::origin()));
+        } else {
+            self.first_point_on_curve.get_or_insert(point);
+        }
+
+        self.last_point = point;
+
+        if (on_curve && self.last_on_curve) || (!on_curve && !self.last_on_curve) {
+            self.queue.push_back((point, flag));
+
+            point = point.midpoint(self.last_point);
+        }
+
+        self.last_on_curve = on_curve;
+
+        self.cursor += 1;
+
+        Some(point)
+    }
+}
+
+impl<'a> Iterator for PointIterator<'a> {
+    type Item = Point;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next_point()
+    }
 }
 
 impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
@@ -177,6 +267,7 @@ impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
             graphics_state: TrueTypeGraphicsState::default(),
             ttf_file,
             storage_area: vec![0; storage_area_size as usize],
+            original_positions: Vec::new(),
             glyph_zone: Vec::new(),
             twilight_zone: vec![Point::origin(); max_twilight_points as usize],
         }
@@ -189,34 +280,88 @@ impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
 
         let mut relative = Point::origin();
 
-        self.glyph_zone = match &ttf_glyph {
-            TrueTypeGlyph::Simple(simple) => simple
-                .x_coords
-                .iter()
-                .zip(simple.y_coords.iter())
-                .map(|(&x, &y)| {
-                    relative.x += x as f32;
-                    relative.y += y as f32;
-                    Point::new(relative.x, relative.y)
-                })
-                .collect::<Vec<_>>(),
+        let simple = match ttf_glyph {
+            TrueTypeGlyph::Simple(simple) => simple,
             TrueTypeGlyph::Compound(_) => todo!(),
         };
 
-        self.instruction_stream = match ttf_glyph {
-            TrueTypeGlyph::Simple(simple) => InstructionStream::new(simple.instructions),
-            TrueTypeGlyph::Compound(_) => todo!(),
-        };
+        let mut points = PointIterator::new(&simple.x_coords, &simple.y_coords, &simple.flags);
 
-        self.execute().unwrap();
+        // todo: initialize glyph zone and initial positions
+        self.instruction_stream = InstructionStream::new(simple.instructions);
 
-        Some(Glyph::empty())
+        let mut paths = Vec::new();
+
+        let mut start = 0;
+        for contour_end in simple.end_points_of_contours {
+            let mut path = None;
+            let contour_end = contour_end as usize;
+
+            let x_coords = &simple.x_coords[start..contour_end];
+            let y_coords = &simple.y_coords[start..contour_end];
+            let flags = &simple.flags[start..contour_end];
+
+            let mut points = PointIterator::new(x_coords, y_coords, flags);
+            // assert_eq!(num_points.len() % 2, 1);
+
+            let p1 = points.next();
+
+            while let Some(c1) = points.next() {
+                let p2 = match points.next() {
+                    Some(v) => v,
+                    None => continue,
+                };
+                let path = path.get_or_insert_with(|| Path::new(p1.unwrap()));
+
+                path.quadratic_curve_to(c1, p2);
+            }
+
+            if let Some(mut path) = path.take() {
+                paths.push(path);
+            }
+
+            start = contour_end;
+        }
+
+        // self.execute().unwrap();
+
+        // assert!(self.interpreter_stack.is_empty());
+
+        let outline = Outline { paths };
+
+        Some(Glyph {
+            width_vector: outline.bounding_box().max - outline.bounding_box().min,
+            outline,
+        })
+    }
+
+    pub fn reset(&mut self) {
+        self.interpreter_stack.clear();
+        self.graphics_state = TrueTypeGraphicsState::default();
+        self.storage_area.fill(0);
+        self.twilight_zone.fill(Point::origin());
+        self.original_positions.clear();
+        self.glyph_zone.clear();
     }
 
     fn pop(&mut self) -> anyhow::Result<u32> {
         self.interpreter_stack
             .pop()
             .ok_or(anyhow!("stack underflow"))
+    }
+
+    fn original_position(&self, zone: Zone, idx: u32) -> Point {
+        match zone {
+            Zone::Twilight => Point::origin(),
+            Zone::Glyph => self.original_positions[idx as usize],
+        }
+    }
+
+    fn zone(&self, zone: Zone) -> &[Point] {
+        match zone {
+            Zone::Twilight => &self.twilight_zone,
+            Zone::Glyph => &self.glyph_zone,
+        }
     }
 
     fn pop_f26dot6(&mut self) -> anyhow::Result<F26Dot6> {
@@ -232,7 +377,7 @@ impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
                 TrueTypeInstruction::AbsoluteValue => todo!(),
                 TrueTypeInstruction::Add => todo!(),
                 TrueTypeInstruction::AlignPoints => todo!(),
-                TrueTypeInstruction::AlignToReferencePoint => todo!(),
+                TrueTypeInstruction::AlignToReferencePoint => self.alignrp()?,
                 TrueTypeInstruction::And => todo!(),
                 TrueTypeInstruction::Call => self.call()?,
                 TrueTypeInstruction::Ceiling => todo!(),
@@ -285,7 +430,7 @@ impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
                 TrueTypeInstruction::MoveIndirectAbsolutePoint(a) => self.miap(a)?,
                 TrueTypeInstruction::Min => todo!(),
                 TrueTypeInstruction::MoveIndexed => todo!(),
-                TrueTypeInstruction::MoveIndirectRelativePoint => todo!(),
+                TrueTypeInstruction::MoveIndirectRelativePoint(abcde) => self.mirp(abcde)?,
                 TrueTypeInstruction::MeasurePixelsPerEm => todo!(),
                 TrueTypeInstruction::MeasurePointSize => todo!(),
                 TrueTypeInstruction::MoveStackIndirectRelativePoint => todo!(),
@@ -347,7 +492,7 @@ impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
                 TrueTypeInstruction::SetZonePointer0 => self.szp0()?,
                 TrueTypeInstruction::SetZonePointer1 => self.szp1()?,
                 TrueTypeInstruction::SetZonePointer2 => self.szp2()?,
-                TrueTypeInstruction::SetZonePointerS => self.szp_s()?,
+                TrueTypeInstruction::SetZonePointerS => self.szps()?,
                 TrueTypeInstruction::UnTouchPoint => todo!(),
                 TrueTypeInstruction::WriteControlValueTableInFunits => todo!(),
                 TrueTypeInstruction::WriteControlValueTableInPixels => todo!(),
@@ -356,12 +501,6 @@ impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
         }
 
         Ok(())
-    }
-
-    pub fn reset(&mut self) {
-        self.interpreter_stack.clear();
-        self.graphics_state = TrueTypeGraphicsState::default();
-        self.storage_area.fill(0);
     }
 }
 
@@ -392,9 +531,11 @@ impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
     fn szp0(&mut self) -> anyhow::Result<()> {
         let zone_number = self.pop()?;
 
-        anyhow::ensure!(zone_number == 0 || zone_number == 1);
-
-        self.graphics_state.zp0 = zone_number;
+        self.graphics_state.zp0 = match zone_number {
+            0 => Zone::Twilight,
+            1 => Zone::Glyph,
+            _ => anyhow::bail!("invalid zone: {:?}", zone_number),
+        };
 
         Ok(())
     }
@@ -402,9 +543,11 @@ impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
     fn szp1(&mut self) -> anyhow::Result<()> {
         let zone_number = self.pop()?;
 
-        anyhow::ensure!(zone_number == 0 || zone_number == 1);
-
-        self.graphics_state.zp1 = zone_number;
+        self.graphics_state.zp1 = match zone_number {
+            0 => Zone::Twilight,
+            1 => Zone::Glyph,
+            _ => anyhow::bail!("invalid zone: {:?}", zone_number),
+        };
 
         Ok(())
     }
@@ -412,21 +555,25 @@ impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
     fn szp2(&mut self) -> anyhow::Result<()> {
         let zone_number = self.pop()?;
 
-        anyhow::ensure!(zone_number == 0 || zone_number == 1);
-
-        self.graphics_state.zp2 = zone_number;
+        self.graphics_state.zp2 = match zone_number {
+            0 => Zone::Twilight,
+            1 => Zone::Glyph,
+            _ => anyhow::bail!("invalid zone: {:?}", zone_number),
+        };
 
         Ok(())
     }
 
-    fn szp_s(&mut self) -> anyhow::Result<()> {
-        let zone_number = self.pop()?;
+    fn szps(&mut self) -> anyhow::Result<()> {
+        let zone = match self.pop()? {
+            0 => Zone::Twilight,
+            1 => Zone::Glyph,
+            n => anyhow::bail!("invalid zone: {:?}", n),
+        };
 
-        anyhow::ensure!(zone_number == 0 || zone_number == 1);
-
-        self.graphics_state.zp0 = zone_number;
-        self.graphics_state.zp1 = zone_number;
-        self.graphics_state.zp2 = zone_number;
+        self.graphics_state.zp0 = zone;
+        self.graphics_state.zp1 = zone;
+        self.graphics_state.zp2 = zone;
 
         Ok(())
     }
@@ -511,6 +658,16 @@ impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
         Ok(())
     }
 
+    fn alignrp(&mut self) -> anyhow::Result<()> {
+        for _ in 0..self.graphics_state.loop_counter {
+            let point_number = self.pop()?;
+        }
+
+        println!("ALIGNRP not yet implemented");
+
+        Ok(())
+    }
+
     fn call(&mut self) -> anyhow::Result<()> {
         let function_identifier = self.pop()?;
 
@@ -571,9 +728,9 @@ impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
     }
 
     fn ip(&mut self) -> anyhow::Result<()> {
-        let point_number = self.pop()?;
-        // let p2 = self.pop()?;
-        // let ploop_value = self.pop()?;
+        for _ in 0..self.graphics_state.loop_counter {
+            let point_number = self.pop()?;
+        }
 
         println!("IP not yet implemented");
 
@@ -603,9 +760,33 @@ impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
     }
 
     fn shp(&mut self, a: u8) -> anyhow::Result<()> {
-        let point_number = self.pop()?;
+        let delta = match a {
+            // uses rp2 in the zone pointed to by zp1
+            0 => {
+                let original =
+                    self.original_position(self.graphics_state.zp1, self.graphics_state.rp2);
+                let zone = self.zone(self.graphics_state.zp1);
+                let current = zone[self.graphics_state.rp2 as usize];
 
-        println!("SHP not yet implemented");
+                current - original
+            }
+            // uses rp1 in the zone pointed to by zp0
+            1 => {
+                let original =
+                    self.original_position(self.graphics_state.zp0, self.graphics_state.rp1);
+                let zone = self.zone(self.graphics_state.zp0);
+                let current = zone[self.graphics_state.rp1 as usize];
+
+                current - original
+            }
+            _ => anyhow::bail!("invalid flag {:?}", a),
+        };
+
+        for _ in 0..self.graphics_state.loop_counter {
+            let point_number = self.pop()?;
+
+            self.glyph_zone[point_number as usize] += delta;
+        }
 
         Ok(())
     }
@@ -626,6 +807,15 @@ impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
         Ok(())
     }
 
+    fn mirp(&mut self, abcde: u8) -> anyhow::Result<()> {
+        let cvt_entry_number = self.pop()?;
+        let point_number = self.pop()?;
+
+        println!("MIRP not yet implemented");
+
+        Ok(())
+    }
+
     fn miap(&mut self, a: u8) -> anyhow::Result<()> {
         let cvt_entry_number = self.pop_f26dot6()?;
         let point_number = self.pop()?;
@@ -638,16 +828,7 @@ impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
         self.graphics_state.rp0 = point_number;
         self.graphics_state.rp1 = point_number;
 
-        // let point = self.glyph_zone.get_mut(point_number as usize).unwrap();
-
-        // point.x = cvt_entry.0 as f32;
-
         println!("MIAP not yet implemented");
-        // match a {
-        //     0 => todo!(),
-        //     1 => todo!(),
-        //     _ => anyhow::bail!("invalid flag {:?}", a),
-        // }
 
         Ok(())
     }

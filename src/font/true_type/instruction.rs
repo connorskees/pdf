@@ -384,7 +384,7 @@ pub enum TrueTypeInstruction {
     /// the top of the stack
     MoveIndexed,
 
-    MoveIndirectRelativePoint,
+    MoveIndirectRelativePoint(u8),
 
     /// Pushes the current number of pixels per em onto the stack. Pixels per em
     /// is a function of the resolution of the rendering device and the current

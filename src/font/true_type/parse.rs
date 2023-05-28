@@ -6,7 +6,7 @@ use super::{
     table::{
         CompoundGlyphPartDescription, CvtTable, DirectoryTableEntry, FontDirectory, GlyfTable,
         Head, HeadFlags, LocaTable, MacStyle, MaxpTable, NameRecord, NameTable, OffsetSubtable,
-        SimpleGlyph, TableDirectory, TableTag, TrueTypeGlyph,
+        OutlineFlag, SimpleGlyph, TableDirectory, TableTag, TrueTypeGlyph,
     },
     FWord, LongDateTime,
 };
@@ -169,22 +169,23 @@ impl<'a> TrueTypeParser<'a> {
         })
     }
 
-    pub fn parse_simple_glyph_flags(&mut self, number_of_contours: i16) -> Vec<u8> {
+    pub fn parse_simple_glyph_flags(&mut self, number_of_points: usize) -> Vec<u8> {
         let mut flags = Vec::new();
 
-        while flags.len() < number_of_contours as usize {
+        while flags.len() < number_of_points {
             let next = self.next().unwrap();
             let should_repeat = next & 0b1000 != 0;
             flags.push(next);
+
             if should_repeat {
                 let num_repeat = self.next().unwrap();
                 for _ in 0..num_repeat {
-                    // flags.push(next);
+                    flags.push(next);
                 }
             }
         }
 
-        assert_eq!(flags.len(), number_of_contours as usize);
+        assert_eq!(flags.len(), number_of_points);
 
         flags
     }
@@ -199,26 +200,51 @@ impl<'a> TrueTypeParser<'a> {
 
         let instruction_length = self.read_u16().unwrap();
         let instructions = self.get_byte_range(instruction_length as usize).to_vec();
+        self.cursor += instruction_length as usize;
 
-        let flags = self.parse_simple_glyph_flags(number_of_contours);
+        let number_of_points = *end_points_of_contours.last().unwrap() as usize + 1;
 
-        let mut x_coords = Vec::new();
-        let mut y_coords = Vec::new();
+        let flags = self.parse_simple_glyph_flags(number_of_points);
 
+        let mut x_coords = Vec::with_capacity(number_of_points);
+        let mut y_coords = Vec::with_capacity(number_of_points);
+
+        let mut last_x = 0;
         for &flag in &flags {
-            if flag & 0b10 != 0 {
-                x_coords.push(self.next().unwrap() as u16);
-            } else {
-                x_coords.push(self.read_u16().unwrap());
-            }
+            let is_short = flag & OutlineFlag::X_SHORT_VECTOR != 0;
+            let is_same_or_positive = flag & OutlineFlag::X_SAME_OR_POSITIVE != 0;
+
+            let delta_x = match (is_short, is_same_or_positive) {
+                (false, false) => self.read_i16().unwrap(),
+                (false, true) => {
+                    x_coords.push(last_x);
+                    continue;
+                }
+                (true, false) => -(self.next().unwrap() as i16),
+                (true, true) => self.next().unwrap() as i16,
+            };
+
+            last_x += delta_x;
+            x_coords.push(last_x);
         }
 
+        let mut last_y = 0;
         for &flag in &flags {
-            if flag & 0b100 != 0 {
-                y_coords.push(self.next().unwrap() as u16);
-            } else {
-                y_coords.push(self.read_u16().unwrap());
-            }
+            let is_short = flag & OutlineFlag::Y_SHORT_VECTOR != 0;
+            let is_same_or_positive = flag & OutlineFlag::Y_SAME_OR_POSITIVE != 0;
+
+            let delta_y = match (is_short, is_same_or_positive) {
+                (false, false) => self.read_i16().unwrap(),
+                (false, true) => {
+                    y_coords.push(last_y);
+                    continue;
+                }
+                (true, false) => -(self.next().unwrap() as i16),
+                (true, true) => self.next().unwrap() as i16,
+            };
+
+            last_y += delta_y;
+            y_coords.push(last_y);
         }
 
         Ok(SimpleGlyph {
