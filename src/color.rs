@@ -115,11 +115,11 @@ impl<'a> ColorSpace<'a> {
                 (0xff << 24) | (n << 16) | (n << 8) | n
             }
             &Self::DeviceRGB { red, green, blue } => {
-                let r = (red * 255.0) as u32;
-                let g = (green * 255.0) as u32;
-                let b = (blue * 255.0) as u32;
+                let r = (red * 255.0).round() as u32;
+                let g = (green * 255.0).round() as u32;
+                let b = (blue * 255.0).round() as u32;
 
-                (0xff << 24) | (r << 16) | (g << 8) | b
+                (0xff << 24) | (b << 16) | (g << 8) | r
             }
             &Self::DeviceCMYK {
                 cyan,
@@ -139,7 +139,7 @@ impl<'a> ColorSpace<'a> {
                 let g = (0.0 * 255.0) as u32;
                 let b = (0.0 * 255.0) as u32;
 
-                (0xff << 24) | (r << 16) | (g << 8) | b
+                (0xff << 24) | (b << 16) | (g << 8) | r
             }
             c => todo!("unimplemented color space: {:?}", c),
         }
