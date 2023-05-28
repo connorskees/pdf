@@ -228,6 +228,7 @@ impl<'a> SoftMask<'a> {
 }
 
 #[derive(Debug, Clone, FromObj)]
+#[obj_type("Mask")]
 pub struct SoftMaskDictionary<'a> {
     /// A subtype specifying the method to be used in deriving the mask values from the
     /// transparency group specified by the G entry
@@ -261,7 +262,7 @@ pub struct SoftMaskDictionary<'a> {
     /// be specified in place of a function object to designate the identity function.
     ///
     /// Default value: Identity
-    #[field("TransferFunction", default = TransferFunction::Identity)]
+    #[field("TR", default = TransferFunction::Identity)]
     transfer_function: TransferFunction<'a>,
 }
 
