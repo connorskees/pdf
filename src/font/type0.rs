@@ -1,7 +1,6 @@
 use crate::{
-    catalog::assert_len,
     error::{ParseError, PdfResult},
-    objects::{Dictionary, Name, Object, ObjectType},
+    objects::{Name, Object, ObjectType},
     stream::Stream,
     FromObj, Resolve,
 };
@@ -30,7 +29,7 @@ impl<'a> FromObj<'a> for Type0FontEncoding<'a> {
 /// from a fontlike object called a CIDFont. A composite font shall be represented
 /// by a font dictionary whose Subtype value is Type0. The Type 0 font is known
 /// as the root font, and its associated CIDFont is called its descendant.
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct Type0Font<'a> {
     /// The name of the font. If the descendant is a Type 0 CIDFont, this
     /// name should be the concatenation of the CIDFont’s BaseFont name,
@@ -42,43 +41,21 @@ pub struct Type0Font<'a> {
     ///       font program associated directly with a Type 0 font dictionary.
     ///       The conventions described here ensure maximum compatibility with
     ///       existing readers
+    #[field("BaseFont")]
     base_font: Name,
 
     /// The name of a predefined CMap, or a stream containing a CMap that
     /// maps character codes to font numbers and CIDs. If the descendant is
     /// a Type 2 CIDFont whose associated TrueType font program is not embedded
     /// in the PDF file, the Encoding entry shall be a predefined CMap name
+    #[field("Encoding")]
     encoding: Type0FontEncoding<'a>,
 
     /// A one-element array specifying the CIDFont dictionary that is the descendant of this Type 0 font
-    descendant_fonts: CidFontDictionary<'a>,
+    #[field("DescendantFonts")]
+    descendant_fonts: [CidFontDictionary<'a>; 1],
 
     /// A stream containing a CMap file that maps character codes to Unicode values
+    #[field("ToUnicode")]
     to_unicode: Option<ToUnicodeCmapStream<'a>>,
-}
-
-impl<'a> Type0Font<'a> {
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let base_font = dict.expect("BaseFont", resolver)?;
-        let encoding = dict.expect("Encoding", resolver)?;
-        let descendant_fonts = {
-            let mut arr = dict.expect_arr("DescendantFonts", resolver)?;
-
-            assert_len(&arr, 1)?;
-
-            CidFontDictionary::from_dict(resolver.assert_dict(arr.pop().unwrap())?, resolver)
-        }?;
-
-        let to_unicode = dict
-            .get_stream("ToUnicode", resolver)?
-            .map(|stream| ToUnicodeCmapStream::from_stream(stream, resolver))
-            .transpose()?;
-
-        Ok(Self {
-            base_font,
-            encoding,
-            descendant_fonts,
-            to_unicode,
-        })
-    }
 }

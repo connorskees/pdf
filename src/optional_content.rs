@@ -162,8 +162,10 @@ struct OptionalContentUsage;
 struct OptionalContentUsageApplication;
 
 #[pdf_enum]
+#[derive(Default)]
 enum ListMode {
     /// Display all groups in the Order array.
+    #[default]
     AllPages = "AllPages",
 
     /// Display only those groups in the Order array that are referenced by
@@ -171,28 +173,20 @@ enum ListMode {
     VisiblePages = "VisiblePages",
 }
 
-impl Default for ListMode {
-    fn default() -> Self {
-        Self::AllPages
-    }
-}
-
 #[pdf_enum]
+#[derive(Default)]
 enum OptionalContentBaseState {
+    #[default]
     On = "ON",
     Off = "OFF",
     Unchanged = "Unchanged",
 }
 
-impl Default for OptionalContentBaseState {
-    fn default() -> Self {
-        Self::On
-    }
-}
-
 #[pdf_enum]
+#[derive(Default)]
 enum Intent {
     /// Used for interactive use by document consumers
+    #[default]
     View = "View",
 
     /// Used to represent a document designer’s structural organization of artwork,
@@ -200,10 +194,4 @@ enum Intent {
 
     /// Indicates the set of all intents, including those not yet defined
     All = "All",
-}
-
-impl Default for Intent {
-    fn default() -> Self {
-        Self::View
-    }
 }

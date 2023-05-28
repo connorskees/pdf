@@ -1,4 +1,4 @@
-use crate::{error::PdfResult, objects::Dictionary, FromObj, Resolve};
+use crate::{error::PdfResult, objects::Dictionary, Resolve};
 
 use super::Function;
 
@@ -27,23 +27,9 @@ pub struct StitchingFunction<'a> {
 
 impl<'a> StitchingFunction<'a> {
     pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let functions = dict
-            .expect_arr("Functions", resolver)?
-            .into_iter()
-            .map(|obj| Function::from_obj(obj, resolver))
-            .collect::<PdfResult<Vec<Function>>>()?;
-
-        let bounds = dict
-            .expect_arr("Bounds", resolver)?
-            .into_iter()
-            .map(|obj| resolver.assert_number(obj))
-            .collect::<PdfResult<Vec<f32>>>()?;
-
-        let encode = dict
-            .expect_arr("Encode", resolver)?
-            .into_iter()
-            .map(|obj| resolver.assert_number(obj))
-            .collect::<PdfResult<Vec<f32>>>()?;
+        let functions = dict.expect("Functions", resolver)?;
+        let bounds = dict.expect("Bounds", resolver)?;
+        let encode = dict.expect("Encode", resolver)?;
 
         Ok(Self {
             functions,

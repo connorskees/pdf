@@ -203,7 +203,9 @@ impl<'a> FromObj<'a> for PageRanges {
 }
 
 #[pdf_enum]
+#[derive(Default)]
 enum TextDirection {
+    #[default]
     LeftToRight = "L2R",
 
     /// Right to left (including vertical writing systems, such as Chinese,
@@ -211,22 +213,12 @@ enum TextDirection {
     RightToLeft = "R2L",
 }
 
-impl Default for TextDirection {
-    fn default() -> Self {
-        Self::LeftToRight
-    }
-}
-
 #[pdf_enum]
+#[derive(Default)]
 enum PageScaling {
+    #[default]
     AppDefault = "AppDefault",
     None = "None",
-}
-
-impl Default for PageScaling {
-    fn default() -> Self {
-        Self::AppDefault
-    }
 }
 
 #[pdf_enum]
@@ -242,16 +234,12 @@ enum Duplex {
 }
 
 #[pdf_enum]
+#[derive(Default)]
 enum PageBoundary {
     MediaBox = "MediaBox",
+    #[default]
     CropBox = "CropBox",
     BleedBox = "BleedBox",
     TrimBox = "TrimBox",
     ArtBox = "ArtBox",
-}
-
-impl Default for PageBoundary {
-    fn default() -> Self {
-        Self::CropBox
-    }
 }

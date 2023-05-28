@@ -35,11 +35,8 @@ impl<'a> Type1Font<'a> {
     pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let base = BaseFontDict::from_dict(&mut dict, resolver)?;
         let base_font = dict.expect_name("BaseFont", resolver)?;
-        let encoding = dict.get::<FontEncoding>("Encoding", resolver)?;
-        let to_unicode = dict
-            .get_stream("ToUnicode", resolver)?
-            .map(|stream| ToUnicodeCmapStream::from_stream(stream, resolver))
-            .transpose()?;
+        let encoding = dict.get("Encoding", resolver)?;
+        let to_unicode = dict.get("ToUnicode", resolver)?;
 
         Ok(Self {
             base,

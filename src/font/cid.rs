@@ -1,8 +1,8 @@
 use crate::{
     error::{ParseError, PdfResult},
-    objects::{Dictionary, Object, ObjectType},
+    objects::{ Object, ObjectType},
     stream::Stream,
-    Resolve, FromObj
+    FromObj, Resolve,
 };
 
 use super::descriptor::FontDescriptor;
@@ -31,25 +31,29 @@ pub struct CidSystemInfo {
     supplement: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromObj)]
 pub struct CidFontDictionary<'a> {
     /// The PostScript name of the CIDFont. For Type 0 CIDFonts, this shall be
     /// the value of the CIDFontName entry in the CIDFont program. For Type 2
     /// CIDFonts, it shall be derived the same way as for a simple TrueType font.
     /// In either case, the name may have a subset prefix if appropriate
+    #[field("BaseFont")]
     base_font: String,
 
     /// A dictionary containing entries that define the character collection of the
     /// CIDFont
+    #[field("CIDSystemInfo")]
     cid_system_info: CidSystemInfo,
 
     /// A font descriptor describing the CIDFont’s default metrics other than its
     /// glyph widths
+    #[field("FontDescriptor")]
     font_descriptor: FontDescriptor<'a>,
 
     /// The default width for glyphs in the CIDFont
     ///
     /// Default value: 1000 (defined in user units)
+    #[field("DW", default = 1000)]
     dw: i32,
 
     /// A description of the widths for the glyphs in the CIDFont
@@ -58,16 +62,19 @@ pub struct CidFontDictionary<'a> {
     ///       widths for consecutive CIDs or one width for a range of CIDs
     ///
     /// Default value: none (the DW value shall be used for all glyphs)
+    #[field("W")]
     w: Option<Vec<Object<'a>>>,
 
     /// An array of two numbers specifying the default metrics for vertical writing
     ///
     /// Default value: [880 −1000]
+    #[field("DW2", default = [880.0, -1000.0])]
     dw2: [f32; 2],
 
     /// A description of the metrics for vertical writing for the glyphs in the CIDFont
     ///
     /// Default value: none (the DW2 value shall be used for all glyphs)
+    #[field("W2")]
     w2: Option<Vec<Object<'a>>>,
 
     /// A specification of the mapping from CIDs to glyph indices. If the value is a
@@ -81,36 +88,8 @@ pub struct CidFontDictionary<'a> {
     ///
     /// This entry may appear only in a Type 2 CIDFont whose associated TrueType font program
     /// is embedded in the PDF file
+    #[field("CIDToGIDMap", default = CidToGidMap::Identity)]
     cid_to_gid_map: CidToGidMap<'a>,
-}
-
-impl<'a> CidFontDictionary<'a> {
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let base_font = dict.expect_name("BaseFont", resolver)?;
-        let cid_system_info = dict.expect::<CidSystemInfo>("CIDSystemInfo", resolver)?;
-        let font_descriptor =
-            FontDescriptor::from_dict(dict.expect_dict("FontDescriptor", resolver)?, resolver)?;
-        let dw = dict.get_integer("DW", resolver)?.unwrap_or(1000);
-        let w = dict.get_arr("W", resolver)?;
-        let dw2 = dict.get("DW2", resolver)?.unwrap_or([880.0, -1000.0]);
-        let w2 = dict.get_arr("W2", resolver)?;
-        let cid_to_gid_map = dict
-            .get_object("CIDToGIDMap", resolver)?
-            .map(|obj| CidToGidMap::from_obj(obj, resolver))
-            .transpose()?
-            .unwrap_or(CidToGidMap::Identity);
-
-        Ok(Self {
-            base_font,
-            cid_system_info,
-            font_descriptor,
-            dw,
-            w,
-            dw2,
-            w2,
-            cid_to_gid_map,
-        })
-    }
 }
 
 #[derive(Debug)]

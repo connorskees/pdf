@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{data_structures::Rectangle, error::PdfResult, objects::Dictionary, Resolve};
+use crate::{data_structures::Rectangle, error::PdfResult, objects::{ Object}, FromObj, Resolve};
 
 use super::embedded::{TrueTypeFontFile, Type1FontFile, Type3FontFile};
 
@@ -115,8 +115,12 @@ struct CidFontDescriptor<'a> {
 
 impl<'a> FontDescriptor<'a> {
     const TYPE: &'static str = "FontDescriptor";
+}
 
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for FontDescriptor<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut dict = resolver.assert_dict(obj)?;
+
         dict.expect_type(Self::TYPE, resolver, true)?;
 
         let font_name = dict.expect_name("FontName", resolver)?;

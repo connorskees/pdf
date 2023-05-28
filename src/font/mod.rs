@@ -1,6 +1,6 @@
 use type0::Type0Font;
 
-use crate::{error::PdfResult, objects::Dictionary, Resolve};
+use crate::{error::PdfResult, objects::{Dictionary, Object}, Resolve, FromObj};
 
 pub use self::{
     descriptor::FontDescriptor,
@@ -46,7 +46,9 @@ impl<'a> Font<'a> {
             FontSubtype::MmType1 => Self::MmType1(MmType1Font::from_dict(dict, resolver)?),
             FontSubtype::Type3 => Self::Type3(Type3Font::from_dict(dict, resolver)?),
             FontSubtype::TrueType => Self::TrueType(TrueTypeFont::from_dict(dict, resolver)?),
-            FontSubtype::Type0 => Self::Type0(Type0Font::from_dict(dict, resolver)?),
+            FontSubtype::Type0 => {
+                Self::Type0(Type0Font::from_obj(Object::Dictionary(dict), resolver)?)
+            }
             _ => todo!("unimplemented font subtype: {:?}\n{:#?}", subtype, dict),
         })
     }
@@ -83,10 +85,7 @@ impl<'a> BaseFontDict<'a> {
                     .collect::<PdfResult<Vec<f32>>>()
             })
             .transpose()?;
-        let font_descriptor = dict
-            .get_dict("FontDescriptor", resolver)?
-            .map(|dict| FontDescriptor::from_dict(dict, resolver))
-            .transpose()?;
+        let font_descriptor: Option<FontDescriptor> = dict.get("FontDescriptor", resolver)?;
 
         let widths = Widths::new(
             widths,

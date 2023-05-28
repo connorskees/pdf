@@ -5,7 +5,6 @@ mod graphics_state;
 mod instruction;
 mod interpreter;
 pub(crate) mod parse;
-mod state;
 pub(crate) mod table;
 
 use crate::{error::PdfResult, objects::Dictionary, Resolve};

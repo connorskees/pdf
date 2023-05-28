@@ -38,36 +38,16 @@ pub struct SampledFunction<'a> {
 impl<'a> SampledFunction<'a> {
     pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let dict = &mut stream.dict.other;
-        let size = dict
-            .expect_arr("Size", resolver)?
-            .into_iter()
-            .map(|obj| resolver.assert_unsigned_integer(obj))
-            .collect::<PdfResult<Vec<u32>>>()?;
+        let size = dict.expect::<Vec<u32>>("Size", resolver)?;
 
-        let bits_per_sample =
-            BitsPerSample::from_integer(dict.expect_integer("BitsPerSample", resolver)?)?;
-        let order = InterpolationOrder::from_integer(dict.expect_integer("Order", resolver)?)?;
-        let encode = dict
-            .get_arr("Encode", resolver)?
-            .map(|arr| {
-                arr.into_iter()
-                    .map(|obj| resolver.assert_number(obj))
-                    .collect::<PdfResult<Vec<f32>>>()
-            })
-            .transpose()?
-            .unwrap_or_else(|| {
-                size.iter()
-                    .flat_map(|&i| vec![0.0, (i as f32) - 1.0])
-                    .collect()
-            });
-        let decode = dict
-            .get_arr("Decode", resolver)?
-            .map(|arr| {
-                arr.into_iter()
-                    .map(|obj| resolver.assert_number(obj))
-                    .collect::<PdfResult<Vec<f32>>>()
-            })
-            .transpose()?;
+        let bits_per_sample = dict.expect::<BitsPerSample>("BitsPerSample", resolver)?;
+        let order = dict.expect::<InterpolationOrder>("Order", resolver)?;
+        let encode = dict.get("Encode", resolver)?.unwrap_or_else(|| {
+            size.iter()
+                .flat_map(|&i| vec![0.0, (i as f32) - 1.0])
+                .collect()
+        });
+        let decode = dict.get("Decode", resolver)?;
 
         Ok(Self {
             size,
@@ -81,15 +61,11 @@ impl<'a> SampledFunction<'a> {
 }
 
 #[pdf_enum(Integer)]
+#[derive(Default)]
 enum InterpolationOrder {
+    #[default]
     Linear = 1,
     Cubic = 3,
-}
-
-impl Default for InterpolationOrder {
-    fn default() -> Self {
-        Self::Linear
-    }
 }
 
 #[pdf_enum(Integer)]

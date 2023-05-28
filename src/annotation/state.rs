@@ -31,21 +31,18 @@ impl StateModel {
 }
 
 #[pdf_enum]
+#[derive(Default)]
 pub(crate) enum MarkedState {
     /// The annotation has been marked by the user
     Marked = "Marked",
 
     /// The annotation has not been marked by the user (the default)
+    #[default]
     Unmarked = "Unmarked",
 }
 
-impl Default for MarkedState {
-    fn default() -> Self {
-        Self::Unmarked
-    }
-}
-
 #[pdf_enum]
+#[derive(Default)]
 pub(crate) enum ReviewState {
     /// The user agrees with the change
     Accepted = "Accepted",
@@ -60,11 +57,6 @@ pub(crate) enum ReviewState {
     Completed = "Completed",
 
     /// The user has indicated nothing about the change (the default)
+    #[default]
     None = "None",
-}
-
-impl Default for ReviewState {
-    fn default() -> Self {
-        Self::None
-    }
 }

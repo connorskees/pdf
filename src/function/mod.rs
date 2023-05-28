@@ -79,19 +79,8 @@ impl<'a> FromObj<'a> for Function<'a> {
 
         let dict = stream_or_dict.dict();
 
-        let domain = dict
-            .expect_arr("Domain", resolver)?
-            .into_iter()
-            .map(|obj| resolver.assert_number(obj))
-            .collect::<PdfResult<Vec<f32>>>()?;
-        let range = dict
-            .get_arr("Range", resolver)?
-            .map(|arr| {
-                arr.into_iter()
-                    .map(|obj| resolver.assert_number(obj))
-                    .collect::<PdfResult<Vec<f32>>>()
-            })
-            .transpose()?;
+        let domain = dict.expect("Domain", resolver)?;
+        let range = dict.get("Range", resolver)?;
 
         let subtype = FunctionSubtype::from_obj(stream_or_dict.into_obj(), resolver)?;
 

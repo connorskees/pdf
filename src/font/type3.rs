@@ -73,10 +73,7 @@ impl<'a> Type3Font<'a> {
             .collect::<PdfResult<_>>()?;
         let encoding = FontEncoding::from_obj(dict.expect_object("Encoding", resolver)?, resolver)?;
         let resources = dict.get("Resources", resolver)?;
-        let to_unicode = dict
-            .get_stream("ToUnicode", resolver)?
-            .map(|stream| ToUnicodeCmapStream::from_stream(stream, resolver))
-            .transpose()?;
+        let to_unicode = dict.get("ToUnicode", resolver)?;
 
         Ok(Self {
             base,

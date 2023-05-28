@@ -24,26 +24,8 @@ impl ExponentialInterpolationFunction {
         dict: &mut Dictionary<'a>,
         resolver: &mut dyn Resolve<'a>,
     ) -> PdfResult<Self> {
-        let c0 = dict
-            .get_arr("C0", resolver)?
-            .map(|arr| {
-                arr.into_iter()
-                    .map(|obj| resolver.assert_number(obj))
-                    .collect::<PdfResult<Vec<f32>>>()
-            })
-            .transpose()?
-            .unwrap_or_else(|| vec![0.0]);
-
-        let c1 = dict
-            .get_arr("C1", resolver)?
-            .map(|arr| {
-                arr.into_iter()
-                    .map(|obj| resolver.assert_number(obj))
-                    .collect::<PdfResult<Vec<f32>>>()
-            })
-            .transpose()?
-            .unwrap_or_else(|| vec![1.0]);
-
+        let c0 = dict.get("C0", resolver)?.unwrap_or_else(|| vec![0.0]);
+        let c1 = dict.get("C1", resolver)?.unwrap_or_else(|| vec![1.0]);
         let n = dict.expect_number("N", resolver)?;
 
         Ok(Self { c0, c1, n })
