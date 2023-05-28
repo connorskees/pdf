@@ -18,7 +18,7 @@ pub struct ParsedTrueTypeFontFile<'a> {
 }
 
 impl<'a> ParsedTrueTypeFontFile<'a> {
-    pub fn new(buffer: &'a [u8]) -> Option<Self> {
+    pub fn new(buffer: &'a [u8]) -> anyhow::Result<Self> {
         let mut parser = TrueTypeParser::new(buffer);
 
         let font_directory = parser.read_font_directory()?;
@@ -28,7 +28,7 @@ impl<'a> ParsedTrueTypeFontFile<'a> {
         let loca = Self::get_loca(&mut parser, &font_directory, head.index_to_loc_format)?;
         let cvt = Self::get_cvt(&mut parser, &font_directory)?;
 
-        Some(Self {
+        Ok(Self {
             font_directory,
             head,
             maxp,
@@ -38,21 +38,30 @@ impl<'a> ParsedTrueTypeFontFile<'a> {
         })
     }
 
-    fn get_head(parser: &mut TrueTypeParser, font_directory: &FontDirectory) -> Option<Head> {
+    fn get_head(
+        parser: &mut TrueTypeParser,
+        font_directory: &FontDirectory,
+    ) -> anyhow::Result<Head> {
         let offset = font_directory
             .find_table_offset(TableName::Head.as_tag())
             .unwrap();
         parser.read_head_table(offset as usize)
     }
 
-    fn get_maxp(parser: &mut TrueTypeParser, font_directory: &FontDirectory) -> Option<MaxpTable> {
+    fn get_maxp(
+        parser: &mut TrueTypeParser,
+        font_directory: &FontDirectory,
+    ) -> anyhow::Result<MaxpTable> {
         let offset = font_directory
             .find_table_offset(TableName::Maxp.as_tag())
             .unwrap();
         parser.read_maxp_table(offset as usize)
     }
 
-    fn get_cvt(parser: &mut TrueTypeParser, font_directory: &FontDirectory) -> Option<CvtTable> {
+    fn get_cvt(
+        parser: &mut TrueTypeParser,
+        font_directory: &FontDirectory,
+    ) -> anyhow::Result<CvtTable> {
         let entry = font_directory
             .find_table_entry(TableName::Cvt.as_tag())
             .unwrap();
@@ -63,14 +72,14 @@ impl<'a> ParsedTrueTypeFontFile<'a> {
         parser: &mut TrueTypeParser,
         font_directory: &FontDirectory,
         loca_format: i16,
-    ) -> Option<LocaTable> {
+    ) -> anyhow::Result<LocaTable> {
         let entry = font_directory
             .find_table_entry(TableName::Loca.as_tag())
             .unwrap();
         parser.read_loca_table(entry.offset as usize, entry.length as usize, loca_format)
     }
 
-    pub fn glyph(&mut self, char_code: u32) -> Option<TrueTypeGlyph> {
+    pub fn glyph(&mut self, char_code: u32) -> anyhow::Result<TrueTypeGlyph> {
         let glyf_entry = self.loca.get_glyf_entry(char_code).unwrap();
 
         let glyf_table_offset = self
@@ -83,7 +92,7 @@ impl<'a> ParsedTrueTypeFontFile<'a> {
         self.parser.cursor = glyf_offset as usize;
         let glyf = self.parser.parse_glyph().unwrap();
 
-        Some(glyf)
+        Ok(glyf)
     }
 
     pub fn glyphs(&mut self) -> Vec<TrueTypeGlyph> {
@@ -116,7 +125,7 @@ impl<'a> ParsedTrueTypeFontFile<'a> {
         self.cvt.entries.get(n).copied()
     }
 
-    pub fn name_table(&mut self) -> Option<NameTable> {
+    pub fn name_table(&mut self) -> anyhow::Result<NameTable> {
         let offset = self
             .font_directory
             .find_table_offset(TableName::Name.as_tag())

@@ -31,54 +31,44 @@ impl<'a> TrueTypeParser<'a> {
         Self { buffer, cursor: 0 }
     }
 
-    fn next(&mut self) -> Option<u8> {
-        self.buffer.get(self.cursor).map(|b| {
-            self.cursor += 1;
-            *b
-        })
+    fn next(&mut self) -> anyhow::Result<u8> {
+        self.buffer
+            .get(self.cursor)
+            .map(|b| {
+                self.cursor += 1;
+                *b
+            })
+            .ok_or(anyhow::anyhow!("unexpected eof"))
     }
 
-    fn read_u16(&mut self) -> Option<u16> {
+    fn read_u16(&mut self) -> anyhow::Result<u16> {
         let b1 = self.next()?;
         let b2 = self.next()?;
 
-        Some(u16::from_be_bytes([b1, b2]))
+        Ok(u16::from_be_bytes([b1, b2]))
     }
 
-    fn read_i16(&mut self) -> Option<i16> {
+    fn read_i16(&mut self) -> anyhow::Result<i16> {
         let b1 = self.next()?;
         let b2 = self.next()?;
 
-        Some(i16::from_be_bytes([b1, b2]))
+        Ok(i16::from_be_bytes([b1, b2]))
     }
 
-    fn read_u32_bytes(&mut self) -> Option<[u8; 4]> {
-        Some(self.read_u32()?.to_be_bytes())
+    fn read_u32_bytes(&mut self) -> anyhow::Result<[u8; 4]> {
+        Ok(self.read_u32()?.to_be_bytes())
     }
 
-    fn read_u32(&mut self) -> Option<u32> {
-        let b1 = self.next()?;
-        let b2 = self.next()?;
-        let b3 = self.next()?;
-        let b4 = self.next()?;
-
-        Some(u32::from_be_bytes([b1, b2, b3, b4]))
-    }
-
-    fn read_u64(&mut self) -> Option<u64> {
+    fn read_u32(&mut self) -> anyhow::Result<u32> {
         let b1 = self.next()?;
         let b2 = self.next()?;
         let b3 = self.next()?;
         let b4 = self.next()?;
-        let b5 = self.next()?;
-        let b6 = self.next()?;
-        let b7 = self.next()?;
-        let b8 = self.next()?;
 
-        Some(u64::from_be_bytes([b1, b2, b3, b4, b5, b6, b7, b8]))
+        Ok(u32::from_be_bytes([b1, b2, b3, b4]))
     }
 
-    fn read_i64(&mut self) -> Option<i64> {
+    fn read_u64(&mut self) -> anyhow::Result<u64> {
         let b1 = self.next()?;
         let b2 = self.next()?;
         let b3 = self.next()?;
@@ -88,21 +78,34 @@ impl<'a> TrueTypeParser<'a> {
         let b7 = self.next()?;
         let b8 = self.next()?;
 
-        Some(i64::from_be_bytes([b1, b2, b3, b4, b5, b6, b7, b8]))
+        Ok(u64::from_be_bytes([b1, b2, b3, b4, b5, b6, b7, b8]))
     }
 
-    fn read_fixed(&mut self) -> Option<Fixed> {
+    fn read_i64(&mut self) -> anyhow::Result<i64> {
+        let b1 = self.next()?;
+        let b2 = self.next()?;
+        let b3 = self.next()?;
+        let b4 = self.next()?;
+        let b5 = self.next()?;
+        let b6 = self.next()?;
+        let b7 = self.next()?;
+        let b8 = self.next()?;
+
+        Ok(i64::from_be_bytes([b1, b2, b3, b4, b5, b6, b7, b8]))
+    }
+
+    fn read_fixed(&mut self) -> anyhow::Result<Fixed> {
         let n = self.read_u32()?;
 
-        Some(Fixed(i32::from_be_bytes(n.to_be_bytes())))
+        Ok(Fixed(i32::from_be_bytes(n.to_be_bytes())))
     }
 
-    fn read_fword(&mut self) -> Option<FWord> {
-        Some(FWord(self.read_i16()?))
+    fn read_fword(&mut self) -> anyhow::Result<FWord> {
+        Ok(FWord(self.read_i16()?))
     }
 
-    fn read_long_date_time(&mut self) -> Option<LongDateTime> {
-        Some(LongDateTime(self.read_i64()?))
+    fn read_long_date_time(&mut self) -> anyhow::Result<LongDateTime> {
+        Ok(LongDateTime(self.read_i64()?))
     }
 
     #[track_caller]
@@ -113,14 +116,14 @@ impl<'a> TrueTypeParser<'a> {
 
 /// Table parsing
 impl<'a> TrueTypeParser<'a> {
-    fn read_offset_subtable(&mut self) -> Option<OffsetSubtable> {
+    fn read_offset_subtable(&mut self) -> anyhow::Result<OffsetSubtable> {
         let _sfnt_version = self.read_u32()?;
         let number_of_tables = self.read_u16()?;
         let search_range = self.read_u16()?;
         let entry_selector = self.read_u16()?;
         let range_shift = self.read_u16()?;
 
-        Some(OffsetSubtable {
+        Ok(OffsetSubtable {
             number_of_tables,
             search_range,
             entry_selector,
@@ -128,22 +131,22 @@ impl<'a> TrueTypeParser<'a> {
         })
     }
 
-    fn read_tag(&mut self) -> Option<TableTag> {
+    fn read_tag(&mut self) -> anyhow::Result<TableTag> {
         let b1 = self.next()?;
         let b2 = self.next()?;
         let b3 = self.next()?;
         let b4 = self.next()?;
 
-        Some(TableTag::new([b1, b2, b3, b4]))
+        Ok(TableTag::new([b1, b2, b3, b4]))
     }
 
-    fn read_dir_table_entry(&mut self) -> Option<DirectoryTableEntry> {
+    fn read_dir_table_entry(&mut self) -> anyhow::Result<DirectoryTableEntry> {
         let tag = self.read_tag()?;
         let checksum = self.read_u32()?;
         let offset = self.read_u32()?;
         let length = self.read_u32()?;
 
-        Some(DirectoryTableEntry {
+        Ok(DirectoryTableEntry {
             tag,
             checksum,
             offset,
@@ -151,7 +154,7 @@ impl<'a> TrueTypeParser<'a> {
         })
     }
 
-    pub fn read_font_directory(&mut self) -> Option<FontDirectory> {
+    pub fn read_font_directory(&mut self) -> anyhow::Result<FontDirectory> {
         let offset_subtable = self.read_offset_subtable()?;
         let mut table_directory_entries =
             Vec::with_capacity(usize::from(offset_subtable.number_of_tables));
@@ -160,7 +163,7 @@ impl<'a> TrueTypeParser<'a> {
             table_directory_entries.push(self.read_dir_table_entry()?);
         }
 
-        Some(FontDirectory {
+        Ok(FontDirectory {
             offset_subtable,
             table_directory: TableDirectory(table_directory_entries),
         })
@@ -186,7 +189,7 @@ impl<'a> TrueTypeParser<'a> {
         flags
     }
 
-    fn parse_simple_glyph(&mut self, number_of_contours: i16) -> Option<SimpleGlyph> {
+    fn parse_simple_glyph(&mut self, number_of_contours: i16) -> anyhow::Result<SimpleGlyph> {
         let mut end_points_of_contours = Vec::with_capacity(number_of_contours as usize);
 
         // todo: this should just reinterpret bytes
@@ -218,7 +221,7 @@ impl<'a> TrueTypeParser<'a> {
             }
         }
 
-        Some(SimpleGlyph {
+        Ok(SimpleGlyph {
             end_points_of_contours,
             instructions,
             flags,
@@ -227,18 +230,18 @@ impl<'a> TrueTypeParser<'a> {
         })
     }
 
-    fn parse_compound_glyph(&mut self) -> Option<Vec<CompoundGlyphPartDescription>> {
+    fn parse_compound_glyph(&mut self) -> anyhow::Result<Vec<CompoundGlyphPartDescription>> {
         todo!()
     }
 
-    pub fn parse_glyph(&mut self) -> Option<TrueTypeGlyph> {
+    pub fn parse_glyph(&mut self) -> anyhow::Result<TrueTypeGlyph> {
         let number_of_contours = self.read_i16().unwrap();
         let _x_min = self.read_fword().unwrap();
         let _y_min = self.read_fword().unwrap();
         let _x_max = self.read_fword().unwrap();
         let _y_max = self.read_fword().unwrap();
 
-        Some(
+        Ok(
             if number_of_contours.is_positive() || number_of_contours == 0 {
                 let glyph = self.parse_simple_glyph(number_of_contours).unwrap();
 
@@ -251,7 +254,11 @@ impl<'a> TrueTypeParser<'a> {
         )
     }
 
-    pub fn read_glyf_table(&mut self, offset: usize, num_glyphs: usize) -> Option<GlyfTable> {
+    pub fn read_glyf_table(
+        &mut self,
+        offset: usize,
+        num_glyphs: usize,
+    ) -> anyhow::Result<GlyfTable> {
         self.cursor = offset;
 
         let mut glyphs = Vec::with_capacity(num_glyphs);
@@ -260,7 +267,7 @@ impl<'a> TrueTypeParser<'a> {
             glyphs.push(self.parse_glyph()?);
         }
 
-        Some(GlyfTable { glyphs })
+        Ok(GlyfTable { glyphs })
     }
 
     pub fn read_loca_table(
@@ -268,7 +275,7 @@ impl<'a> TrueTypeParser<'a> {
         offset: usize,
         length: usize,
         format: i16,
-    ) -> Option<LocaTable> {
+    ) -> anyhow::Result<LocaTable> {
         self.cursor = offset;
 
         let buffer = self.get_byte_range(length);
@@ -287,10 +294,10 @@ impl<'a> TrueTypeParser<'a> {
             _ => todo!("unsupported loca table format: {:?}", format),
         };
 
-        Some(LocaTable { offsets })
+        Ok(LocaTable { offsets })
     }
 
-    pub fn read_head_table(&mut self, offset: usize) -> Option<Head> {
+    pub fn read_head_table(&mut self, offset: usize) -> anyhow::Result<Head> {
         self.cursor = offset;
 
         let version = self.read_u32()?;
@@ -315,7 +322,7 @@ impl<'a> TrueTypeParser<'a> {
         let index_to_loc_format = self.read_i16()?;
         let glyph_data_format = self.read_i16()?;
 
-        Some(Head {
+        Ok(Head {
             font_revision,
             flags,
             units_per_em,
@@ -333,7 +340,7 @@ impl<'a> TrueTypeParser<'a> {
         })
     }
 
-    pub fn read_maxp_table(&mut self, offset: usize) -> Option<MaxpTable> {
+    pub fn read_maxp_table(&mut self, offset: usize) -> anyhow::Result<MaxpTable> {
         self.cursor = offset;
 
         let version = self.read_u32()?;
@@ -354,7 +361,7 @@ impl<'a> TrueTypeParser<'a> {
         let max_component_elements = self.read_u16()?;
         let max_component_depth = self.read_u16()?;
 
-        Some(MaxpTable {
+        Ok(MaxpTable {
             version: Fixed(i32::from_be_bytes(version.to_be_bytes())),
             num_glyphs,
             max_points,
@@ -373,7 +380,7 @@ impl<'a> TrueTypeParser<'a> {
         })
     }
 
-    pub fn read_name_table(&mut self, offset: usize) -> Option<NameTable> {
+    pub fn read_name_table(&mut self, offset: usize) -> anyhow::Result<NameTable> {
         self.cursor = offset;
         let format = self.read_u16()?;
         let count = self.read_u16()?;
@@ -385,14 +392,14 @@ impl<'a> TrueTypeParser<'a> {
             name_records.push(self.read_name_record(offset + string_offset as usize)?);
         }
 
-        Some(NameTable {
+        Ok(NameTable {
             format,
             string_offset,
             name_records,
         })
     }
 
-    fn read_name_record(&mut self, string_offset: usize) -> Option<NameRecord> {
+    fn read_name_record(&mut self, string_offset: usize) -> anyhow::Result<NameRecord> {
         let platform_id = self.read_u16()?;
         let platform_specific_id = self.read_u16()?;
         let language_id = self.read_u16()?;
@@ -400,7 +407,7 @@ impl<'a> TrueTypeParser<'a> {
         let length = self.read_u16()?;
         let offset = self.read_u16()?;
 
-        Some(NameRecord {
+        Ok(NameRecord {
             platform_id,
             platform_specific_id,
             language_id,
@@ -411,7 +418,7 @@ impl<'a> TrueTypeParser<'a> {
         })
     }
 
-    pub fn read_cvt_table(&mut self, entry: DirectoryTableEntry) -> Option<CvtTable> {
+    pub fn read_cvt_table(&mut self, entry: DirectoryTableEntry) -> anyhow::Result<CvtTable> {
         self.cursor = entry.offset as usize;
 
         let num_entries = entry.length as usize / 4;
@@ -422,6 +429,6 @@ impl<'a> TrueTypeParser<'a> {
             entries.push(self.read_fword()?);
         }
 
-        Some(CvtTable { entries })
+        Ok(CvtTable { entries })
     }
 }
