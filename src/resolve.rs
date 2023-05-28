@@ -6,6 +6,7 @@ use crate::{
     stream::Stream,
 };
 
+// todo: fn is_null as a fast path helper method
 pub trait Resolve<'a> {
     fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object<'a>>;
 

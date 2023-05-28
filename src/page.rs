@@ -132,7 +132,9 @@ impl<'a> PageTreeNode<'a> {
 }
 
 // "Page"
+// #[derive(FromObj)]
 pub struct PageObject<'a> {
+    // #[field("Parent")]
     pub parent: PageNode<'a>,
 
     /// The date and time when the page's contents were most recently
@@ -140,6 +142,7 @@ pub struct PageObject<'a> {
     /// is present, the modification date shall be used to ascertain
     /// which of the application data dictionaries that it contains
     /// correspond to the current content of the page.
+    // #[field("LastModified")]
     pub last_modified: Option<Date>,
 
     /// A dictionary containing any resources required by the page. If the
@@ -148,6 +151,7 @@ pub struct PageObject<'a> {
     /// resources shall be inherited from an ancestor node in the page tree.
     ///
     /// Inheritable
+    // #[field("Resources")]
     pub resources: Option<Rc<Resources<'a>>>,
 
     /// A rectangle, expressed in default user space units, that shall define
@@ -155,6 +159,7 @@ pub struct PageObject<'a> {
     /// or printed.
     ///
     /// Inheritable
+    // #[field("MediaBox")]
     pub media_box: Option<Rectangle>,
 
     /// A rectangle, expressed in default user space units, that shall
@@ -166,6 +171,7 @@ pub struct PageObject<'a> {
     /// Default value: the value of `media_box`.
     ///
     /// Inheritable
+    // #[field("CropBox")]
     pub crop_box: Option<Rectangle>,
 
     /// A rectangle, expressed in default user space units, that shall
@@ -173,12 +179,14 @@ pub struct PageObject<'a> {
     /// clipped when output in a production environment.
     ///
     /// Default value: the value of `crop_box`.
+    // #[field("BleedBox")]
     pub bleed_box: Option<Rectangle>,
 
     /// A rectangle, expressed in default user space units, that shall
     /// define the intended dimensions of the finished page after trimming.
     ///
     /// Default value: the value of `crop_box`.
+    // #[field("TrimBox")]
     pub trim_box: Option<Rectangle>,
 
     /// A rectangle, expressed in default user space units, that shall
@@ -186,6 +194,7 @@ pub struct PageObject<'a> {
     /// potential white space) as intended by the page's creator.
     ///
     /// Default value: the value of `crop_box`.
+    // #[field("ArtBox")]
     pub art_box: Option<Rectangle>,
 
     /// A box colour information dictionary that shall specify the
@@ -195,6 +204,7 @@ pub struct PageObject<'a> {
     ///
     /// If this entry is absent, the application shall use its own
     /// current default settings.
+    // #[field("BoxColorInfo")]
     pub box_color_info: Option<BoxColorInfo>,
 
     /// A content stream that shall describe the contents of this page.
@@ -213,6 +223,7 @@ pub struct PageObject<'a> {
     /// not preserve the existing structure of the Contents array.
     ///
     /// Conforming writers shall not create a Contents array containing no elements.
+    // #[field("Contents")]
     pub(crate) contents: Option<TypedReference<'a, ContentStream>>,
 
     /// The number of degrees by which the page shall be rotated clockwise
@@ -221,18 +232,22 @@ pub struct PageObject<'a> {
     /// Default value: 0.
     ///
     /// Inheritable
+    // #[field("Rotate")]
     pub rotate: Option<i32>,
 
     /// A group attributes dictionary that shall specify the attributes of
     /// the page's page group for use in the transparent imaging model
+    // #[field("Group")]
     pub group: Option<TypedReference<'a, GroupAttributes<'a>>>,
 
     /// A stream object that shall define the page's thumbnail image
+    // #[field("Thumb")]
     pub thumb: Option<TypedReference<'a, Stream<'a>>>,
 
     /// An array that shall contain indirect references to all article beads
     /// appearing on the page. The beads shall be listed in the array in
     /// natural reading order.
+    // #[field("B")]
     pub b: Option<Vec<Reference>>,
 
     /// The page's display duration (also called its advance timing): the
@@ -241,39 +256,48 @@ pub struct PageObject<'a> {
     /// advance to the next page.
     ///
     /// By default, the viewer shall not advance automatically.
-    // TODO: type=number?
+    // #[field("Dur")]
     pub dur: Option<f32>,
 
     /// A transition dictionary describing the transition effect that shall
     /// be used when displaying the page during presentations
+    // #[field("Trans")]
     pub trans: Option<Transitions>,
 
     /// An array of annotation dictionaries that shall contain indirect
     /// references to all annotations associated with the page
+    // #[field("Annots")]
     pub annots: Option<Vec<Reference>>,
 
     /// An additional-actions dictionary that shall define actions to
     /// be performed when the page is opened or closed
+    // #[field("AA")]
     pub aa: Option<AdditionalActions>,
 
     /// A metadata stream that shall contain metadata for the page
+    // #[field("Metadata")]
     pub metadata: Option<MetadataStream<'a>>,
 
     /// A page-piece dictionary associated with the page
+    // #[field("PieceInfo")]
     pub piece_info: Option<PagePiece<'a>>,
 
     /// The integer key of the page's entry in the structural parent tree
+    // #[field("StructParents")]
     pub struct_parents: Option<i32>,
 
     /// The digital identifier of the page's parent Web Capture content set
+    // #[field("ID")]
     pub id: Option<String>,
 
     /// The page's preferred zoom (magnification) factor: the factor by
     /// which it shall be scaled to achieve the natural display magnification
+    // #[field("PZ")]
     pub pz: Option<f32>,
 
     /// A separation dictionary that shall contain information needed to
     /// generate colour separations for the page
+    // #[field("SeparationInfo")]
     pub separation_info: Option<SeparationInfo>,
 
     /// A name specifying the tab order that shall be used for annotations on the page.
@@ -282,13 +306,16 @@ pub struct PageObject<'a> {
     ///   * R (row order)
     ///   * C (column order)
     ///   * S (structure order).
+    // #[field("Tabs")]
     pub tabs: Option<TabOrder>,
 
     /// The name of the originating page object
+    // #[field("TemplateInstantiated")]
     pub template_instantiated: Option<String>,
 
     /// A navigation node dictionary that shall represent the first
     /// node on the page
+    // #[field("PresSteps")]
     pub pres_steps: Option<NavigationNode>,
 
     /// A positive number that shall give the size of default user space units,
@@ -296,10 +323,12 @@ pub struct PageObject<'a> {
     /// mplementation-dependent.
     ///
     /// Default value: 1.0 (user space unit is 1/72 inch).
+    // #[field("UserUnit")]
     pub user_unit: Option<f32>,
 
     /// An array of viewport dictionaries that shall specify rectangular
     /// regions of the page.
+    // #[field("VP")]
     pub vp: Option<Viewport>,
 }
 

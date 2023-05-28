@@ -18,7 +18,7 @@ pub struct StructTreeRoot<'a> {
     /// they denote.
     ///
     /// Required if any structure elements have element identifiers
-    id_tree: Option<NameTree>,
+    id_tree: Option<NameTree<'a>>,
 
     /// A number tree used in finding the structure elements to which content
     /// items belong. Each integer key in the number tree shall correspond to
