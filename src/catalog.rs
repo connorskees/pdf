@@ -9,6 +9,7 @@ be shown when the document is opened.
 */
 
 use crate::{
+    acro_form::AcroForm,
     actions::Actions,
     data_structures::{NameTree, NumberTree},
     date::Date,
@@ -17,9 +18,12 @@ use crate::{
     optional_content::OptionalContentProperties,
     stream::Stream,
     structure::StructTreeRoot,
-    viewer_preferences::ViewerPreferences,
-    Dictionary, FromObj, Object, ParseError, PdfResult, Reference, Resolve,
+    viewer_preferences::{ViewerPreferences, PageMode},
+    Dictionary, FromObj, Object, PdfResult, Reference, Resolve,
 };
+
+// todo: remove
+pub use crate::assert_len;
 
 /// See module level documentation
 #[derive(Debug, FromObj)]
@@ -192,114 +196,6 @@ pub struct DocumentCatalog<'a> {
     last_modified: Option<Date>,
 }
 
-#[derive(Debug, FromObj)]
-pub struct Encryption<'a> {
-    /// The name of the preferred security handler for this document. It shall
-    /// be the name of the security handler that was used to encrypt the
-    /// document. If SubFilter is not present, only this security handler
-    /// shall be used when opening the document. If it is present, a
-    /// conforming reader can use any security handler that implements the
-    /// format specified by SubFilter.
-    #[field("Filter")]
-    filter: Name,
-
-    /// A name that completely specifies the format and interpretation of the
-    /// contents of the encryption dictionary. It allows security handlers
-    /// other than the one specified by Filter to decrypt the document. If
-    /// this entry is absent, other security handlers shall not decrypt the
-    /// document.
-    #[field("SubFilter")]
-    sub_filter: Option<Name>,
-
-    /// A code specifying the algorithm to be used in encrypting and decrypting
-    /// the document
-    #[field("V")]
-    v: Option<EncryptionAlgorithm>,
-
-    /// The length of the encryption key, in bits.
-    ///
-    /// The value shall be a multiple of 8, in the range 40 to 128.
-    ///
-    /// Default value: 40
-    #[field("Length", default = 40)]
-    length: i32,
-
-    /// A dictionary whose keys shall be crypt filter names and whose values
-    /// shall be the corresponding crypt filter dictionaries. Every crypt
-    /// filter used in the document shall have an entry in this dictionary,
-    /// except for the standard crypt filter names
-    ///
-    /// The conforming reader shall ignore entries in CF dictionary with the
-    /// keys equal to those listed in Table 26 and use properties of the
-    /// respective standard crypt filters.
-    // todo: better data type for this
-    #[field("CF")]
-    crypt_filter: Option<Dictionary<'a>>,
-
-    /// The name of the crypt filter that shall be used by default when decrypting
-    /// streams
-    ///
-    /// The name shall be a key in the CF dictionary or a standard crypt filter
-    /// name specified in Table 26. All streams in the document, except for
-    /// cross-reference streams or streams that have a Crypt entry in their
-    /// Filter array, shall be decrypted by the security handler, using
-    /// this crypt filter
-    ///
-    /// Default value: Identity
-    #[field("StmF", default = Name("Identity".to_owned()))]
-    stream_filter: Name,
-
-    /// The name of the crypt filter that shall be used when decrypting all
-    /// strings in the document
-    ///
-    /// The name shall be a key in the CF dictionary or a standard crypt filter
-    /// name specified in Table 26.
-    #[field("StrF", default = Name("Identity".to_owned()))]
-    string_filter: Name,
-
-    /// The name of the crypt filter that shall be used when encrypting embedded
-    /// file streams that do not have their own crypt filter specifier
-    ///
-    /// The name shall correspond to a key in the CF dictionary or a standard
-    /// crypt filter name specified in Table 26.
-    ///
-    /// This entry shall be provided by the security handler. Conforming writers
-    /// shall respect this value when encrypting embedded files, except for
-    /// embedded file streams that have their own crypt filter specifier.
-    /// If this entry is not present, and the embedded file stream does not
-    /// contain a crypt filter specifier, the stream shall be encrypted
-    /// using the default stream crypt filter specified by StmF.
-    #[field("EFF", default = Name("Identity".to_owned()))]
-    embedded_file_filter: Name,
-
-    // todo: additional fields here
-    #[field("")]
-    other: Dictionary<'a>,
-}
-
-#[pdf_enum(Integer)]
-enum EncryptionAlgorithm {
-    /// An algorithm that is undocumented. This value shall not be used.
-    Undocumented = 0,
-
-    /// Encryption of data using the RC4 or AES algorithms" with an encryption
-    /// key length of 40 bits
-    Rc4OrAes40Bits = 1,
-
-    /// Encryption of data using the RC4 or AES algorithms but permitting encryption
-    /// key lengths greater than 40 bits
-    Rc4OrAesGt40Bits = 2,
-
-    /// An unpublished algorithm that permits encryption key lengths ranging from
-    /// 40 to 128 bits. This value shall not appear in a conforming PDF file
-    Unpublished = 3,
-
-    /// The security handler defines the use of encryption and decryption in the
-    /// document, using the rules specified by the CF, StmF, and StrF
-    /// entries.
-    BasedOnOtherEntries = 4,
-}
-
 #[derive(Debug, Clone, FromObj)]
 pub struct InformationDictionary<'a> {
     #[field("Title")]
@@ -414,17 +310,6 @@ pub struct DocumentOutline;
 #[derive(Debug, FromObj)]
 pub struct ThreadDictionary;
 
-pub fn assert_len(arr: &[Object], len: usize) -> PdfResult<()> {
-    if arr.len() != len {
-        anyhow::bail!(ParseError::ArrayOfInvalidLength {
-            expected: len,
-            // found: arr.to_vec(),
-        });
-    }
-
-    Ok(())
-}
-
 #[derive(Debug)]
 pub enum OpenAction<'a> {
     Destination(Destination),
@@ -447,85 +332,6 @@ impl<'a> FromObj<'a> for OpenAction<'a> {
 pub struct AdditionalActions;
 #[derive(Debug, FromObj)]
 pub struct UriDict;
-
-#[derive(Debug, FromObj)]
-pub struct AcroForm<'a> {
-    /// An array of references to the document’s root fields (those with no
-    /// ancestors in the field hierarchy).
-    #[field("Fields")]
-    fields: Vec<Reference>,
-
-    /// A flag specifying whether to construct appearance streams and appearance
-    /// dictionaries for all widget annotations in the document
-    ///
-    /// Default value: false
-    #[field("NeedAppearances", default = false)]
-    need_appearances: bool,
-
-    /// A set of flags specifying various document-level characteristics related
-    /// to signature fields
-    ///
-    /// Default value: 0
-    #[field("SigFlags", default = SigFlags(0))]
-    sig_flags: SigFlags,
-
-    /// An array of indirect references to field dictionaries with calculation
-    /// actions, defining the calculation order in which their values will be
-    /// recalculated when the value of any field changes
-    #[field("CO")]
-    co: Option<Vec<Reference>>,
-
-    /// A resource dictionary containing default resources (such as fonts, patterns,
-    /// or colour spaces) that shall be used by form field appearance streams.
-    /// At a minimum, this dictionary shall contain a Font entry specifying the
-    /// resource name and font dictionary of the default font for displaying text.
-    #[field("DR")]
-    dr: Option<Dictionary<'a>>,
-
-    /// A document-wide default value for the DA attribute of variable text fields
-    #[field("DA")]
-    da: Option<String>,
-
-    /// A document-wide default value for the Q attribute of variable text fields
-    #[field("Q")]
-    q: Option<String>,
-
-    /// A stream or array containing an XFA resource, whose format shall be
-    /// described by the Data Package (XDP) Specification.
-    ///
-    /// The value of this entry shall be either a stream representing the entire
-    /// contents of the XML Data Package or an array of text string and stream
-    /// pairs representing the individual packets comprising the XML Data Package.
-    // todo: struct for field
-    #[field("XFA")]
-    xfa: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-struct SigFlags(u32);
-
-impl SigFlags {
-    /// If set, the document contains at least one signature field. This flag
-    /// allows a conforming reader to enable user interface items (such as menu
-    /// items or pushbuttons) related to signature processing without having to
-    /// scan the entire document for the presence of signature fields.
-    pub const SIGNATURES_EXIST: u8 = 0b01;
-
-    /// If set, the document contains signatures that may be invalidated if the
-    /// file is saved (written) in a way that alters its previous contents, as
-    /// opposed to an incremental update. Merely updating the file by appending
-    /// new information to the end of the previous version is safe. Conforming
-    /// readers may use this flag to inform a user requesting a full save that
-    /// signatures will be invalidated and require explicit confirmation before
-    /// continuing with the operation.
-    pub const APPEND_ONLY: u8 = 0b10;
-}
-
-impl<'a> FromObj<'a> for SigFlags {
-    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        Ok(Self(u32::from_obj(obj, resolver)?))
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct MetadataStream<'a> {
@@ -769,29 +575,4 @@ enum PageLayout {
 
     /// Display the pages two at a time, with odd-numbered pages on the right
     TwoPageRight = "TwoPageRight",
-}
-
-/// A name object specifying how the document shall be displayed when opened
-#[pdf_enum]
-#[derive(Default)]
-pub enum PageMode {
-    /// Neither document outline nor thumbnail images visible
-    #[default]
-    UseNone = "UseNone",
-
-    /// Document outline visible
-    UseOutlines = "UseOutlines",
-
-    /// Thumbnail images visible
-    UseThumbs = "UseThumbs",
-
-    /// Full-screen mode, with no menu bar, window controls, or any other window
-    /// visible
-    FullScreen = "FullScreen",
-
-    /// Optional content group panel visible
-    UseOc = "UseOc",
-
-    /// Attachments panel visible
-    UseAttachments = "UseAttachments",
 }

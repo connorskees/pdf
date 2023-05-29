@@ -1,4 +1,4 @@
-use crate::{catalog::PageMode, error::PdfResult, objects::Object, FromObj, Resolve};
+use crate::{error::PdfResult, objects::Object, FromObj, Resolve};
 
 #[derive(Debug, FromObj)]
 pub struct ViewerPreferences {
@@ -242,4 +242,29 @@ enum PageBoundary {
     BleedBox = "BleedBox",
     TrimBox = "TrimBox",
     ArtBox = "ArtBox",
+}
+
+/// A name object specifying how the document shall be displayed when opened
+#[pdf_enum]
+#[derive(Default)]
+pub enum PageMode {
+    /// Neither document outline nor thumbnail images visible
+    #[default]
+    UseNone = "UseNone",
+
+    /// Document outline visible
+    UseOutlines = "UseOutlines",
+
+    /// Thumbnail images visible
+    UseThumbs = "UseThumbs",
+
+    /// Full-screen mode, with no menu bar, window controls, or any other window
+    /// visible
+    FullScreen = "FullScreen",
+
+    /// Optional content group panel visible
+    UseOc = "UseOc",
+
+    /// Attachments panel visible
+    UseAttachments = "UseAttachments",
 }

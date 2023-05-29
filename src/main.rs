@@ -12,6 +12,7 @@
 #[macro_use]
 extern crate pdf_macro;
 
+mod acro_form;
 mod actions;
 mod annotation;
 mod catalog;
@@ -20,6 +21,7 @@ mod content;
 mod data_structures;
 mod date;
 mod destination;
+mod encryption;
 mod error;
 mod file_specification;
 mod filter;
@@ -63,13 +65,26 @@ use crate::{
     xref::{ByteOffset, TrailerOrOffset, Xref, XrefParser},
 };
 
-pub(crate) const NUMBERS: &[u8] = b"0123456789";
-
+/// Assert that the dictionary has no keys
+///
+/// This is done during development to ensure there aren't silent bugs or missing
+/// features
 #[track_caller]
 pub(crate) fn assert_empty(dict: Dictionary) {
     if !dict.is_empty() {
         todo!("dict not empty: {:#?}", dict);
     }
+}
+
+pub fn assert_len(arr: &[Object], len: usize) -> PdfResult<()> {
+    if arr.len() != len {
+        anyhow::bail!(ParseError::ArrayOfInvalidLength {
+            expected: len,
+            // found: arr.to_vec(),
+        });
+    }
+
+    Ok(())
 }
 
 pub fn assert_reference(obj: Object) -> PdfResult<Reference> {
@@ -143,7 +158,7 @@ impl<'a> Lexer<'a> {
         })
     }
 
-    fn lex_trailer(&mut self, offset: usize, is_previous: bool) -> PdfResult<Trailer> {
+    fn lex_trailer(&mut self, offset: usize, is_previous: bool) -> PdfResult<Trailer<'a>> {
         self.pos = offset;
         self.expect_bytes(b"trailer")?;
         self.skip_whitespace();
@@ -389,7 +404,7 @@ impl<'a> Resolve<'a> for Lexer<'a> {
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
     xref: Rc<Xref>,
-    trailer: Trailer,
+    trailer: Trailer<'a>,
     catalog: DocumentCatalog<'a>,
     page_tree: PageNode<'a>,
 }
@@ -398,10 +413,10 @@ impl<'a> Parser<'a> {
     pub fn new(p: &'static str) -> PdfResult<Self> {
         let file = std::fs::read(p)?;
 
-        let mut xref_parser = XrefParser::new(&file);
+        let mut xref_parser = XrefParser::new(file.clone());
         let xref_and_trailer = xref_parser.read_xref()?;
         let mut xref = Rc::new(xref_and_trailer.xref);
-        let mut lexer = Lexer::new(file.clone(), xref.clone())?;
+        let mut lexer = Lexer::new(file, xref.clone())?;
 
         let trailer = match xref_and_trailer.trailer_or_offset {
             TrailerOrOffset::Offset(offset) => {
@@ -445,19 +460,18 @@ impl<'a> Parser<'a> {
         })
     }
 
-    pub fn info(&mut self) -> PdfResult<Option<InformationDictionary>> {
-        Ok(Some(InformationDictionary::from_obj(
-            match self.trailer.info {
-                Some(r) => Object::Reference(r),
-                None => return Ok(None),
-            },
-            &mut self.lexer,
-        )?))
+    pub fn info(&mut self) -> PdfResult<Option<Cow<InformationDictionary<'a>>>> {
+        Ok(match &self.trailer.info {
+            Some(v) => Some(v.get_ref(&mut self.lexer)?),
+            None => None,
+        })
     }
 
     // todo: make this an iterator
     pub fn pages(&self) -> Vec<Rc<PageObject<'a>>> {
-        self.page_tree.leaves()
+        let mut leaves = self.page_tree.leaves();
+        leaves.reverse();
+        leaves
     }
 
     pub fn page_annotations(&mut self, page: &PageObject) -> PdfResult<Option<Vec<Annotation>>> {
@@ -493,7 +507,7 @@ impl<'a> Parser<'a> {
 fn main() -> PdfResult<()> {
     let mut parser = Parser::new("corpus/Christopher Smith Resume.pdf")?;
 
-    for page in parser.pages() {
+    for page in parser.pages().into_iter().skip(0) {
         let mut content = parser.page_contents(&page).unwrap();
 
         let renderer = render::Renderer::new(&mut content, &mut parser.lexer, Rc::clone(&page));
