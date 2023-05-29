@@ -1,7 +1,4 @@
-use crate::{
-    error::{ParseError, PdfResult},
-    NUMBERS,
-};
+use crate::error::{ParseError, PdfResult};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Date {
@@ -62,10 +59,7 @@ impl Date {
                         Some(n @ b'0'..=b'9') => n - b'0',
                         None => return Ok(date),
                         found @ Some(..) => {
-                            anyhow::bail!(ParseError::MismatchedByteMany {
-                                expected: NUMBERS,
-                                found,
-                            });
+                            anyhow::bail!("expected number (0-9), found {:?}", found);
                         }
                     };
 
@@ -133,10 +127,7 @@ impl UtRelationship {
             b'-' => Self::Minus,
             b'Z' => Self::Equal,
             found => {
-                anyhow::bail!(ParseError::MismatchedByteMany {
-                    expected: &[b'+', b'-', b'Z'],
-                    found: Some(found),
-                })
+                anyhow::bail!("expected `+`, `-`, or `Z`; found {:?}", char::from(found));
             }
         })
     }

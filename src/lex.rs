@@ -162,10 +162,10 @@ pub(crate) trait LexBase<'a> {
                 }
             }
             b => {
-                anyhow::bail!(ParseError::MismatchedByteMany {
-                    expected: &[b'\n', b'\r'],
-                    found: b,
-                });
+                anyhow::bail!(
+                    "expected newline character (\\n or \\r), found {:?}",
+                    b.map(char::from)
+                );
             }
         }
 
@@ -517,7 +517,7 @@ pub(crate) trait LexObject<'a>: LexBase<'a> {
         self.skip_whitespace();
 
         self.expect_bytes(b"endstream")?;
-        self.expect_eol()?;
+        self.skip_whitespace();
 
         Ok(Stream {
             stream: Cow::Borrowed(stream),

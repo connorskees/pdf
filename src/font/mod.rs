@@ -8,6 +8,7 @@ use crate::{
 
 pub use self::{
     descriptor::FontDescriptor,
+    embedded::Type3FontFile,
     glyph::Glyph,
     true_type::TrueTypeFont,
     type1::{MmType1Font, Type1Font},

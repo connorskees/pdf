@@ -31,9 +31,21 @@ pub struct CidSystemInfo {
     supplement: i32,
 }
 
+#[pdf_enum]
+enum CidFontSubtype {
+    /// A CIDFont whose glyph descriptions are based on Type 1 font technology
+    CidFontType0 = "CIDFontType0",
+
+    /// A CIDFont whose glyph descriptions are based on TrueType font technology
+    CidFontType2 = "CIDFontType2",
+}
+
 #[derive(Debug, FromObj)]
-#[obj_type("Font", subtype = "CIDFontType0")]
+#[obj_type("Font")]
 pub struct CidFontDictionary<'a> {
+    #[field("Subtype")]
+    subtype: CidFontSubtype,
+
     /// The PostScript name of the CIDFont. For Type 0 CIDFonts, this shall be
     /// the value of the CIDFontName entry in the CIDFont program. For Type 2
     /// CIDFonts, it shall be derived the same way as for a simple TrueType font.

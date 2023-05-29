@@ -124,7 +124,7 @@ pub struct FontDescriptor<'a> {
     /// A stream containing a font program whose format is specified by the Subtype entry in the
     /// stream dictionary
     #[field("FontFile3")]
-    font_file_three: Option<Type3FontFile<'a>>,
+    pub font_file_three: Option<Type3FontFile<'a>>,
 
     /// A string listing the character names defined in a font subset. The names in this string
     /// shall be in PDF syntax—that is, each name preceded by a slash (/). The names may appear in

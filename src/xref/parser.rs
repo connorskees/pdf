@@ -207,10 +207,7 @@ impl<'a> XrefParser<'a> {
                             generation_number,
                         },
                         _ => {
-                            anyhow::bail!(ParseError::MismatchedByteMany {
-                                expected: &[b'f', b'n'],
-                                found: Some(entry_kind),
-                            })
+                            anyhow::bail!("expected `f` or `n`, found {:?}", char::from(entry_kind))
                         }
                     },
                 );
@@ -220,12 +217,10 @@ impl<'a> XrefParser<'a> {
                 Some(b't') => break,
                 Some(b'0'..=b'9') => continue,
                 found => {
-                    anyhow::bail!(ParseError::MismatchedByteMany {
-                        found,
-                        expected: &[
-                            b't', b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9',
-                        ],
-                    })
+                    anyhow::bail!(
+                        "expected number (0-9) or `t`, found {:?}",
+                        found.map(char::from)
+                    )
                 }
             }
         }

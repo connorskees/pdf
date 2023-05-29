@@ -50,7 +50,7 @@ pub(crate) fn decode_stream<'a, 'b>(
                 FilterKind::RunLength => todo!(),
                 FilterKind::CcittFax => todo!(),
                 FilterKind::Jbig2 => todo!(),
-                FilterKind::Dct => stream = DctDecoder::new(Cow::Owned(stream)).decode(),
+                FilterKind::Dct => stream = DctDecoder::new(Cow::Owned(stream)).decode()?,
                 FilterKind::Jpx => todo!(),
                 FilterKind::Crypt => todo!(),
             }

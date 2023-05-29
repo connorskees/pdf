@@ -148,7 +148,7 @@ pub struct DocumentCatalog<'a> {
     /// An array of output intent dictionaries that shall specify the colour
     /// characteristics of output devices on which the document might be rendered
     #[field("OutputIntents")]
-    output_intents: Option<Vec<OutputIntent>>,
+    output_intents: Option<Vec<OutputIntent<'a>>>,
 
     /// A page-piece dictionary associated with the document
     #[field("PieceInfo")]
@@ -474,8 +474,62 @@ pub struct MarkInformationDictionary {
 
 #[derive(Debug, FromObj)]
 pub struct WebCapture;
+
 #[derive(Debug, FromObj)]
-pub struct OutputIntent;
+#[obj_type("OutputIntent")]
+pub struct OutputIntent<'a> {
+    /// The output intent subtype; shall be either one of GTS_PDFX, GTS_PDFA1,
+    /// ISO_PDFE1 or a key defined by an ISO 32000 extension.
+    #[field("S")]
+    subtype: Name,
+
+    /// A text string concisely identifying the intended output device or
+    /// production condition in human-readable form. This is the preferred method
+    /// of defining such a string for presentation to the user.
+    #[field("OutputCondition")]
+    output_condition: Option<String>,
+
+    /// A text string identifying the intended output device or production
+    /// condition in human- or machine-readable form. If human-readable, this
+    /// string may be used in lieu of an OutputCondition string for presentation
+    /// to the user.
+    ///
+    /// A typical value for this entry may be the name of a production condition
+    /// maintained in an industry-standard registry such as the ICC Characterization
+    /// Data Registry (see the Bibliography). If the designated condition matches
+    /// that in effect at production time, the production software is responsible
+    /// for providing the corresponding ICC profile as defined in the registry.
+    ///
+    /// If the intended production condition is not a recognized standard, the
+    /// value of this entry may be Custom or an application-specific,
+    /// machine-readable name. The DestOutputProfile entry defines the ICC
+    /// profile, and the Info entry shall be used for further
+    /// human-readable identification.
+    #[field("OutputConditionIdentifier")]
+    output_condition_identifier: String,
+
+    /// An text string (conventionally a uniform resource identifier, or URI)
+    /// identifying the registry in which the condition designated by
+    /// `OutputConditionIdentifier` is defined.
+    #[field("RegistryName")]
+    registry_name: Option<String>,
+
+    /// A human-readable text string containing additional information or comments
+    /// about the intended target device or production condition.
+    #[field("Info")]
+    info: Option<String>,
+
+    /// An ICC profile stream defining the transformation from the PDF document’s
+    /// source colours to output device colorants.
+    ///
+    /// The format of the profile stream is the same as that used in specifying an
+    /// ICCBased colour space. The output transformation uses the profile’s “from
+    /// CIE” information (BToA in ICC terminology); the “to CIE” (AToB) information
+    /// may optionally be used to remap source colour values to some other
+    /// destination colour space, such as for screen preview or hardcopy proofing.
+    #[field("DestOutputProfile")]
+    dest_output_profile: Option<Stream<'a>>,
+}
 
 #[derive(Debug, Clone)]
 pub struct PagePiece<'a>(Dictionary<'a>);
@@ -514,19 +568,22 @@ pub struct GroupAttributes<'a> {
     ///  * As the colour space of the group as a whole when it in turn is painted as an object
     ///    onto its backdrop
     ///
-    /// The group colour space shall be any device or CIE-based colour space that treats its
-    /// components as independent additive or subtractive values in the range 0.0 to 1.0,
-    /// subject to the restrictions described in Blending Colour Space. These restrictions
-    /// exclude Lab and lightnesschromaticity ICCBased colour spaces, as well as the special
-    /// colour spaces Pattern, Indexed, Separation, and DeviceN. Device colour spaces shall be
-    /// subject to remapping according to the DefaultGray, DefaultRGB, and DefaultCMYK entries
-    /// in the ColorSpace subdictionary of the current resource dictionary.
+    /// The group colour space shall be any device or CIE-based colour space that
+    /// treats its components as independent additive or subtractive values
+    /// in the range 0.0 to 1.0, subject to the restrictions described in
+    /// Blending Colour Space. These restrictions exclude Lab and
+    /// lightnesschromaticity ICCBased colour spaces, as well as the
+    /// special colour spaces Pattern, Indexed, Separation, and DeviceN.
+    /// Device colour spaces shall be subject to remapping according to the
+    /// DefaultGray, DefaultRGB, and DefaultCMYK entries in the ColorSpace
+    /// subdictionary of the current resource dictionary.
     ///
-    /// Ordinarily, the CS entry may be present only for isolated transparency groups (those
-    /// for which I is true), and even then it is optional. However, this entry shall be present
-    /// in the group attributes dictionary for any transparency group XObject that has no parent
-    /// group or page from which to inherit -- in particular, one that is the value of the G entry
-    /// in a soft-mask dictionary of subtype Luminosity.
+    /// Ordinarily, the CS entry may be present only for isolated transparency
+    /// groups (those for which I is true), and even then it is optional.
+    /// However, this entry shall be present in the group attributes
+    /// dictionary for any transparency group XObject that has no parent
+    /// group or page from which to inherit -- in particular, one that is
+    /// the value of the G entry in a soft-mask dictionary of subtype Luminosity
     ///
     /// Additionally, the CS entry may be present in the group attributes dictionary associated
     /// with a page object, even if I is false or absent. In the normal case in which the page

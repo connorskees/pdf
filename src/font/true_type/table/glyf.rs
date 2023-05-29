@@ -39,6 +39,18 @@ pub struct SimpleGlyph {
     pub(crate) y_coords: Vec<i16>,
 }
 
+impl SimpleGlyph {
+    pub fn empty() -> Self {
+        Self {
+            end_points_of_contours: Vec::new(),
+            instructions: Vec::new(),
+            flags: Vec::new(),
+            x_coords: Vec::new(),
+            y_coords: Vec::new(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum TrueTypeGlyph {
     Simple(SimpleGlyph),

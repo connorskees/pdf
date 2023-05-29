@@ -7,7 +7,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub(crate) struct EmbeddedFontDictionary<'a> {
+pub struct EmbeddedFontDictionary<'a> {
     /// The length in bytes of the clear-text portion of the Type 1 font program, or the entire
     /// TrueType font program, after it has been decoded using the filters specified by the stream’s
     /// Filter entry, if any
@@ -81,7 +81,7 @@ impl<'a> FromObj<'a> for TrueTypeFontFile<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Type3FontFile<'a> {
     CompactType1(CompactType1FontFile<'a>),
     CompactType0Cid(CompactType0CidFontFile<'a>),
@@ -91,16 +91,16 @@ pub enum Type3FontFile<'a> {
 /// Type 1–equivalent font program represented in the Compact Font Format (CFF), as described
 /// in Adobe Technical Note #5176, The Compact Font Format Specification. This entry may appear
 /// in the font descriptor for a Type1 or MMType1 font dictionary
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CompactType1FontFile<'a> {
-    dict: EmbeddedFontDictionary<'a>,
-    stream: Stream<'a>,
+    pub dict: EmbeddedFontDictionary<'a>,
+    pub stream: Stream<'a>,
 }
 
 /// Type 0 CIDFont program represented in the Compact Font Format (CFF), as described in Adobe
 /// Technical Note #5176, The Compact Font Format Specification. This entry may appear in the
 /// font descriptor for a CIDFontType0 CIDFont dictionary
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CompactType0CidFontFile<'a> {
     dict: EmbeddedFontDictionary<'a>,
     stream: Stream<'a>,
@@ -127,7 +127,7 @@ pub struct CompactType0CidFontFile<'a> {
 ///
 /// NOTE: The absence of some optional tables (such as those used for advanced line layout) may prevent
 ///       editing of text containing the font
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OpenTypeFontFile<'a> {
     dict: EmbeddedFontDictionary<'a>,
     stream: Stream<'a>,

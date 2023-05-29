@@ -12,9 +12,9 @@ impl<'a> DctDecoder<'a> {
         Self { buffer }
     }
 
-    pub fn decode(self) -> Vec<u8> {
+    pub fn decode(self) -> anyhow::Result<Vec<u8>> {
         let mut decoder = jpeg_decoder::Decoder::new(BufReader::new(Cursor::new(self.buffer)));
 
-        decoder.decode().unwrap()
+        Ok(decoder.decode()?)
     }
 }

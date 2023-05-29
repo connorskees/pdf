@@ -187,7 +187,9 @@ impl<'a> PointIterator<'a> {
         assert_eq!(x_coords.len(), y_coords.len());
         assert_eq!(x_coords.len(), flags.len());
 
-        assert!(flags[0] & OutlineFlag::ON_CURVE != 0 || flags[1] & OutlineFlag::ON_CURVE != 0);
+        if flags.len() >= 2 {
+            assert!(flags[0] & OutlineFlag::ON_CURVE != 0 || flags[1] & OutlineFlag::ON_CURVE != 0);
+        }
 
         Self {
             x_coords,

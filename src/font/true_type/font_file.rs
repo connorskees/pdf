@@ -1,8 +1,8 @@
 use super::{
     parse::TrueTypeParser,
     table::{
-        CvtTable, FontDirectory, GlyfTable, Head, LocaTable, MaxpTable, NameTable, TableName,
-        TrueTypeGlyph,
+        CvtTable, FontDirectory, GlyfTable, Head, LocaTable, MaxpTable, NameTable, SimpleGlyph,
+        TableName, TrueTypeGlyph,
     },
     FWord,
 };
@@ -88,6 +88,10 @@ impl<'a> ParsedTrueTypeFontFile<'a> {
             .unwrap();
 
         let glyf_offset = glyf_table_offset + glyf_entry.offset;
+
+        if glyf_entry.len == 0 {
+            return Ok(TrueTypeGlyph::Simple(SimpleGlyph::empty()));
+        }
 
         self.parser.cursor = glyf_offset as usize;
         let glyf = self.parser.parse_glyph().unwrap();

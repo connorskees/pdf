@@ -12,10 +12,6 @@ pub enum ParseError {
         expected: u8,
         found: Option<u8>,
     },
-    MismatchedByteMany {
-        expected: &'static [u8],
-        found: Option<u8>,
-    },
     UnexpectedEof,
     IoError(io::Error),
     MismatchedObjectType {
