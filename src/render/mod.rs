@@ -6,7 +6,7 @@ pub(crate) mod text_state;
 use std::{borrow::Cow, rc::Rc};
 
 use crate::{
-    catalog::{ColorSpace, ColorSpaceName},
+    color::{ColorSpace, ColorSpaceName},
     content::{ContentLexer, ContentToken, PdfGraphicsOperator},
     data_structures::Matrix,
     error::PdfResult,
@@ -20,7 +20,9 @@ use crate::{
     page::PageObject,
     postscript::{charstring::CharStringPainter, PostscriptInterpreter},
     resources::{
-        graphics_state_parameters::{LineCapStyle, LineDashPattern, LineJoinStyle},
+        graphics_state_parameters::{
+            LineCapStyle, LineDashPattern, LineJoinStyle, RenderingIntent,
+        },
         Resources,
     },
     shading::ShadingObject,
@@ -242,6 +244,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     // compat section is handled in lexer
                     PdfGraphicsOperator::BX | PdfGraphicsOperator::EX => {}
                     PdfGraphicsOperator::sh => self.paint_using_shading_pattern()?,
+                    PdfGraphicsOperator::ri => self.set_color_rendering_intent()?,
                     _ => todo!("unimplemented operator: {:?}", op),
                 },
             }
@@ -567,6 +570,14 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         let miter_limit = self.pop_number()?;
 
         self.graphics_state.device_independent.miter_limit = miter_limit;
+
+        Ok(())
+    }
+
+    fn set_color_rendering_intent(&mut self) -> PdfResult<()> {
+        let rendering_intent = RenderingIntent::from_str(&self.pop_name()?)?;
+
+        self.graphics_state.device_independent.rendering_intent = rendering_intent;
 
         Ok(())
     }
@@ -969,6 +980,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     return Ok(());
                 }
 
+                // todo!()
                 (font_file.unwrap(), &base.widths)
             }
             Some(Font::TrueType(TrueTypeFont { base, .. })) => {
@@ -986,10 +998,10 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     self.resolver,
                 )?;
 
-                println!("skipping unsupported true type font");
+                // println!("skipping unsupported true type font");
 
                 // (font_stream, &base.widths)
-                return Ok(());
+                todo!()
             }
             Some(font) => todo!("unimplement font type: {:#?}", font),
             None => todo!("no font selected in text state"),
