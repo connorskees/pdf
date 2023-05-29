@@ -48,8 +48,8 @@ impl Canvas {
         }
     }
 
-    pub fn fill_path_non_zero_winding_number(&mut self, _path: &Path, _color: u32) {
-        self.fill_path_even_odd(_path, _color)
+    pub fn fill_path_non_zero_winding_number(&mut self, path: &Path, color: u32) {
+        self.fill_path_even_odd(path, color)
     }
 
     pub fn fill_path_even_odd(&mut self, path: &Path, color: u32) {
@@ -115,8 +115,8 @@ impl Canvas {
         for &subpath in &path.subpaths {
             match subpath {
                 Subpath::Line(line) => self.stroke_line(line, color),
-                Subpath::Quadratic(curve) => self.draw_quadratic_bezier_curve(curve, color),
-                Subpath::Cubic(curve) => self.draw_cubic_bezier_curve(curve, color),
+                Subpath::Quadratic(curve) => self.stroke_quadratic_bezier_curve(curve, color),
+                Subpath::Cubic(curve) => self.stroke_cubic_bezier_curve(curve, color),
             }
         }
     }
@@ -287,7 +287,7 @@ impl Canvas {
     }
 
     fn paint_point(&mut self, point: Point, color: u32) {
-        if point.x >= self.width as f32 - 1.0 || point.y >= self.height as f32 - 1.0 {
+        if point.x >= self.width as f32 || point.y >= self.height as f32 {
             return;
         }
 
@@ -301,16 +301,17 @@ impl Canvas {
 
         let end = self.width * self.height - 1;
 
-        if point.x as usize + (end - self.width) < point.y as usize * self.height {
+        // todo: what does this condition imply
+        if point.y as usize * self.width > point.x as usize + (end - self.width) {
             return;
         }
 
-        let idx = point.x as usize + (end - self.width) - point.y as usize * self.height;
+        let idx = point.x as usize + (end - self.width) - point.y as usize * self.width;
 
         self.buffer[idx.min(self.width * self.height - 1)] = color;
     }
 
-    pub fn draw_quadratic_bezier_curve(&mut self, curve: QuadraticBezierCurve, color: u32) {
+    pub fn stroke_quadratic_bezier_curve(&mut self, curve: QuadraticBezierCurve, color: u32) {
         let mut t = 0.0_f32;
 
         while t < 1.0 {
@@ -322,7 +323,7 @@ impl Canvas {
         }
     }
 
-    pub fn draw_cubic_bezier_curve(&mut self, curve: CubicBezierCurve, color: u32) {
+    pub fn stroke_cubic_bezier_curve(&mut self, curve: CubicBezierCurve, color: u32) {
         let mut t = 0.0_f32;
 
         while t < 1.0 {
