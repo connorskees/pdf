@@ -37,6 +37,10 @@ impl Line {
         bbox
     }
 
+    pub fn is_left_to_right(&self) -> bool {
+        self.start.x < self.end.x
+    }
+
     pub fn intersects_line(&self, other: Line) -> bool {
         let f = |x: f32, y: f32| -> f32 {
             (x - self.start.x) * (self.end.y - self.start.y)

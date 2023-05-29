@@ -2,7 +2,7 @@ use crate::data_structures::Matrix;
 
 use super::{point::Point, BoundingBox, QuadraticBezierCurve};
 
-fn solve_quadratic_formula(a: f32, b: f32, c: f32) -> [f32; 2] {
+pub fn solve_quadratic_formula(a: f32, b: f32, c: f32) -> [f32; 2] {
     let sqrt = ((b * b) - (4.0 * a * c)).sqrt();
     let a2 = 2.0 * a;
 
