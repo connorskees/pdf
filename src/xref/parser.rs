@@ -18,14 +18,14 @@ const START_XREF_SIGNATURE: &[u8; 9] = b"startxref";
 const KILOBYTE: usize = 1024;
 
 #[derive(Debug)]
-pub(crate) struct XrefParser<'a> {
-    file: &'a [u8],
+pub(crate) struct XrefParser {
+    file: Vec<u8>,
     pos: usize,
 }
 
-impl<'a> LexBase<'a> for XrefParser<'_> {
+impl<'a> LexBase<'a> for XrefParser {
     fn buffer(&self) -> &[u8] {
-        self.file
+        &self.file
     }
 
     fn cursor(&self) -> usize {
@@ -37,38 +37,38 @@ impl<'a> LexBase<'a> for XrefParser<'_> {
     }
 }
 
-impl<'a> LexObject<'a> for XrefParser<'_> {
+impl<'a> LexObject<'a> for XrefParser {
     fn lex_dict(&mut self) -> PdfResult<Object<'a>> {
         Ok(Object::Dictionary(self.lex_dict_ignore_stream()?))
     }
 }
 
-impl<'a> Resolve<'a> for XrefParser<'_> {
+impl<'a> Resolve<'a> for XrefParser {
     fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object<'a>> {
         Ok(Object::Reference(reference))
     }
 }
 
 #[derive(Debug)]
-pub(crate) enum TrailerOrOffset {
-    Trailer(Trailer),
+pub(crate) enum TrailerOrOffset<'a> {
+    Trailer(Trailer<'a>),
     Offset(usize),
 }
 
 // todo: do this better
 #[derive(Debug)]
-pub(crate) struct XrefAndTrailer {
+pub(crate) struct XrefAndTrailer<'a> {
     pub(crate) xref: Xref,
-    pub(crate) trailer_or_offset: TrailerOrOffset,
+    pub(crate) trailer_or_offset: TrailerOrOffset<'a>,
 }
 
-impl<'a> XrefParser<'a> {
-    pub fn new(file: &'a [u8]) -> Self {
+impl<'a> XrefParser {
+    pub fn new(file: Vec<u8>) -> Self {
         Self { file, pos: 0 }
     }
 
     /// We read backwards in 1024 byte chunks, looking for `"startxref"`
-    pub fn read_xref(&mut self) -> PdfResult<XrefAndTrailer> {
+    pub fn read_xref(&mut self) -> PdfResult<XrefAndTrailer<'a>> {
         let mut pos = self.file.len().saturating_sub(1);
 
         let idx = loop {
@@ -99,7 +99,7 @@ impl<'a> XrefParser<'a> {
         self.parse_xref_at_offset(xref_pos)
     }
 
-    fn parse_xref_stream(&mut self, is_previous: bool) -> PdfResult<XrefAndTrailer> {
+    fn parse_xref_stream(&mut self, is_previous: bool) -> PdfResult<XrefAndTrailer<'a>> {
         self.read_obj_prelude()?;
 
         let xref_stream_dict = match self.lex_object()? {
@@ -165,7 +165,7 @@ impl<'a> XrefParser<'a> {
         })
     }
 
-    pub fn parse_xref_at_offset(&mut self, offset: usize) -> PdfResult<XrefAndTrailer> {
+    pub fn parse_xref_at_offset(&mut self, offset: usize) -> PdfResult<XrefAndTrailer<'a>> {
         self.pos = offset;
 
         if !self.next_matches(b"xref") {

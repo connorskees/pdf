@@ -21,7 +21,7 @@ pub struct XrefStream<'a> {
 /// Values in this dictionary must *not* be indirect references
 pub struct XrefStreamDict<'a> {
     pub(crate) stream_dict: StreamDict<'a>,
-    pub(crate) trailer: Trailer,
+    pub(crate) trailer: Trailer<'a>,
 
     /// An array containing a pair of integers for each subsection in this
     /// section. The first integer shall be the first object number in the
