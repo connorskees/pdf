@@ -45,7 +45,7 @@ pub(crate) fn decode_stream<'a, 'b>(
                     let decoder_params =
                         FlateDecoderParams::from_obj(Object::Dictionary(decode_params), resolver)?;
 
-                    stream = FlateDecoder::new(Cow::Owned(stream), decoder_params).decode();
+                    stream = FlateDecoder::new(Cow::Owned(stream), decoder_params)?.decode();
                 }
                 FilterKind::RunLength => todo!(),
                 FilterKind::CcittFax => todo!(),

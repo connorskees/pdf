@@ -2,6 +2,8 @@ use std::{borrow::Cow, cmp::min, io::Read};
 
 use flate2::read::ZlibDecoder;
 
+use crate::error::PdfResult;
+
 /// <https://www.adobe.com/content/dam/acom/en/devnet/postscript/pdfs/TN5603.Filters.pdf>
 #[derive(Debug, FromObj)]
 
@@ -91,12 +93,12 @@ pub enum BitsPerComponent {
 }
 
 impl FlateDecoder {
-    pub fn new(buffer: Cow<[u8]>, params: FlateDecoderParams) -> Self {
+    pub fn new(buffer: Cow<[u8]>, params: FlateDecoderParams) -> PdfResult<Self> {
         let mut decoder = ZlibDecoder::new(&*buffer);
         let mut buffer = Vec::new();
-        decoder.read_to_end(&mut buffer).unwrap();
+        decoder.read_to_end(&mut buffer)?;
 
-        Self { buffer, params }
+        Ok(Self { buffer, params })
     }
 
     pub fn decode(mut self) -> Vec<u8> {
