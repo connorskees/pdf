@@ -4,7 +4,7 @@ use crate::{
     color::Color,
     error::PdfResult,
     filter::decode_stream,
-    geometry::{CubicBezierCurve, Line, Outline, Path, Point, Subpath},
+    geometry::{CubicBezierCurve, Line, Outline, Path, Point, QuadraticBezierCurve, Subpath},
     resolve::Resolve,
     xobject::ImageXObject,
 };
@@ -115,6 +115,7 @@ impl Canvas {
         for &subpath in &path.subpaths {
             match subpath {
                 Subpath::Line(line) => self.stroke_line(line, color),
+                Subpath::Quadratic(curve) => self.draw_quadratic_bezier_curve(curve, color),
                 Subpath::Cubic(curve) => self.draw_cubic_bezier_curve(curve, color),
             }
         }
@@ -244,8 +245,15 @@ impl Canvas {
     }
 
     pub fn stroke_line(&mut self, line: Line, color: u32) {
-        let mut start = (line.start.x as i32, line.start.y as i32);
-        let end = (line.end.x as i32, line.end.y as i32);
+        // todo: maybe do this optimization
+        let mut start = (
+            (line.start.x as i32), //.min(self.width as i32),
+            (line.start.y as i32), //.min(self.height as i32),
+        );
+        let end = (
+            (line.end.x as i32), //.min(self.width as i32),
+            (line.end.y as i32), //.min(self.height as i32),
+        );
 
         let dx = (end.0 - start.0).abs();
         let dy = -(end.1 - start.1).abs();
@@ -283,8 +291,6 @@ impl Canvas {
             return;
         }
 
-        assert!(point.x >= 0.0);
-        assert!(point.y >= 0.0);
         assert!(
             (point.x as usize) < self.width,
             "{} < {}",
@@ -302,6 +308,18 @@ impl Canvas {
         let idx = point.x as usize + (end - self.width) - point.y as usize * self.height;
 
         self.buffer[idx.min(self.width * self.height - 1)] = color;
+    }
+
+    pub fn draw_quadratic_bezier_curve(&mut self, curve: QuadraticBezierCurve, color: u32) {
+        let mut t = 0.0_f32;
+
+        while t < 1.0 {
+            let p = curve.basis(t);
+
+            self.paint_point(p, color);
+
+            t += 0.001;
+        }
     }
 
     pub fn draw_cubic_bezier_curve(&mut self, curve: CubicBezierCurve, color: u32) {
