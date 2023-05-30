@@ -48,15 +48,17 @@ fn extract_type_from_option(ty: &syn::Type) -> Option<&syn::Type> {
         })
 }
 
-fn field_getter(
-    name: &Ident,
-    ty: &Type,
-    key: &LitStr,
-    default: &Option<Expr>,
-) -> proc_macro2::TokenStream {
+fn field_getter(name: &Ident, ty: &Type, key: &LitStr, default: &Option<Expr>) -> TokenStream2 {
+    if name.to_string() == "stream" {
+        return TokenStream2::new();
+    }
+
     match ty {
         Type::Path(TypePath { path, .. }) if path.segments.last().unwrap().ident == "Option" => {
-            assert!(default.is_none());
+            if default.is_some() {
+                panic!("expected field with default to not be optional");
+            }
+
             let generic = extract_type_from_option(ty).unwrap();
             quote!(
                 let #name = dict.get::<#generic>(#key, resolver).context(#key)?;
@@ -65,7 +67,7 @@ fn field_getter(
         _ => {
             if let Some(default) = default {
                 quote!(
-                    let #name = dict.get::<#ty>(#key, resolver).context(#key)?.unwrap_or(#default);
+                    let #name = dict.get::<#ty>(#key, resolver).context(#key)?.unwrap_or_else(|| #default);
                 )
             } else {
                 quote!(
@@ -193,6 +195,7 @@ pub fn pdf_obj_inner(input: TokenStream) -> TokenStream {
     let field_default = fields.iter().map(|v| &v.default).collect::<Vec<_>>();
 
     let has_other = field_name.iter().any(|field| field.to_string() == "other");
+    let has_stream = field_name.iter().any(|field| field.to_string() == "stream");
 
     let return_val = if has_other {
         field_name = field_name
@@ -208,8 +211,9 @@ pub fn pdf_obj_inner(input: TokenStream) -> TokenStream {
             })
         )
     } else {
+        // todo: clone is superfluous, let's replace with macro
         quote!(
-            crate::assert_empty(dict);
+            crate::assert_empty(dict.clone());
 
             Ok(Self {
                 #(
@@ -235,11 +239,22 @@ pub fn pdf_obj_inner(input: TokenStream) -> TokenStream {
     let lifetimes = generics.lifetimes();
     let (_, ty_generics, where_clause) = generics.split_for_impl();
 
+    let dict_decl = if has_stream {
+        quote!(
+            let mut stream = resolver.assert_stream(obj)?;
+            let dict = &mut stream.dict.other;
+        )
+    } else {
+        quote!(
+            let mut dict = resolver.assert_dict(obj)?;
+        )
+    };
+
     quote!(
         impl<#(#lifetimes,)* #(#type_params,)* #from_obj_lt> crate::FromObj<'from_obj> for #name #ty_generics #where_clause {
             fn from_obj(obj: crate::Object<'from_obj>, resolver: &mut dyn crate::Resolve<'from_obj>) -> crate::PdfResult<Self> {
                 use anyhow::Context;
-                let mut dict = resolver.assert_dict(obj)?;
+                #dict_decl
 
                 #obj_type
 
