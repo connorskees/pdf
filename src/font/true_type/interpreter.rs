@@ -275,10 +275,10 @@ impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
         }
     }
 
-    pub fn render_glyph(&mut self, char_code: u32) -> Option<Glyph> {
+    pub fn render_glyph(&mut self, char_code: u32) -> anyhow::Result<Glyph> {
         self.reset();
 
-        let ttf_glyph = self.ttf_file.glyph(char_code).unwrap();
+        let ttf_glyph = self.ttf_file.glyph(char_code)?;
 
         let mut relative = Point::origin();
 
@@ -331,7 +331,7 @@ impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
 
         let outline = Outline { paths };
 
-        Some(Glyph {
+        Ok(Glyph {
             width_vector: outline.bounding_box().max - outline.bounding_box().min,
             outline,
         })
