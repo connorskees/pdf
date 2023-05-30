@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 mod cmap;
 mod cvt;
 mod font_directory;
@@ -9,16 +11,18 @@ mod name;
 mod table_name;
 mod tag;
 
-pub use cmap::CmapTable;
-pub use cvt::CvtTable;
-pub use font_directory::{DirectoryTableEntry, FontDirectory, OffsetSubtable, TableDirectory};
-pub use glyf::{
+pub(super) use cmap::CmapTable;
+pub(super) use cvt::CvtTable;
+pub(super) use font_directory::{
+    DirectoryTableEntry, FontDirectory, OffsetSubtable, TableDirectory,
+};
+pub(super) use glyf::{
     CompoundGlyphPartDescription, GlyfTable, GlyphDescription, OutlineFlag, SimpleGlyph,
     TrueTypeGlyph,
 };
-pub use head::{Head, HeadFlags, MacStyle};
-pub use loca::LocaTable;
-pub use maxp::{MaxpPostscriptTable, MaxpTable};
-pub use name::{NameRecord, NameTable};
-pub use table_name::TableName;
-pub use tag::TableTag;
+pub(super) use head::{Head, HeadFlags, MacStyle};
+pub(super) use loca::LocaTable;
+pub(super) use maxp::{MaxpPostscriptTable, MaxpTable};
+pub(super) use name::{NameRecord, NameTable};
+pub(super) use table_name::TableName;
+pub(super) use tag::TableTag;

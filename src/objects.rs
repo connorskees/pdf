@@ -489,6 +489,12 @@ impl<'a, T: FromObj<'a>> FromObj<'a> for Rc<T> {
     }
 }
 
+impl<'a, T: FromObj<'a>> FromObj<'a> for Box<T> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        Ok(Box::new(T::from_obj(obj, resolver)?))
+    }
+}
+
 impl<'a> FromObj<'a> for Date {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let s = resolver.assert_string(obj)?;

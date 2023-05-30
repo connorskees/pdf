@@ -18,7 +18,7 @@ use crate::{
     optional_content::OptionalContentProperties,
     stream::Stream,
     structure::StructTreeRoot,
-    viewer_preferences::{ViewerPreferences, PageMode},
+    viewer_preferences::{PageMode, ViewerPreferences},
     Dictionary, FromObj, Object, PdfResult, Reference, Resolve,
 };
 
@@ -333,29 +333,18 @@ pub struct AdditionalActions;
 #[derive(Debug, FromObj)]
 pub struct UriDict;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
+#[obj_type("Metadata")]
 pub struct MetadataStream<'a> {
-    stream: Stream<'a>,
+    #[field("Subtype")]
     subtype: MetadataStreamSubtype,
+    #[field("")]
+    stream: Stream<'a>,
 }
 
 #[pdf_enum]
 enum MetadataStreamSubtype {
     Xml = "XML",
-}
-
-impl<'a> MetadataStream<'a> {
-    const TYPE: &'static str = "Metadata";
-
-    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let dict = &mut stream.dict.other;
-
-        dict.expect_type(Self::TYPE, resolver, true)?;
-
-        let subtype = MetadataStreamSubtype::from_str(&dict.expect_name("Subtype", resolver)?)?;
-
-        Ok(Self { stream, subtype })
-    }
 }
 
 #[derive(Debug, FromObj)]

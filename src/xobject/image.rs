@@ -189,10 +189,7 @@ impl<'a> ImageXObject<'a> {
         let struct_parent = dict.get_integer("StructParent", resolver)?;
         let id = dict.get_string("ID", resolver)?;
         let opi = dict.get("OPI", resolver)?;
-        let metadata = dict
-            .get_stream("Metadata", resolver)?
-            .map(|stream| MetadataStream::from_stream(stream, resolver))
-            .transpose()?;
+        let metadata = dict.get("Metadata", resolver)?;
 
         let oc = dict.get("OC", resolver)?;
 

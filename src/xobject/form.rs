@@ -112,10 +112,7 @@ impl<'a> FormXObject<'a> {
         let reference = dict.get::<ReferenceXObject>("Ref", resolver)?;
         let group = dict.get::<GroupAttributes>("Group", resolver)?;
 
-        let metadata = dict
-            .get_stream("Metadata", resolver)?
-            .map(|stream| MetadataStream::from_stream(stream, resolver))
-            .transpose()?;
+        let metadata = dict.get("Metadata", resolver)?;
 
         let piece_info = dict.get::<PagePiece>("PieceInfo", resolver)?;
 

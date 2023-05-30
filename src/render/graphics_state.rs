@@ -14,6 +14,15 @@ pub(crate) struct GraphicsState<'a> {
     pub device_dependent: DeviceDependentGraphicsState<'a>,
 }
 
+impl<'a> GraphicsState<'a> {
+    pub fn get_color_space(&self, pos: ColorSpacePosition) -> &ColorSpace<'a> {
+        match pos {
+            ColorSpacePosition::Stroking => &self.device_independent.color_space.stroking,
+            ColorSpacePosition::Nonstroking => &self.device_independent.color_space.nonstroking,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct GraphicsStateColorSpace<'a> {
     pub stroking: ColorSpace<'a>,
@@ -254,3 +263,9 @@ impl Default for DeviceDependentGraphicsState<'_> {
 
 #[derive(Debug, Clone)]
 struct ClippingPath;
+
+#[derive(Debug, Clone, Copy)]
+pub enum ColorSpacePosition {
+    Stroking,
+    Nonstroking,
+}

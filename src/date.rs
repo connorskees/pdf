@@ -2,16 +2,16 @@ use crate::error::{ParseError, PdfResult};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Date {
-    year: Option<u16>,
-    month: Option<u16>,
-    day: Option<u16>,
-    hour: Option<u16>,
-    minute: Option<u16>,
-    second: Option<u16>,
+    pub year: Option<u16>,
+    pub month: Option<u16>,
+    pub day: Option<u16>,
+    pub hour: Option<u16>,
+    pub minute: Option<u16>,
+    pub second: Option<u16>,
 
-    ut_relationship: Option<UtRelationship>,
-    ut_hour_offset: Option<u16>,
-    ut_minute_offset: Option<u16>,
+    pub ut_relationship: Option<UtRelationship>,
+    pub ut_hour_offset: Option<u16>,
+    pub ut_minute_offset: Option<u16>,
 }
 
 impl Date {
@@ -114,7 +114,7 @@ impl Date {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-enum UtRelationship {
+pub enum UtRelationship {
     Plus,
     Minus,
     Equal,
