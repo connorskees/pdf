@@ -47,7 +47,7 @@ impl<'a> ObjectStreamDict<'a> {
 
         let stream_dict = StreamDict::from_dict(dict, resolver)?;
 
-        debug_assert!(extends.is_none(), "todo: objstm extends");
+        assert!(extends.is_none(), "todo: objstm extends");
 
         Ok(Self {
             stream_dict,

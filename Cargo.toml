@@ -11,6 +11,15 @@ description = "PDF parser"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+name = "pdf"
+path = "src/lib.rs"
+
+[[bin]]
+name = "pdf"
+path = "src/main.rs"
+
+
 [dependencies]
 anyhow = { version = "1.0.71", features = ["backtrace"] }
 fast-float = "0.2.0"
