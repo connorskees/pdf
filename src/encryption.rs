@@ -81,7 +81,7 @@ pub struct Encryption<'a> {
     embedded_file_filter: Name,
 
     // todo: additional fields here
-    #[field("")]
+    #[field]
     other: Dictionary<'a>,
 }
 

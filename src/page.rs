@@ -387,11 +387,9 @@ impl<'a> InheritablePageFields<'a> {
 
     pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let resources = dict.get("Resources", resolver)?;
-
-        let media_box = dict.get::<Rectangle>("MediaBox", resolver)?;
-        let crop_box = dict.get::<Rectangle>("CropBox", resolver)?;
-
-        let rotate = dict.get_integer("Rotate", resolver)?;
+        let media_box = dict.get("MediaBox", resolver)?;
+        let crop_box = dict.get("CropBox", resolver)?;
+        let rotate = dict.get("Rotate", resolver)?;
 
         Ok(Self {
             resources,

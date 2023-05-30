@@ -112,8 +112,8 @@ impl<'a> FromObj<'a> for FunctionSubtype<'a> {
         let subtype = FunctionType::from_integer(dict.expect_integer("FunctionType", resolver)?)?;
 
         Ok(match subtype {
-            FunctionType::Sampled => FunctionSubtype::Sampled(SampledFunction::from_stream(
-                stream_or_dict.expect_stream()?,
+            FunctionType::Sampled => FunctionSubtype::Sampled(SampledFunction::from_obj(
+                Object::Stream(stream_or_dict.expect_stream()?),
                 resolver,
             )?),
             FunctionType::ExponentialInterpolation => FunctionSubtype::ExponentialInterpolation(

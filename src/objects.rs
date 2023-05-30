@@ -321,10 +321,6 @@ impl<'a> Dictionary<'a> {
         self.dict.is_empty()
     }
 
-    pub fn get_obj_cloned(&self, key: &str) -> Option<Object<'a>> {
-        self.dict.get(key).cloned()
-    }
-
     pub fn get_name(&mut self, key: &str, resolver: &mut dyn Resolve) -> PdfResult<Option<String>> {
         self.dict
             .remove(key)
@@ -518,6 +514,20 @@ impl<'a, T: FromObj<'a>> FromObj<'a> for TypedReference<'a, T> {
             },
             _ => Self::Direct(T::from_obj(obj, resolver)?),
         })
+    }
+}
+
+impl<'a, T: FromObj<'a>> FromObj<'a> for HashMap<String, T> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let dict = resolver.assert_dict(obj)?;
+
+        dict.entries()
+            .map(|(key, value)| {
+                let v = T::from_obj(value, resolver)?;
+
+                Ok((key, v))
+            })
+            .collect()
     }
 }
 

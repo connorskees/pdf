@@ -29,6 +29,7 @@ mod font;
 mod function;
 mod geometry;
 mod halftones;
+mod icc_profile;
 mod lex;
 mod object_stream;
 mod objects;

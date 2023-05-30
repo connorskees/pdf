@@ -1,24 +1,28 @@
 use crate::{
     catalog::MetadataStream,
+    color::ColorSpace,
     error::PdfResult,
     filter::flate::BitsPerComponent,
     objects::Object,
     optional_content::{OptionalContent, OptionalContentGroup},
     resources::graphics_state_parameters::RenderingIntent,
     stream::Stream,
-    Resolve,
+    FromObj, Resolve,
 };
 
 use super::OpenPrepressInterface;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
 pub struct ImageXObject<'a> {
     /// The width of the image, in samples
+    #[field("Width")]
     pub width: u32,
 
     /// The height of the image, in samples
+    #[field("Height")]
     pub height: u32,
 
+    #[field]
     pub stream: Stream<'a>,
 
     /// The colour space in which image samples shall be specified; it can be
@@ -30,8 +34,8 @@ pub struct ImageXObject<'a> {
     ///   * If ColorSpace is absent, the colour space specifications in the
     ///      JPEG2000 data shall be used. The Decode array shall also be
     ///      ignored unless ImageMask is true
-    // todo: type of this
-    color_space: Option<Object<'a>>,
+    #[field("ColorSpace")]
+    color_space: Option<ColorSpace<'a>>,
 
     /// The number of bits used to represent each colour component. Only a
     /// single value shall be specified; the number of bits shall be the same
@@ -49,11 +53,13 @@ pub struct ImageXObject<'a> {
     /// If the image stream uses the JPXDecode filter, this entry is optional and
     /// shall be ignored if present. The bit depth is determined by the conforming
     /// reader in the process of decoding the JPEG2000 image
+    #[field("BitsPerComponent")]
     bits_per_component: Option<BitsPerComponent>,
 
     /// The name of a colour rendering intent to be used in rendering the image
     ///
     /// Default value: the current rendering intent in the graphics state
+    #[field("Intent")]
     intent: Option<RenderingIntent>,
 
     /// A flag indicating whether the image shall be treated as an image mask
@@ -63,11 +69,13 @@ pub struct ImageXObject<'a> {
     /// using the current nonstroking colour
     ///
     /// Default value: false
+    #[field("ImageMask", default = false)]
     image_mask: bool,
 
     /// An image XObject defining an image mask to be applied to this image, or an
     /// array specifying a range of colours to be applied to it as a colour key
     /// mask. If ImageMask is true, this entry shall not be present
+    #[field("Mask")]
     mask: Option<ImageMask>,
 
     /// An array of numbers describing how to map image samples into the range of
@@ -76,17 +84,20 @@ pub struct ImageXObject<'a> {
     /// the number of colour components required by ColorSpace. If the image uses
     /// the JPXDecode filter and ImageMask is false, Decode shall be ignored by a
     /// conforming reader
+    #[field("Decode")]
     decode: Option<Vec<f32>>,
 
     /// A flag indicating whether image interpolation shall be performed by a conforming
     /// reader
     ///
     /// Default value: false
+    #[field("Interpolate", default = false)]
     interpolate: bool,
 
     /// An array of alternate image dictionaries for this image. The order of elements
     /// within the array shall have no significance. This entry shall not be present
     /// in an image XObject that is itself an alternate image
+    #[field("Alternates")]
     alternates: Option<Vec<AlternateImage<'a>>>,
 
     /// A subsidiary image XObject defining a softmask image that shall be used as a source
@@ -99,6 +110,7 @@ pub struct ImageXObject<'a> {
     /// graphics state parameters -- blend mode and alpha constant -- shall remain in effect.
     /// If SMask is absent, the image shall have no associated soft mask (although the current
     /// soft mask in the graphics state may still apply)
+    #[field("SMask")]
     s_mask: Option<SoftMask<'a>>,
 
     /// A code specifying how soft-mask information encoded with image samples shall be used:
@@ -114,128 +126,59 @@ pub struct ImageXObject<'a> {
     /// If this entry has a nonzero value, SMask shall not be specified.
     ///
     /// Default value: 0.
+    #[field("SMaskInData", default = 0)]
     s_mask_in_data: i32,
 
     /// The name by which this image XObject is referenced in the XObject subdictionary of the
     /// current resource dictionary.
     ///
     /// This entry is obsolescent and shall no longer be used
+    #[field("Name")]
     name: Option<String>,
 
     /// The integer key of the image's entry in the structural parent tree
+    #[field("StructParent")]
     struct_parent: Option<i32>,
 
     /// The digital identifier of the image's parent Web Capture content set
+    #[field("ID")]
     id: Option<String>,
 
     /// An OPI version dictionary for the image. If ImageMask is true, this entry shall be ignored
+    #[field("OPI")]
     opi: Option<OpenPrepressInterface>,
 
     /// A metadata stream containing metadata for the image
+    #[field("Metadata")]
     metadata: Option<MetadataStream<'a>>,
 
     /// An optional content group or optional content membership dictionary, specifying the optional
     /// content properties for this image XObject. Before the image is processed by a conforming reader,
     /// its visibility shall be determined based on this entry. If it is determined to be invisible,
     /// the entire image shall be skipped, as if there were no Do operator to invoke it
+    #[field("OC")]
     oc: Option<OptionalContent>,
 }
 
-impl<'a> ImageXObject<'a> {
-    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let dict = &mut stream.dict.other;
-
-        let width = dict.expect_unsigned_integer("Width", resolver)?;
-        let height = dict.expect_unsigned_integer("Height", resolver)?;
-
-        let color_space = dict.get_object("ColorSpace", resolver)?;
-        let bits_per_component = dict
-            .get_integer("BitsPerComponent", resolver)?
-            .map(BitsPerComponent::from_integer)
-            .transpose()?;
-        let intent = dict
-            .get_name("Intent", resolver)?
-            .as_deref()
-            .map(RenderingIntent::from_str)
-            .transpose()?;
-
-        let image_mask = dict.get_bool("ImageMask", resolver)?.unwrap_or(false);
-        let mask = dict.get("Mask", resolver)?;
-        let decode = dict
-            .get_arr("Decode", resolver)?
-            .map(|arr| {
-                arr.into_iter()
-                    .map(|obj| resolver.assert_number(obj))
-                    .collect::<PdfResult<Vec<f32>>>()
-            })
-            .transpose()?;
-
-        let interpolate = dict.get_bool("Interpolate", resolver)?.unwrap_or(false);
-        let alternates = dict
-            .get_arr("Alternates", resolver)?
-            .map(|arr| {
-                arr.into_iter()
-                    .map(|obj| AlternateImage::from_stream(resolver.assert_stream(obj)?, resolver))
-                    .collect::<PdfResult<Vec<AlternateImage>>>()
-            })
-            .transpose()?;
-
-        let s_mask = dict
-            .get_stream("SMask", resolver)?
-            .map(|stream| SoftMask::from_stream(stream, resolver))
-            .transpose()?;
-        let s_mask_in_data = dict.get_integer("SMaskInData", resolver)?.unwrap_or(0);
-        let name = dict.get_name("Name", resolver)?;
-        let struct_parent = dict.get_integer("StructParent", resolver)?;
-        let id = dict.get_string("ID", resolver)?;
-        let opi = dict.get("OPI", resolver)?;
-        let metadata = dict.get("Metadata", resolver)?;
-
-        let oc = dict.get("OC", resolver)?;
-
-        Ok(Self {
-            width,
-            height,
-            stream,
-            color_space,
-            bits_per_component,
-            intent,
-            image_mask,
-            mask,
-            decode,
-            interpolate,
-            alternates,
-            s_mask,
-            s_mask_in_data,
-            name,
-            struct_parent,
-            id,
-            opi,
-            metadata,
-            oc,
-        })
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
 pub struct SoftMask<'a> {
-    /// If a Matte entry is present, shall be the same as the Width value of the parent
-    /// image; otherwise independent of it. Both images shall be mapped to the unit square
-    /// in user space (as are all images), regardless of whether the samples coincide individually.
+    #[field("Width")]
     width: u32,
 
-    /// Same considerations as for Width.
+    #[field("Height")]
     height: u32,
 
-    /// Required; shall be DeviceGray.
-    // todo: color space
-    color_space: Object<'a>,
+    #[field("ColorSpace")]
+    color_space: ColorSpace<'a>,
 
+    #[field("BitsPerComponent")]
     bits_per_component: BitsPerComponent,
 
     /// Default value: [0 1]
+    #[field("Decode", default = vec![0.0, 1.0])]
     decode: Vec<f32>,
 
+    #[field("Interpolate")]
     interpolate: Option<bool>,
 
     /// An array of component values specifying the matte colour with which the image data in
@@ -244,44 +187,13 @@ pub struct SoftMask<'a> {
     /// the parent image's image dictionary; the numbers shall be valid colour components in that
     /// colour space. If this entry is absent, the image data shall not be preblended
     // todo: type
+    #[field("Matte")]
     matte: Option<Vec<Object<'a>>>,
 
+    #[field]
     stream: Stream<'a>,
 }
 
-impl<'a> SoftMask<'a> {
-    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let dict = &mut stream.dict.other;
-
-        let width = dict.expect_unsigned_integer("Width", resolver)?;
-        let height = dict.expect_unsigned_integer("Height", resolver)?;
-        let color_space = dict.expect_object("ColorSpace", resolver)?;
-        let bits_per_component =
-            BitsPerComponent::from_integer(dict.expect_integer("BitsPerComponent", resolver)?)?;
-        let decode = dict
-            .get_arr("Decode", resolver)?
-            .map(|arr| {
-                arr.into_iter()
-                    .map(|obj| resolver.assert_number(obj))
-                    .collect::<PdfResult<Vec<f32>>>()
-            })
-            .transpose()?
-            .unwrap_or_else(|| vec![0.0, 1.0]);
-        let interpolate = dict.get_bool("Interpolate", resolver)?;
-        let matte = dict.get_arr("Matte", resolver)?;
-
-        Ok(Self {
-            width,
-            height,
-            color_space,
-            bits_per_component,
-            decode,
-            interpolate,
-            matte,
-            stream,
-        })
-    }
-}
 #[derive(Debug, Clone)]
 pub struct AlternateImage<'a> {
     /// The image XObject for the alternate image
@@ -301,14 +213,15 @@ pub struct AlternateImage<'a> {
     oc: Option<OptionalContentGroup>,
 }
 
-impl<'a> AlternateImage<'a> {
-    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for AlternateImage<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut stream = resolver.assert_stream(obj)?;
         let dict = &mut stream.dict.other;
 
         let default_for_printing = dict.get_bool("DefaultForPrinting", resolver)?;
         let oc = dict.get("OC", resolver)?;
 
-        let image = ImageXObject::from_stream(stream, resolver)?;
+        let image = ImageXObject::from_obj(Object::Stream(stream), resolver)?;
 
         Ok(Self {
             image,

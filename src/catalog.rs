@@ -226,7 +226,7 @@ pub struct InformationDictionary<'a> {
     trapped: Trapped,
 
     // todo: "other" field
-    #[field("")]
+    #[field]
     other: Dictionary<'a>,
 }
 
@@ -338,7 +338,7 @@ pub struct UriDict;
 pub struct MetadataStream<'a> {
     #[field("Subtype")]
     subtype: MetadataStreamSubtype,
-    #[field("")]
+    #[field]
     stream: Stream<'a>,
 }
 

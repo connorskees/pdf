@@ -29,13 +29,10 @@ pub struct EmbeddedFontDictionary<'a> {
 
 impl<'a> EmbeddedFontDictionary<'a> {
     pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let length_one = dict.get_unsigned_integer("Length1", resolver)?;
-        let length_two = dict.get_unsigned_integer("Length2", resolver)?;
-        let length_three = dict.get_unsigned_integer("Length3", resolver)?;
-        let metadata = dict
-            .get_stream("Metadata", resolver)?
-            .map(|stream| MetadataStream::from_stream(stream, resolver))
-            .transpose()?;
+        let length_one = dict.get("Length1", resolver)?;
+        let length_two = dict.get("Length2", resolver)?;
+        let length_three = dict.get("Length3", resolver)?;
+        let metadata = dict.get("Metadata", resolver)?;
 
         Ok(Self {
             length_one,

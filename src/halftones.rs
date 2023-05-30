@@ -11,14 +11,14 @@ use crate::{
 pub enum Halftones<'a> {
     Default,
     Dictionary(HalftoneDictionary<'a>),
-    Stream(HalftoneStream),
+    Stream(HalftoneStream<'a>),
 }
 
 impl<'a> FromObj<'a> for Halftones<'a> {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         Ok(match obj {
             Object::Name(name) if name == "Default" => Halftones::Default,
-            Object::Stream(stream) => Halftones::Stream(HalftoneStream::from_stream(stream)?),
+            obj @ Object::Stream(..) => Halftones::Stream(HalftoneStream::from_obj(obj, resolver)?),
             Object::Dictionary(dict) => {
                 Halftones::Dictionary(HalftoneDictionary::from_dict(dict, resolver)?)
             }
@@ -31,13 +31,10 @@ impl<'a> FromObj<'a> for Halftones<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct HalftoneStream {}
-
-impl HalftoneStream {
-    pub fn from_stream(_stream: Stream) -> PdfResult<Self> {
-        todo!()
-    }
+#[derive(Debug, Clone, FromObj)]
+pub struct HalftoneStream<'a> {
+    #[field]
+    stream: Stream<'a>,
 }
 
 #[derive(Debug, Clone)]

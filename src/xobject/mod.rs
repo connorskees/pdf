@@ -1,4 +1,4 @@
-use crate::{error::PdfResult, stream::Stream, Resolve};
+use crate::{error::PdfResult, objects::Object, FromObj, Resolve};
 
 pub use self::{form::FormXObject, image::ImageXObject, postscript::PostScriptXObject};
 
@@ -26,8 +26,11 @@ enum XObjectSubtype {
 
 impl<'a> XObject<'a> {
     const TYPE: &'static str = "XObject";
+}
 
-    pub fn from_stream(mut stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for XObject<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut stream = resolver.assert_stream(obj)?;
         let dict = &mut stream.dict.other;
 
         dict.expect_type(Self::TYPE, resolver, false)?;
@@ -35,11 +38,16 @@ impl<'a> XObject<'a> {
         let subtype = XObjectSubtype::from_str(&dict.expect_name("Subtype", resolver)?)?;
 
         Ok(match subtype {
-            XObjectSubtype::PostScript => {
-                XObject::PostScript(PostScriptXObject::from_stream(stream, resolver)?)
+            XObjectSubtype::PostScript => XObject::PostScript(PostScriptXObject::from_obj(
+                Object::Stream(stream),
+                resolver,
+            )?),
+            XObjectSubtype::Image => {
+                XObject::Image(ImageXObject::from_obj(Object::Stream(stream), resolver)?)
             }
-            XObjectSubtype::Image => XObject::Image(ImageXObject::from_stream(stream, resolver)?),
-            XObjectSubtype::Form => XObject::Form(FormXObject::from_stream(stream, resolver)?),
+            XObjectSubtype::Form => {
+                XObject::Form(FormXObject::from_obj(Object::Stream(stream), resolver)?)
+            }
         })
     }
 }

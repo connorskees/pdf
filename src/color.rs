@@ -281,7 +281,7 @@ pub struct IccStream<'a> {
     #[field("Metadata")]
     pub metadata: Option<MetadataStream<'a>>,
 
-    #[field("")]
+    #[field]
     pub stream: Stream<'a>,
 }
 

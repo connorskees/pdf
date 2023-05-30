@@ -2,6 +2,7 @@ use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     assert_empty,
+    color::ColorSpace,
     error::PdfResult,
     font::Font,
     objects::{Dictionary, Object},
@@ -17,15 +18,13 @@ pub mod pattern;
 
 #[derive(Debug, Clone)]
 pub struct Resources<'a> {
-    /// A dictionary that maps resource names to
-    /// graphics state parameter dictionaries
+    /// A dictionary that maps resource names to graphics state parameter
+    /// dictionaries
     pub ext_g_state: Option<HashMap<String, GraphicsStateParameters<'a>>>,
 
-    /// A dictionary that maps each resource name to
-    /// either the name of a device-dependent color
-    /// space or an array describing a color space
-    // color_space: Option<HashMap<String, ColorSpace<'a>>>,
-    pub color_space: Option<Dictionary<'a>>,
+    /// A dictionary that maps each resource name to either the name of a
+    /// device-dependent color space or an array describing a color space
+    pub color_space: Option<HashMap<String, ColorSpace<'a>>>,
 
     /// A dictionary that maps resource names to pattern objects
     pub pattern: Option<HashMap<String, Rc<Pattern<'a>>>>,
@@ -50,66 +49,13 @@ impl<'a> FromObj<'a> for Resources<'a> {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let mut dict = resolver.assert_dict(obj)?;
 
-        let ext_g_state = dict
-            .get_dict("ExtGState", resolver)?
-            .map(|dict| {
-                dict.entries()
-                    .map(|(key, value)| {
-                        let graphics = GraphicsStateParameters::from_obj(value, resolver)?;
+        let ext_g_state = dict.get("ExtGState", resolver)?;
+        let color_space = dict.get("ColorSpace", resolver)?;
+        let pattern = dict.get("Pattern", resolver)?;
+        let shading = dict.get("Shading", resolver)?;
+        let xobject = dict.get("XObject", resolver)?;
 
-                        Ok((key, graphics))
-                    })
-                    .collect::<PdfResult<HashMap<String, GraphicsStateParameters>>>()
-            })
-            .transpose()?;
-
-        let color_space = dict.get_dict("ColorSpace", resolver)?;
-
-        let pattern = dict
-            .get_dict("Pattern", resolver)?
-            .map(|dict| {
-                dict.entries()
-                    .map(|(key, obj)| Ok((key, Rc::new(Pattern::from_obj(obj, resolver)?))))
-                    .collect::<PdfResult<HashMap<String, Rc<Pattern>>>>()
-            })
-            .transpose()?;
-
-        let shading = dict
-            .get_dict("Shading", resolver)?
-            .map(|dict| {
-                dict.entries()
-                    .map(|(key, obj)| Ok((key, ShadingObject::from_obj(obj, resolver)?)))
-                    .collect::<PdfResult<HashMap<String, ShadingObject>>>()
-            })
-            .transpose()?;
-
-        let xobject = dict
-            .get_dict("XObject", resolver)?
-            .map(|dict| {
-                dict.entries()
-                    .map(|(key, obj)| {
-                        Ok((
-                            key,
-                            XObject::from_stream(resolver.assert_stream(obj)?, resolver)?,
-                        ))
-                    })
-                    .collect::<PdfResult<HashMap<String, XObject>>>()
-            })
-            .transpose()?;
-
-        let font = dict
-            .get_dict("Font", resolver)?
-            .map(|dict| {
-                dict.entries()
-                    .map(|(key, obj)| {
-                        Ok((
-                            key,
-                            Rc::new(Font::from_dict(resolver.assert_dict(obj)?, resolver)?),
-                        ))
-                    })
-                    .collect::<PdfResult<HashMap<String, Rc<Font>>>>()
-            })
-            .transpose()?;
+        let font = dict.get("Font", resolver)?;
 
         let proc_set = dict
             .get_arr("ProcSet", resolver)?

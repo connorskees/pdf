@@ -22,10 +22,6 @@ pub enum Pattern<'a> {
     Shading(ShadingPattern<'a>),
 }
 
-impl<'a> Pattern<'a> {
-    const TYPE: &'static str = "Pattern";
-}
-
 impl<'a> FromObj<'a> for Pattern<'a> {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let obj = resolver.resolve(obj)?;
@@ -33,16 +29,14 @@ impl<'a> FromObj<'a> for Pattern<'a> {
         Ok(
             if let Ok(mut stream) = resolver.assert_stream(obj.clone()) {
                 let dict = &mut stream.dict.other;
-                dict.expect_type(Self::TYPE, resolver, false)?;
 
                 let pattern_type = dict.expect::<PatternType>("PatternType", resolver)?;
 
                 assert_eq!(pattern_type, PatternType::Tiling);
 
-                Pattern::Tiling(TilingPattern::from_stream(stream, resolver)?)
+                Pattern::Tiling(TilingPattern::from_obj(Object::Stream(stream), resolver)?)
             } else {
                 let mut dict = resolver.assert_dict(obj)?;
-                dict.expect_type(Self::TYPE, resolver, false)?;
 
                 let pattern_type = dict.expect::<PatternType>("PatternType", resolver)?;
 
@@ -57,20 +51,25 @@ impl<'a> FromObj<'a> for Pattern<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
+#[obj_type("Pattern")]
 pub struct TilingPattern<'a> {
     /// A code that determines how the colour of the pattern cell shall be specified
+    #[field("PaintType")]
     paint_type: PaintType,
 
     /// A code that controls adjustments to the spacing of tiles relative to the device pixel grid
+    #[field("TilingType")]
     tiling_type: TilingType,
 
     /// An array of four numbers in the pattern coordinate system giving the coordinates of the
     /// left, bottom, right, and top edges, respectively, of the pattern cell's bounding box. These
     /// boundaries shall be used to clip the pattern cell
+    #[field("BBox")]
     bbox: Rectangle,
 
     /// The desired horizontal spacing between pattern cells, measured in the pattern coordinate system
+    #[field("XStep")]
     x_step: f32,
 
     /// The desired vertical spacing between pattern cells, measured in the pattern coordinate system
@@ -79,44 +78,26 @@ pub struct TilingPattern<'a> {
     /// This allows tiling with irregularly shaped figures
     ///
     /// XStep and YStep may be either positive or negative but shall not be zero
+    #[field("YStep")]
     y_step: f32,
 
     /// A resource dictionary that shall contain all of the named resources required by the pattern's
     /// content stream
+    #[field("Resources")]
     resources: Resources<'a>,
 
     /// An array of six numbers specifying the pattern matrix.
     ///
     /// Default value: the identity matrix [1 0 0 1 0 0].
+    #[field("Matrix")]
     matrix: Matrix,
-}
 
-impl<'a> TilingPattern<'a> {
-    pub fn from_stream(stream: Stream<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let mut dict = stream.dict.other;
-        let paint_type = PaintType::from_integer(dict.expect_integer("PaintType", resolver)?)?;
-        let tiling_type = TilingType::from_integer(dict.expect_integer("TilingType", resolver)?)?;
-        let bbox = dict.expect::<Rectangle>("BBox", resolver)?;
-        let x_step = dict.expect_number("XStep", resolver)?;
-        let y_step = dict.expect_number("YStep", resolver)?;
-        let resources = dict.expect("Resources", resolver)?;
-        let matrix = dict
-            .get::<Matrix>("Matrix", resolver)?
-            .unwrap_or_else(Matrix::identity);
-
-        Ok(Self {
-            paint_type,
-            tiling_type,
-            bbox,
-            x_step,
-            y_step,
-            resources,
-            matrix,
-        })
-    }
+    #[field]
+    stream: Stream<'a>,
 }
 
 #[derive(Debug, Clone, FromObj)]
+#[obj_type("Pattern")]
 pub struct ShadingPattern<'a> {
     /// A shading object defining the shading pattern's gradient fill
     #[field("Shading")]

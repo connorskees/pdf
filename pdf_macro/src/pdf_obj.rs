@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro2::{Ident, TokenStream as TokenStream2, Span};
 use quote::quote;
 use syn::{
     parse::Parse, parse_macro_input, parse_quote, Data, DeriveInput, Expr, GenericArgument,
@@ -173,10 +173,13 @@ pub fn pdf_obj_inner(input: TokenStream) -> TokenStream {
                     name.to_string()
                 ));
 
-            let nested = field_attr.parse_args_with(HelperArgs::parse).unwrap();
+            let (key, default) = if name.to_string() == "other" || name.to_string() == "stream" {
+                (LitStr::new("", Span::call_site()), None)
+            } else {
+                let nested = field_attr.parse_args_with(HelperArgs::parse).unwrap();
 
-            let key = nested.key;
-            let default = nested.default;
+                (nested.key, nested.default)
+            };
 
             PdfDictObjField {
                 name,

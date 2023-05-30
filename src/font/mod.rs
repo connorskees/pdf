@@ -40,8 +40,12 @@ pub enum Font<'a> {
 
 impl<'a> Font<'a> {
     const TYPE: &'static str = "Font";
+}
 
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for Font<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut dict = resolver.assert_dict(obj)?;
+
         dict.expect_type(Self::TYPE, resolver, true)?;
 
         let subtype = FontSubtype::from_str(&dict.expect_name("Subtype", resolver)?)?;

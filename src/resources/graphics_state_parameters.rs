@@ -359,9 +359,9 @@ impl<'a> FromObj<'a> for (Rc<Font<'a>>, f32) {
         assert_len(&arr, 2)?;
 
         let size = resolver.assert_number(arr.pop().unwrap())?;
-        let font_dict = resolver.assert_dict(arr.pop().unwrap())?;
+        let font = Font::from_obj(arr.pop().unwrap(), resolver)?;
 
-        Ok((Rc::new(Font::from_dict(font_dict, resolver)?), size))
+        Ok((Rc::new(font), size))
     }
 }
 
