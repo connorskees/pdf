@@ -157,7 +157,7 @@ impl<'a> XrefParser {
         self.skip_whitespace();
 
         self.expect_bytes(b"endstream")?;
-        self.expect_eol()?;
+        self.skip_whitespace();
 
         Ok(XrefStream {
             stream: Cow::Borrowed(stream),
