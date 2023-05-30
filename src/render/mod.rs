@@ -13,12 +13,12 @@ use crate::{
     filter::decode_stream,
     font::{
         true_type::{ParsedTrueTypeFontFile, TrueTypeInterpreter},
-        Font, TrueTypeFont, Type1Font,
+        Font, Glyph, TrueTypeFont, Type1Font,
     },
     geometry::{Path, Point},
     objects::Object,
     page::PageObject,
-    postscript::{charstring::CharStringPainter, PostscriptInterpreter},
+    postscript::{charstring::CharStringPainter, font::Type1PostscriptFont, PostscriptInterpreter},
     resources::{
         graphics_state_parameters::{
             LineCapStyle, LineDashPattern, LineJoinStyle, RenderingIntent,
@@ -27,14 +27,14 @@ use crate::{
     },
     shading::ShadingObject,
     xobject::{FormXObject, XObject},
-    FromObj, Resolve,
+    Resolve,
 };
 
 use canvas::Canvas;
 
 use self::{
     error::PdfRenderError,
-    graphics_state::GraphicsState,
+    graphics_state::{ColorSpacePosition, GraphicsState},
     text_state::{TextRenderingMode, TextState},
 };
 
@@ -107,11 +107,9 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         page: Rc<PageObject<'b>>,
     ) -> Self {
         let media_box: crate::data_structures::Rectangle = page.media_box.unwrap();
-        // for now, our rendering assumes a perfect square
-        let dim = media_box.width().ceil().max(media_box.height().ceil());
 
-        let width = dim;
-        let height = dim;
+        let width = media_box.width().ceil();
+        let height = media_box.height().ceil();
 
         Self {
             content,
@@ -219,7 +217,9 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     PdfGraphicsOperator::y => self.curve_to_final_replicated()?,
                     PdfGraphicsOperator::CS => self.set_stroking_color_space()?,
                     PdfGraphicsOperator::cs => self.set_nonstroking_color_space()?,
-                    PdfGraphicsOperator::SCN => self.set_stroking_color()?,
+                    PdfGraphicsOperator::SC | PdfGraphicsOperator::SCN => {
+                        self.set_stroking_color()?
+                    }
                     PdfGraphicsOperator::sc | PdfGraphicsOperator::scn => {
                         self.set_nonstroking_color()?
                     }
@@ -302,12 +302,24 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         Ok(())
     }
 
-    fn get_color_space(&mut self, color_space_name: ColorSpaceName) -> PdfResult<ColorSpace<'b>> {
-        Ok(match color_space_name {
-            ColorSpaceName::Separation | ColorSpaceName::DeviceN | ColorSpaceName::ICCBased => {
+    fn get_color_space(&mut self, pos: ColorSpacePosition) -> PdfResult<ColorSpace<'b>> {
+        let color_space = self.graphics_state.get_color_space(pos);
+
+        Ok(match color_space {
+            ColorSpace::IccBased { stream, .. } => {
+                let stream = Rc::clone(stream);
+
+                let mut channels = Vec::new();
+                for _ in 0..stream.num_of_color_components {
+                    channels.push(self.pop_number()?);
+                }
+
+                ColorSpace::IccBased { stream, channels }
+            }
+            ColorSpace::Separation | ColorSpace::DeviceN(..) => {
                 todo!()
             }
-            ColorSpaceName::Pattern => {
+            ColorSpace::Pattern(..) => {
                 let name = self.pop_name()?;
 
                 let pattern = self
@@ -322,23 +334,23 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
                 ColorSpace::Pattern(pattern)
             }
-            ColorSpaceName::Indexed => {
+            ColorSpace::Indexed(..) => {
                 todo!()
             }
-            ColorSpaceName::DeviceGray | ColorSpaceName::CalGray => {
+            ColorSpace::DeviceGray(..) | ColorSpace::CalGray { .. } => {
                 todo!()
             }
-            ColorSpaceName::DeviceRGB => {
+            ColorSpace::DeviceRGB { .. } => {
                 let blue = self.pop_number()?;
                 let green = self.pop_number()?;
                 let red = self.pop_number()?;
 
                 ColorSpace::DeviceRGB { red, green, blue }
             }
-            ColorSpaceName::Lab | ColorSpaceName::CalRGB => {
+            ColorSpace::Lab { .. } | ColorSpace::CalRGB { .. } => {
                 todo!()
             }
-            ColorSpaceName::DeviceCMYK => {
+            ColorSpace::DeviceCMYK { .. } => {
                 let key = self.pop_number()?;
                 let yellow = self.pop_number()?;
                 let magenta = self.pop_number()?;
@@ -355,13 +367,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     }
 
     fn set_nonstroking_color(&mut self) -> PdfResult<()> {
-        let color_space = self.get_color_space(
-            self.graphics_state
-                .device_independent
-                .color_space
-                .nonstroking
-                .name(),
-        )?;
+        let color_space = self.get_color_space(ColorSpacePosition::Nonstroking)?;
 
         self.graphics_state
             .device_independent
@@ -372,13 +378,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     }
 
     fn set_stroking_color(&mut self) -> PdfResult<()> {
-        let color_space = self.get_color_space(
-            self.graphics_state
-                .device_independent
-                .color_space
-                .stroking
-                .name(),
-        )?;
+        let color_space = self.get_color_space(ColorSpacePosition::Stroking)?;
 
         self.graphics_state.device_independent.color_space.stroking = color_space;
 
@@ -441,17 +441,18 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         let color_space = if let Ok(name) = ColorSpaceName::from_str(&name) {
             ColorSpace::init(name)
         } else {
-            let name = self
+            let color_space = self
                 .resources
                 .as_ref()
                 .unwrap()
                 .color_space
                 .as_ref()
                 .unwrap()
-                .get_obj_cloned(&name)
+                .get(&name)
+                .cloned()
                 .unwrap();
 
-            ColorSpace::from_obj(name, self.resolver)?
+            color_space
         };
 
         self.graphics_state.device_independent.color_space.stroking = color_space;
@@ -464,17 +465,18 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         let color_space = if let Ok(name) = ColorSpaceName::from_str(&name) {
             ColorSpace::init(name)
         } else {
-            let name = self
+            let color_space = self
                 .resources
                 .as_ref()
                 .unwrap()
                 .color_space
                 .as_ref()
                 .unwrap()
-                .get_obj_cloned(&name)
+                .get(&name)
+                .cloned()
                 .unwrap();
 
-            ColorSpace::from_obj(name, self.resolver)?
+            color_space
         };
 
         self.graphics_state
@@ -971,53 +973,55 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     }
 
     fn draw_text(&mut self, arr: Vec<Object<'b>>) -> PdfResult<()> {
-        let (font_stream, widths) = match self.text_state.font.as_deref() {
+        let ffs;
+        let stream;
+        let mut font: Box<dyn RenderableFont>;
+        let widths;
+
+        match self.text_state.font.as_deref() {
             Some(Font::Type1(Type1Font { base, .. })) => {
-                let font_file = base.font_descriptor.as_ref().unwrap().font_file.clone();
+                let font_file = base
+                    .font_descriptor
+                    .as_ref()
+                    .and_then(|desc| desc.font_file.clone());
 
                 if font_file.is_none() {
                     println!("skipping unsupported type 1 font");
                     return Ok(());
                 }
 
-                // todo!()
-                (font_file.unwrap(), &base.widths)
+                let font_file = font_file.unwrap();
+
+                ffs = font_file.stream.stream;
+
+                stream = decode_stream(&ffs, &font_file.stream.dict, self.resolver)?;
+
+                font = Box::new(Type1PostscriptFont::load(&stream)?);
+                widths = &base.widths;
             }
             Some(Font::TrueType(TrueTypeFont { base, .. })) => {
-                let font_stream = base
+                let font_file = base
                     .font_descriptor
                     .as_ref()
-                    .unwrap()
-                    .font_file_two
-                    .clone()
-                    .unwrap();
+                    .and_then(|desc| desc.font_file_two.clone());
 
-                let _stream = decode_stream(
-                    &font_stream.stream.stream,
-                    &font_stream.stream.dict,
-                    self.resolver,
-                )?;
+                if font_file.is_none() {
+                    println!("skipping unsupported true type font");
+                    return Ok(());
+                }
 
-                // println!("skipping unsupported true type font");
+                let font_file = font_file.unwrap();
 
-                // (font_stream, &base.widths)
-                todo!()
+                ffs = font_file.stream.stream;
+
+                stream = decode_stream(&ffs, &font_file.stream.dict, self.resolver)?;
+
+                font = Box::new(ParsedTrueTypeFontFile::load(&stream)?);
+                widths = &base.widths;
             }
             Some(font) => todo!("unimplement font type: {:#?}", font),
             None => todo!("no font selected in text state"),
         };
-
-        let stream = decode_stream(
-            &font_stream.stream.stream,
-            &font_stream.stream.dict,
-            self.resolver,
-        )?;
-
-        let mut interpreter = PostscriptInterpreter::new(&stream);
-        interpreter.run()?;
-
-        let font = interpreter.fonts.into_values().next().unwrap();
-        // let mut font = ParsedTrueTypeFontFile::new(&stream).unwrap();
 
         for obj in arr {
             let obj = self.resolver.resolve(obj)?;
@@ -1040,9 +1044,6 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                 _ => todo!(),
             };
 
-            // let mut interpreter = TrueTypeInterpreter::new(&mut font);
-            let mut painter = CharStringPainter::new(&font);
-
             for c in s.chars() {
                 let trm = Matrix::new(
                     self.text_state.font_size * self.text_state.horizontal_scaling,
@@ -1051,15 +1052,14 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     self.text_state.font_size,
                     0.0,
                     self.text_state.rise,
-                ) * font.font_matrix
+                ) * font.font_matrix()
                     * self.text_state.text_matrix
                     * self
                         .graphics_state
                         .device_independent
                         .current_transformation_matrix;
 
-                // let mut glyph = interpreter.render_glyph(c as u32).unwrap();
-                let mut glyph = painter.evaluate(c as u32)?;
+                let mut glyph = font.evaluate(c as u32)?;
 
                 glyph.outline.apply_transform(trm);
 
@@ -1304,4 +1304,54 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 enum OverprintMode {
     Zero = 0,
     NonZero = 1,
+}
+
+trait RenderableFont<'a, 'b> {
+    fn load(stream: &'a [u8]) -> PdfResult<Self>
+    where
+        Self: Sized;
+    // todo: optimize this to cache construction of evaluation engine
+    fn evaluate(&mut self, codepoint: u32) -> PdfResult<Glyph>;
+    fn font_matrix(&self) -> Matrix;
+}
+
+impl<'a, 'b> RenderableFont<'a, 'b> for Type1PostscriptFont {
+    fn load(stream: &'a [u8]) -> PdfResult<Self>
+    where
+        Self: Sized,
+    {
+        let mut interpreter = PostscriptInterpreter::new(&stream);
+        interpreter.run()?;
+
+        let font = interpreter.fonts.into_values().next().unwrap();
+
+        Ok(font)
+    }
+
+    fn evaluate(&mut self, codepoint: u32) -> PdfResult<Glyph> {
+        let mut painter = CharStringPainter::new(&self);
+        painter.evaluate(codepoint)
+    }
+
+    fn font_matrix(&self) -> Matrix {
+        self.font_matrix
+    }
+}
+
+impl<'a, 'b: 'a> RenderableFont<'a, 'b> for ParsedTrueTypeFontFile<'a> {
+    fn load(stream: &'a [u8]) -> PdfResult<Self>
+    where
+        Self: Sized,
+    {
+        ParsedTrueTypeFontFile::new(stream)
+    }
+
+    fn evaluate(&mut self, codepoint: u32) -> PdfResult<Glyph> {
+        let mut interpreter = TrueTypeInterpreter::new(self);
+        interpreter.render_glyph(codepoint)
+    }
+
+    fn font_matrix(&self) -> Matrix {
+        Matrix::identity()
+    }
 }
