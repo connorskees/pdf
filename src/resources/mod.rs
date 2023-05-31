@@ -85,11 +85,26 @@ impl<'a> FromObj<'a> for Resources<'a> {
     }
 }
 
+/// PDF graphics operators are grouped into "procedure sets." The `ProcSet` array
+/// contains the procedure sets from which instructions are used to render a page
+///
+/// This is used only when printing a PDF to a PostScript output device
+///
+/// This feature is considered obsolete and should be ignored by conforming readers
 #[pdf_enum]
 pub enum ProcedureSet {
+    /// Painting and graphics state
     Pdf = "PDF",
+
+    /// Text
     Text = "Text",
+
+    /// Grayscale image or image masks
     ImageB = "ImageB",
+
+    /// Color images
     ImageC = "ImageC",
+
+    /// Indexed color images
     ImageI = "ImageI",
 }
