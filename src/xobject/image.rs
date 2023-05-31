@@ -28,14 +28,17 @@ pub struct ImageXObject<'a> {
     /// The colour space in which image samples shall be specified; it can be
     /// any type of colour space except Pattern.
     ///
+    /// Required for images, except those that use the JPXDecode filter
+    ///
     /// If the image uses the JPXDecode filter, this entry may be present:
     ///   * If ColorSpace is present, any colour space specifications in the
     ///      JPEG2000 data shall be ignored.
     ///   * If ColorSpace is absent, the colour space specifications in the
     ///      JPEG2000 data shall be used. The Decode array shall also be
     ///      ignored unless ImageMask is true
+    ///
     #[field("ColorSpace")]
-    color_space: Option<ColorSpace<'a>>,
+    pub color_space: Option<ColorSpace<'a>>,
 
     /// The number of bits used to represent each colour component. Only a
     /// single value shall be specified; the number of bits shall be the same
@@ -50,17 +53,19 @@ pub struct ImageXObject<'a> {
     /// 8-bit samples, and an LZWDecode or FlateDecode filter shall deliver
     /// samples of a specified size if a predictor function is used.
     ///
+    /// Required for images, except those that use the JPXDecode filter
+    ///
     /// If the image stream uses the JPXDecode filter, this entry is optional and
     /// shall be ignored if present. The bit depth is determined by the conforming
     /// reader in the process of decoding the JPEG2000 image
     #[field("BitsPerComponent")]
-    bits_per_component: Option<BitsPerComponent>,
+    pub bits_per_component: Option<BitsPerComponent>,
 
     /// The name of a colour rendering intent to be used in rendering the image
     ///
     /// Default value: the current rendering intent in the graphics state
     #[field("Intent")]
-    intent: Option<RenderingIntent>,
+    pub intent: Option<RenderingIntent>,
 
     /// A flag indicating whether the image shall be treated as an image mask
     ///
@@ -70,13 +75,13 @@ pub struct ImageXObject<'a> {
     ///
     /// Default value: false
     #[field("ImageMask", default = false)]
-    image_mask: bool,
+    pub image_mask: bool,
 
     /// An image XObject defining an image mask to be applied to this image, or an
     /// array specifying a range of colours to be applied to it as a colour key
     /// mask. If ImageMask is true, this entry shall not be present
     #[field("Mask")]
-    mask: Option<ImageMask>,
+    pub mask: Option<ImageMask>,
 
     /// An array of numbers describing how to map image samples into the range of
     /// values appropriate for the image's colour space. If ImageMask is true, the
@@ -85,20 +90,20 @@ pub struct ImageXObject<'a> {
     /// the JPXDecode filter and ImageMask is false, Decode shall be ignored by a
     /// conforming reader
     #[field("Decode")]
-    decode: Option<Vec<f32>>,
+    pub decode: Option<Vec<f32>>,
 
     /// A flag indicating whether image interpolation shall be performed by a conforming
     /// reader
     ///
     /// Default value: false
     #[field("Interpolate", default = false)]
-    interpolate: bool,
+    pub interpolate: bool,
 
     /// An array of alternate image dictionaries for this image. The order of elements
     /// within the array shall have no significance. This entry shall not be present
     /// in an image XObject that is itself an alternate image
     #[field("Alternates")]
-    alternates: Option<Vec<AlternateImage<'a>>>,
+    pub alternates: Option<Vec<AlternateImage<'a>>>,
 
     /// A subsidiary image XObject defining a softmask image that shall be used as a source
     /// of mask shape or mask opacity values in the transparent imaging model. The alpha
@@ -111,7 +116,7 @@ pub struct ImageXObject<'a> {
     /// If SMask is absent, the image shall have no associated soft mask (although the current
     /// soft mask in the graphics state may still apply)
     #[field("SMask")]
-    s_mask: Option<SoftMask<'a>>,
+    pub s_mask: Option<SoftMask<'a>>,
 
     /// A code specifying how soft-mask information encoded with image samples shall be used:
     ///   0 If present, encoded soft-mask image information shall be ignored.
@@ -127,37 +132,37 @@ pub struct ImageXObject<'a> {
     ///
     /// Default value: 0.
     #[field("SMaskInData", default = 0)]
-    s_mask_in_data: i32,
+    pub s_mask_in_data: i32,
 
     /// The name by which this image XObject is referenced in the XObject subdictionary of the
     /// current resource dictionary.
     ///
     /// This entry is obsolescent and shall no longer be used
     #[field("Name")]
-    name: Option<String>,
+    pub name: Option<String>,
 
     /// The integer key of the image's entry in the structural parent tree
     #[field("StructParent")]
-    struct_parent: Option<i32>,
+    pub struct_parent: Option<i32>,
 
     /// The digital identifier of the image's parent Web Capture content set
     #[field("ID")]
-    id: Option<String>,
+    pub id: Option<String>,
 
     /// An OPI version dictionary for the image. If ImageMask is true, this entry shall be ignored
     #[field("OPI")]
-    opi: Option<OpenPrepressInterface>,
+    pub opi: Option<OpenPrepressInterface>,
 
     /// A metadata stream containing metadata for the image
     #[field("Metadata")]
-    metadata: Option<MetadataStream<'a>>,
+    pub metadata: Option<MetadataStream<'a>>,
 
     /// An optional content group or optional content membership dictionary, specifying the optional
     /// content properties for this image XObject. Before the image is processed by a conforming reader,
     /// its visibility shall be determined based on this entry. If it is determined to be invisible,
     /// the entire image shall be skipped, as if there were no Do operator to invoke it
     #[field("OC")]
-    oc: Option<OptionalContent>,
+    pub oc: Option<OptionalContent>,
 }
 
 #[derive(Debug, Clone, FromObj)]
