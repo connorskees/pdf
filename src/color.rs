@@ -119,7 +119,7 @@ impl<'a> ColorSpace<'a> {
     pub fn as_u32(&self) -> u32 {
         match self {
             &Self::DeviceGray(n) => {
-                let n = (n * 255.0) as u32;
+                let n = n.round() as u32;
 
                 (0xff << 24) | (n << 16) | (n << 8) | n
             }
