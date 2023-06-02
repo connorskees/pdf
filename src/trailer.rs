@@ -1,6 +1,5 @@
 use crate::{
     assert_empty,
-    catalog::InformationDictionary,
     encryption::Encryption,
     error::PdfResult,
     file_specification::FileIdentifier,
