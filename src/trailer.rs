@@ -43,6 +43,9 @@ pub struct Trailer<'a> {
 
     /// The document’s information dictionary
     pub info: Option<TypedReference<'a, InformationDictionary<'a>>>,
+
+    /// The byte offset in the decoded stream from the beginning of the file of a
+    /// cross-reference stream
     pub xref_stream: Option<i32>,
 
     /// LibreOffice specific extension, see <https://bugs.documentfoundation.org/show_bug.cgi?id=66580>

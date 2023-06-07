@@ -1,4 +1,10 @@
-use crate::objects::{Dictionary, Name};
+use std::collections::HashMap;
+
+use crate::{
+    objects::{Dictionary, Name, Object},
+    resolve::Resolve,
+    FromObj, PdfResult,
+};
 
 #[derive(Debug, Clone, FromObj)]
 pub struct Encryption<'a> {
@@ -40,9 +46,8 @@ pub struct Encryption<'a> {
     /// The conforming reader shall ignore entries in CF dictionary with the
     /// keys equal to those listed in Table 26 and use properties of the
     /// respective standard crypt filters.
-    // todo: better data type for this
     #[field("CF")]
-    crypt_filter: Option<Dictionary<'a>>,
+    crypt_filters: Option<HashMap<String, CryptFilter>>,
 
     /// The name of the crypt filter that shall be used by default when decrypting
     /// streams
@@ -106,4 +111,74 @@ pub enum EncryptionAlgorithm {
     /// document, using the rules specified by the CF, StmF, and StrF
     /// entries.
     BasedOnOtherEntries = 4,
+}
+
+#[derive(Debug, Clone, FromObj)]
+#[obj_type("CryptFilter")]
+pub struct CryptFilter {
+    /// The method used, if any, by the conforming reader to decrypt data.
+    ///
+    /// When the value is V2 or AESV2, the application may ask once for this
+    /// encryption key and cache the key for subsequent use for streams
+    /// that use the same crypt filter. Therefore, there shall be a
+    /// one-to-one relationship between a crypt filter name and the
+    /// corresponding encryption key.
+    #[field("CFM")]
+    crypt_filter_method: Option<CryptFilterMethod>,
+
+    /// The event to be used to trigger the authorization that is required to
+    /// access encryption keys used by this filter. If authorization fails,
+    /// the event shall fail.
+    ///
+    /// If this filter is used as the value of StrF or StmF in the encryption
+    /// dictionary, the conforming reader shall ignore this key and behave
+    /// as if the value is DocOpen.
+    #[field("AuthEvent")]
+    auth_event: Option<AuthEvent>,
+
+    /// The bit length of the encryption key. It shall be a multiple of 8 in the
+    /// range of 40 to 128.
+    #[field("Length")]
+    length: Option<i32>,
+}
+
+#[pdf_enum]
+#[derive(Default)]
+enum AuthEvent {
+    /// Authorization shall be required when a document is opened
+    #[default]
+    DocOpen = "DocOpen",
+
+    /// Authorization shall be required when accessing embedded files
+    EFOpen = "EFOpen",
+}
+
+#[pdf_enum]
+#[derive(Default)]
+enum CryptFilterMethod {
+    /// The application shall not decrypt data but shall direct the input stream
+    /// to the security handler for decryption.
+    #[default]
+    None = "None",
+
+    /// The application shall ask the security handler for the encryption key and
+    /// shall implicitly decrypt data with "Algorithm 1: Encryption of data
+    /// using the RC4 or AES algorithms", using the RC4 algorithm.
+    V2 = "V2",
+
+    /// The application shall ask the security handler for the encryption key and
+    /// shall implicitly decrypt data with "Algorithm 1: Encryption of data
+    /// using the RC4 or AES algorithms", using the AES algorithm in Cipher
+    /// Block Chaining (CBC) mode with a 16-byte block size and an
+    /// initialization vector that shall be randomly generated and placed
+    /// as the first 16 bytes in the stream or string.
+    AesV2 = "AESV2",
+}
+
+struct UserAccessPermissions(u32);
+
+impl<'a> FromObj<'a> for UserAccessPermissions {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        Ok(Self(resolver.assert_unsigned_integer(obj)?))
+    }
 }
