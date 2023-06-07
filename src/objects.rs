@@ -123,13 +123,11 @@ impl<'a> Dictionary<'a> {
             .remove(key)
             .and_then(|obj| match obj {
                 Object::Null => None,
-                Object::Reference(reference) => {
-                    match resolver.resolve(Object::Reference(reference)) {
-                        Ok(obj) if obj == Object::Null => None,
-                        Ok(..) => Some(T::from_obj(obj, resolver)),
-                        Err(e) => Some(Err(e)),
-                    }
-                }
+                Object::Reference(reference) => match resolver.reference_exists(reference) {
+                    Ok(true) => Some(T::from_obj(obj, resolver)),
+                    Ok(false) => None,
+                    Err(e) => Some(Err(e)),
+                },
                 obj => Some(T::from_obj(obj, resolver)),
             })
             .transpose()

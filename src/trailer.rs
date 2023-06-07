@@ -1,5 +1,6 @@
 use crate::{
     assert_empty,
+    catalog::InformationDictionary,
     encryption::Encryption,
     error::PdfResult,
     file_specification::FileIdentifier,
@@ -41,7 +42,7 @@ pub struct Trailer<'a> {
     pub id: Option<FileIdentifier>,
 
     /// The document’s information dictionary
-    pub info: Option<Reference>,
+    pub info: Option<TypedReference<'a, InformationDictionary<'a>>>,
     pub xref_stream: Option<i32>,
 
     /// LibreOffice specific extension, see <https://bugs.documentfoundation.org/show_bug.cgi?id=66580>
@@ -78,7 +79,7 @@ impl<'a> Trailer<'a> {
         };
         let encryption = dict.get("Encrypt", resolver)?;
         let id = dict.get("ID", resolver)?;
-        let info = dict.get_reference("Info")?;
+        let info = dict.get("Info", resolver)?;
         let doc_checksum = dict.get_name("DocChecksum", resolver)?;
         let xref_stream = dict.get_integer("XRefStm", resolver)?;
 

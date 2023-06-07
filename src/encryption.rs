@@ -1,6 +1,6 @@
 use crate::objects::{Dictionary, Name};
 
-#[derive(Debug, FromObj)]
+#[derive(Debug, Clone, FromObj)]
 pub struct Encryption<'a> {
     /// The name of the preferred security handler for this document. It shall
     /// be the name of the security handler that was used to encrypt the

@@ -6,9 +6,11 @@ use crate::{
     stream::Stream,
 };
 
-// todo: fn is_null as a fast path helper method
 pub trait Resolve<'a> {
     fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object<'a>>;
+
+    /// Whether or not the reference points to an existing object
+    fn reference_exists(&mut self, reference: Reference) -> PdfResult<bool>;
 
     fn assert_integer(&mut self, obj: Object) -> PdfResult<i32> {
         match obj {

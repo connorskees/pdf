@@ -402,6 +402,10 @@ impl<'a> Resolve<'a> for Lexer<'a> {
 
         Ok(obj)
     }
+
+    fn reference_exists(&mut self, reference: Reference) -> PdfResult<bool> {
+        Ok(self.xref.get_offset(reference)?.is_some())
+    }
 }
 
 pub struct Parser<'a> {
@@ -413,7 +417,7 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(p: &'static str) -> PdfResult<Self> {
+    pub fn new(p: impl AsRef<std::path::Path>) -> PdfResult<Self> {
         let file = std::fs::read(p)?;
 
         let mut xref_parser = XrefParser::new(file.clone());

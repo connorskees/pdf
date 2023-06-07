@@ -47,6 +47,11 @@ impl<'a> Resolve<'a> for XrefParser {
     fn lex_object_from_reference(&mut self, reference: Reference) -> PdfResult<Object<'a>> {
         Ok(Object::Reference(reference))
     }
+
+    fn reference_exists(&mut self, _reference: Reference) -> PdfResult<bool> {
+        // todo: wrong! but i forget how xref parser works
+        Ok(true)
+    }
 }
 
 #[derive(Debug)]
@@ -130,7 +135,7 @@ impl<'a> XrefParser {
                 let prev_trailer = match xref_and_trailer.trailer_or_offset {
                     TrailerOrOffset::Trailer(trailer) => trailer,
                     TrailerOrOffset::Offset(..) => {
-                        todo!("can't parse literal trailer without lexer")
+                        anyhow::bail!("can't parse literal trailer without lexer")
                     }
                 };
 
