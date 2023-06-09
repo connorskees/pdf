@@ -49,6 +49,8 @@ mod xref;
 
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, io, rc::Rc};
 
+use encryption::SecurityHandler;
+
 pub(crate) use crate::{objects::FromObj, resolve::Resolve};
 
 use crate::{
@@ -131,6 +133,8 @@ pub struct Lexer<'a> {
     file: Vec<u8>,
     pos: usize,
     xref: Rc<Xref>,
+    /// None if file isn't encrypted
+    security_handler: Option<SecurityHandler<'a>>,
     cached_object_streams: HashMap<usize, ObjectStreamParser<'a>>,
 }
 
@@ -140,6 +144,7 @@ impl<'a> Lexer<'a> {
             file,
             xref,
             pos: 0,
+            security_handler: None,
             cached_object_streams: HashMap::new(),
         })
     }
@@ -181,6 +186,15 @@ impl<'a> Lexer<'a> {
             Some(v) => v,
             None => {
                 let ObjectStream { stream, dict } = self.lex_object_stream(byte_offset)?;
+
+                let stream = match &self.security_handler {
+                    Some(security_handler) => {
+                        let stream =
+                            security_handler.decrypt_stream(stream.into_owned(), reference)?;
+                        Cow::Owned(stream)
+                    }
+                    None => stream,
+                };
 
                 let decoded_stream = decode_stream(&stream, &dict.stream_dict, self)?;
 
@@ -423,7 +437,7 @@ impl<'a> Parser<'a> {
         let mut xref_parser = XrefParser::new(file.clone());
         let xref_and_trailer = xref_parser.read_xref()?;
         let mut xref = Rc::new(xref_and_trailer.xref);
-        let mut lexer = Lexer::new(file, xref.clone())?;
+        let mut lexer = Lexer::new(file, Rc::clone(&xref))?;
 
         let trailer = match xref_and_trailer.trailer_or_offset {
             TrailerOrOffset::Offset(offset) => {
@@ -453,6 +467,15 @@ impl<'a> Parser<'a> {
         };
 
         xref = Rc::clone(&lexer.xref);
+        lexer.security_handler = if let Some(encryption) = &trailer.encryption {
+            let handler = SecurityHandler::new(
+                encryption.get_ref(&mut lexer)?.into_owned(),
+                trailer.id.clone().unwrap(),
+            );
+            Some(handler)
+        } else {
+            None
+        };
 
         let catalog = DocumentCatalog::from_obj(Object::Reference(trailer.root), &mut lexer)?;
 

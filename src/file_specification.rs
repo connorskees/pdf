@@ -1,5 +1,5 @@
 use crate::{
-    catalog::{assert_len, Collection},
+    catalog::Collection,
     error::{ParseError, PdfResult},
     objects::{Dictionary, Object, ObjectType},
     FromObj, Resolve,
@@ -155,15 +155,11 @@ struct EmbeddedFileStream;
 struct RelatedFilesArray;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct FileIdentifier(String, String);
+pub struct FileIdentifier(pub [String; 2]);
 
+// todo: should be derivable
 impl<'a> FromObj<'a> for FileIdentifier {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let arr = resolver.assert_arr(obj)?;
-        assert_len(&arr, 2)?;
-
-        let mut iter = arr.into_iter().map(|obj| resolver.assert_string(obj));
-
-        Ok(FileIdentifier(iter.next().unwrap()?, iter.next().unwrap()?))
+        Ok(FileIdentifier(<[String; 2]>::from_obj(obj, resolver)?))
     }
 }
