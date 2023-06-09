@@ -60,6 +60,18 @@ impl<'a> PageNode<'a> {
         }
     }
 
+    pub fn media_box(&self) -> Option<Rectangle> {
+        match self {
+            Self::Root(tree) => tree.borrow().inheritable_page_fields.media_box,
+            Self::Node(node) => node
+                .borrow()
+                .inheritable_page_fields
+                .media_box
+                .or_else(|| node.borrow().parent.media_box()),
+            Self::Leaf(leaf) => leaf.media_box(),
+        }
+    }
+
     pub fn resources(&self) -> Option<Rc<Resources<'a>>> {
         match self {
             Self::Root(tree) => tree
@@ -336,6 +348,12 @@ impl<'a> PageObject<'a> {
     pub fn crop_box(&self) -> Option<Rectangle> {
         self.crop_box
             .or_else(|| self.parent.crop_box())
+            .or(self.media_box)
+    }
+
+    pub fn media_box(&self) -> Option<Rectangle> {
+        self.media_box
+            .or_else(|| self.parent.media_box())
             .or(self.media_box)
     }
 
