@@ -473,7 +473,7 @@ impl<'a> PostscriptInterpreter<'a> {
 
                 self.push(PostScriptObject::Bool(self.get_str(s1) < self.get_str(s2)));
             }
-            _ => anyhow::bail!(PostScriptError::TypeCheck),
+            obj => anyhow::bail!("expected int or string in lt, found {:?}", obj),
         }
 
         Ok(())
@@ -563,7 +563,7 @@ impl<'a> PostscriptInterpreter<'a> {
             PostScriptObject::Int(i) => {
                 self.push(PostScriptObject::Int(!i));
             }
-            _ => anyhow::bail!(PostScriptError::TypeCheck),
+            obj => anyhow::bail!("expected bool or int in `not`, found {:?}", obj),
         }
 
         Ok(())
@@ -930,7 +930,7 @@ impl<'a> PostscriptInterpreter<'a> {
     fn dict(&mut self) -> PdfResult<()> {
         let n = match self.pop()? {
             PostScriptObject::Int(i) => usize::try_from(i),
-            _ => anyhow::bail!(PostScriptError::TypeCheck),
+            obj => anyhow::bail!("expected dict size, found {:?}", obj),
         }?;
 
         let dict = self.new_dict(PostScriptDictionary::with_capacity(n));
@@ -1015,42 +1015,42 @@ impl<'a> PostscriptInterpreter<'a> {
         match self.pop()? {
             PostScriptObject::Int(i) => Ok(i),
             PostScriptObject::Float(f) => Ok(f.round() as i32),
-            _ => anyhow::bail!(PostScriptError::TypeCheck),
+            obj => anyhow::bail!("expected int or float, found {:?}", obj),
         }
     }
 
     fn pop_name(&mut self) -> PdfResult<PostScriptString> {
         match self.pop()? {
             PostScriptObject::Name(name) => Ok(name),
-            _ => anyhow::bail!(PostScriptError::TypeCheck),
+            obj => anyhow::bail!("expected name, found {:?}", obj),
         }
     }
 
     fn pop_string(&mut self) -> PdfResult<StringIndex> {
         match self.pop()? {
             PostScriptObject::String(s) => Ok(s),
-            _ => anyhow::bail!(PostScriptError::TypeCheck),
+            obj => anyhow::bail!("expected string, found {:?}", obj),
         }
     }
 
     fn pop_dict(&mut self) -> PdfResult<DictionaryIndex> {
         match self.pop()? {
             PostScriptObject::Dictionary(dict) => Ok(dict),
-            _ => anyhow::bail!(PostScriptError::TypeCheck),
+            obj => anyhow::bail!("expected dict, found {:?}", obj),
         }
     }
 
     fn pop_arr(&mut self) -> PdfResult<ArrayIndex> {
         match self.pop()? {
             PostScriptObject::Array(arr) => Ok(arr),
-            _ => anyhow::bail!(PostScriptError::TypeCheck),
+            obj => anyhow::bail!("expected array, found {:?}", obj),
         }
     }
 
     fn pop_bool(&mut self) -> PdfResult<bool> {
         match self.pop()? {
             PostScriptObject::Bool(b) => Ok(b),
-            _ => anyhow::bail!(PostScriptError::TypeCheck),
+            obj => anyhow::bail!("expected bool, found {:?}", obj),
         }
     }
 
@@ -1058,7 +1058,7 @@ impl<'a> PostscriptInterpreter<'a> {
         match self.pop()? {
             PostScriptObject::Int(n) => Ok(n as f32),
             PostScriptObject::Float(n) => Ok(n),
-            _ => anyhow::bail!(PostScriptError::TypeCheck),
+            obj => anyhow::bail!("expected number, found {:?}", obj),
         }
     }
 
@@ -1069,7 +1069,7 @@ impl<'a> PostscriptInterpreter<'a> {
     fn pop_file(&mut self) -> PdfResult<PostScriptObject> {
         match self.pop()? {
             obj @ PostScriptObject::File => Ok(obj),
-            _ => anyhow::bail!(PostScriptError::TypeCheck),
+            obj => anyhow::bail!("expected file, found {:?}", obj),
         }
     }
 
