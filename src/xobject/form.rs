@@ -4,9 +4,10 @@ use crate::{
     catalog::{GroupAttributes, MetadataStream, PagePiece},
     data_structures::{Matrix, Rectangle},
     date::Date,
+    objects::Name,
     optional_content::OptionalContent,
     resources::Resources,
-    stream::Stream, objects::Name,
+    stream::Stream,
 };
 
 use super::{reference::ReferenceXObject, OpenPrepressInterface};
@@ -56,12 +57,12 @@ pub struct FormXObject<'a> {
     /// If a Ref entry (see below) is present, the group attributes shall also apply to
     /// the external page imported by that entry, which allows such an imported page to be
     /// treated as a group without further modification
-    #[field("Ref")]
+    #[field("Group")]
     pub group: Option<GroupAttributes<'a>>,
 
     /// A reference dictionary identifying a page to be imported from another PDF file,
     /// and for which the form XObject serves as a proxy
-    #[field("Group")]
+    #[field("Ref")]
     pub reference: Option<ReferenceXObject<'a>>,
 
     /// A metadata stream containing metadata for the form XObject

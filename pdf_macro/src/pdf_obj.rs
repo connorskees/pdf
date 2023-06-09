@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, TokenStream as TokenStream2, Span};
+use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{
     parse::Parse, parse_macro_input, parse_quote, Data, DeriveInput, Expr, GenericArgument,
@@ -61,17 +61,17 @@ fn field_getter(name: &Ident, ty: &Type, key: &LitStr, default: &Option<Expr>) -
 
             let generic = extract_type_from_option(ty).unwrap();
             quote!(
-                let #name = dict.get::<#generic>(#key, resolver).context(#key)?;
+                let #name = dict.get::<#generic>(#key, resolver)?;
             )
         }
         _ => {
             if let Some(default) = default {
                 quote!(
-                    let #name = dict.get::<#ty>(#key, resolver).context(#key)?.unwrap_or_else(|| #default);
+                    let #name = dict.get::<#ty>(#key, resolver)?.unwrap_or_else(|| #default);
                 )
             } else {
                 quote!(
-                    let #name = dict.expect::<#ty>(#key, resolver).context(#key)?;
+                    let #name = dict.expect::<#ty>(#key, resolver)?;
                 )
             }
         }

@@ -133,6 +133,41 @@ struct DeviceNProcess<'a> {
 }
 
 #[derive(Debug, Clone)]
+pub struct IndexedColorSpace<'a> {
+    base: ColorSpace<'a>,
+
+    /// The hival parameter shall be an integer that specifies the maximum valid
+    /// index value. The colour table shall be indexed by integers in the range 0
+    /// to hival. hival shall be no greater than 255, which is the integer
+    /// required to index a table with 8-bit index values.
+    hival: u8,
+
+    lookup: IndexedLookupTable,
+}
+
+#[derive(Debug, Clone)]
+struct IndexedLookupTable {
+    buffer: Vec<u8>,
+}
+
+impl<'a> FromObj<'a> for IndexedLookupTable {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let buffer = match resolver.resolve(obj)? {
+            Object::String(s) => s.into_bytes(),
+            Object::Stream(stream) => {
+                decode_stream(&stream.stream, &stream.dict, resolver)?.into_owned()
+            }
+            obj => anyhow::bail!(
+                "expected string or stream for indexed lookup table, got {:?}",
+                obj
+            ),
+        };
+
+        Ok(Self { buffer })
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum ColorSpace<'a> {
     // Device
     DeviceGray(f32),
@@ -168,7 +203,10 @@ pub enum ColorSpace<'a> {
     },
 
     // Special
-    Indexed(u32),
+    Indexed {
+        index: u32,
+        space: Rc<IndexedColorSpace<'a>>,
+    },
     Pattern(Option<Rc<Pattern<'a>>>),
     Separation(SeparationColorSpace<'a>),
     DeviceN(DeviceNColorSpace<'a>),
@@ -197,7 +235,7 @@ impl<'a> ColorSpace<'a> {
             },
             ColorSpaceName::Lab => todo!(),
             ColorSpaceName::ICCBased => todo!(),
-            ColorSpaceName::Indexed => ColorSpace::Indexed(0),
+            ColorSpaceName::Indexed => todo!(),
             ColorSpaceName::Pattern => ColorSpace::Pattern(None),
             ColorSpaceName::Separation => todo!(),
             ColorSpaceName::DeviceN => todo!(),
@@ -213,7 +251,7 @@ impl<'a> ColorSpace<'a> {
             ColorSpace::CalRGB { .. } => ColorSpaceName::CalRGB,
             ColorSpace::Lab { .. } => ColorSpaceName::Lab,
             ColorSpace::IccBased { .. } => ColorSpaceName::ICCBased,
-            ColorSpace::Indexed(..) => ColorSpaceName::Indexed,
+            ColorSpace::Indexed { .. } => ColorSpaceName::Indexed,
             ColorSpace::Pattern { .. } => ColorSpaceName::Pattern,
             ColorSpace::Separation { .. } => ColorSpaceName::Separation,
             ColorSpace::DeviceN(..) => ColorSpaceName::DeviceN,
@@ -307,8 +345,8 @@ impl<'a> FromObj<'a> for ColorSpace<'a> {
                         )?;
 
                         let icc_profile = IccProfile::new(&stream)?;
-                        assert_eq!(
-                            icc_profile.header.colour_space.0, *b"RGB ",
+                        assert!(
+                            matches!(&icc_profile.header.colour_space.0, b"RGB " | b"GRAY"),
                             "unimplemented ICC color profile: {:?}",
                             icc_profile.header.colour_space
                         );
@@ -323,11 +361,17 @@ impl<'a> FromObj<'a> for ColorSpace<'a> {
                     ColorSpaceName::Indexed => {
                         assert_len(&arr, 4)?;
 
-                        // let lookup = arr.pop().unwrap();
-                        // let hival = arr.pop().unwrap();
-                        // let base = arr.pop().unwrap();
+                        let base = ColorSpace::from_obj(arr[1].clone(), resolver)?;
+                        let hival = u8::try_from(u32::from_obj(arr[2].clone(), resolver)?)?;
+                        let lookup = IndexedLookupTable::from_obj(arr[3].clone(), resolver)?;
 
-                        todo!()
+                        let space = Rc::new(IndexedColorSpace {
+                            base,
+                            hival,
+                            lookup,
+                        });
+
+                        Ok(ColorSpace::Indexed { index: 0, space })
                     }
                     ColorSpaceName::Pattern => todo!(),
                     ColorSpaceName::Separation => {
