@@ -1,11 +1,20 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, fmt};
 
 use crate::postscript::{PostScriptError, PostScriptResult};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(crate) struct PostScriptFunctionLexer {
     buffer: Box<[u8]>,
     cursor: usize,
+}
+
+impl fmt::Debug for PostScriptFunctionLexer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PostScriptFunctionLexer")
+            .field("buffer", &format!("[ {} bytes ]", self.buffer.len()))
+            .field("cursor", &self.cursor)
+            .finish()
+    }
 }
 
 #[derive(Debug)]
