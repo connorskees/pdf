@@ -535,6 +535,7 @@ pub(crate) trait LexObject<'a>: LexBase<'a> {
     }
 
     fn read_obj_prelude(&mut self) -> PdfResult<()> {
+        self.skip_whitespace();
         self.lex_whole_number();
         self.skip_whitespace();
         self.lex_whole_number();
