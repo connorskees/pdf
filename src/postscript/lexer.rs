@@ -50,6 +50,7 @@ fn ident_token_from_bytes(bytes: &[u8]) -> PdfResult<PostScriptObject> {
         b"save" => PostscriptOperator::Save,
         b"restore" => PostscriptOperator::Restore,
         b"bind" => PostscriptOperator::Bind,
+        b"copy" => PostscriptOperator::Copy,
         literal => {
             // todo: only to detect unimplemented operators
             match literal {

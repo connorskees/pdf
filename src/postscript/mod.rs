@@ -295,6 +295,7 @@ impl<'a> PostscriptInterpreter<'a> {
 
     fn execute(&mut self, op: PostscriptOperator) -> PdfResult<()> {
         match op {
+            PostscriptOperator::Copy => self.copy(),
             PostscriptOperator::Dict => self.dict(),
             PostscriptOperator::Begin => self.begin(),
             PostscriptOperator::Dup => self.dup(),
@@ -900,6 +901,32 @@ impl<'a> PostscriptInterpreter<'a> {
         Ok(())
     }
 
+    fn copy(&mut self) -> PdfResult<()> {
+        match self.pop()? {
+            PostScriptObject::Int(i) => {
+                let mut to_dup = Vec::new();
+
+                for _ in 0..i {
+                    let obj = self.pop()?;
+                    to_dup.push(obj.clone());
+                    self.push(obj);
+                }
+
+                for obj in to_dup {
+                    self.push(obj);
+                }
+            }
+            PostScriptObject::Array(..)
+            | PostScriptObject::String(..)
+            | PostScriptObject::Dictionary(..) => {
+                todo!("postscript copy not implemented for composite objects")
+            }
+            n => anyhow::bail!("expected integer or composite object, got {:?}", n),
+        }
+
+        Ok(())
+    }
+
     fn dict(&mut self) -> PdfResult<()> {
         let n = match self.pop()? {
             PostScriptObject::Int(i) => usize::try_from(i),
@@ -1349,6 +1376,54 @@ pub(self) enum PostscriptOperator {
     ///
     /// proc `bind` proc
     Bind,
+
+    /// performs two entirely different functions, depending on the type of the
+    /// topmost operand
+    ///
+    /// In the first form, where the top element on the operand stack is a
+    /// nonnegative integer n, copy pops n from the stack and duplicates the top
+    /// n elements on the stack as shown above. This form of copy operates only
+    /// on the objects themselves, not on the values of composite objects
+    ///
+    /// Examples
+    ///     (a) (b) (c) 2 copy ⇒ (a) (b) (c) (b) (c)
+    ///     (a) (b) (c) 0 copy ⇒ (a) (b) (c)
+    ///
+    /// In the other forms, copy copies all the elements of the first composite
+    /// object into the second. The composite object operands must be of the same
+    /// type, except that a packed array can be copied into an array (and only
+    /// into an array—copy cannot copy into packed arrays, because they are
+    /// read-only). This form of copy copies the value of a composite object.
+    /// This is quite different from dup and other operators that copy only the
+    /// objects themselves. However, copy performs only one level of copying. It
+    /// does not apply recursively to elements that are themselves composite
+    /// objects; instead, the values of those elements become shared.
+    ///
+    /// In the case of arrays or strings, the length of the second object must be at
+    /// least as great as the first; copy returns the initial subarray or
+    /// substring of the second operand into which the elements were copied. Any
+    /// remaining elements of array2 or string2 are unaffected.
+    ///
+    /// In the case of dictionaries, LanguageLevel 1 requires that dict2 have a
+    /// length (as returned by the length operator) of 0 and a maximum capacity
+    /// (as returned by the maxlength operator) at least as great as the length
+    /// of dict1. LanguageLevels 2 and 3 do not impose this restriction, since
+    /// dictionaries can expand when necessary
+    ///
+    /// The literal/executable and access attributes of the result are normally the
+    /// same as those of the second operand. However, in LanguageLevel 1 the
+    /// access attribute of dict2 is copied from that of dict1
+    ///
+    /// If the value of the destination object is in global VM and any of the
+    /// elements copied from the source object are composite objects whose values
+    /// are in local VM, an invalidaccess error occurs
+    ///
+    /// Example
+    ///     /a1 [1 2 3] def
+    ///     a1 dup length array copy ⇒ [1 2 3]
+    ///
+    /// any1 … anyn n `copy` any1 … anyn any1 … anyn
+    Copy,
 }
 
 #[derive(Debug, Clone, Copy)]
