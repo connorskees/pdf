@@ -116,7 +116,7 @@ pub struct ImageXObject<'a> {
     /// If SMask is absent, the image shall have no associated soft mask (although the current
     /// soft mask in the graphics state may still apply)
     #[field("SMask")]
-    pub s_mask: Option<SoftMask<'a>>,
+    pub s_mask: Option<SoftMaskImage<'a>>,
 
     /// A code specifying how soft-mask information encoded with image samples shall be used:
     ///   0 If present, encoded soft-mask image information shall be ignored.
@@ -167,18 +167,27 @@ pub struct ImageXObject<'a> {
 
 #[derive(Debug, Clone, FromObj)]
 #[obj_type("XObject", subtype = "Image")]
-pub struct SoftMask<'a> {
+pub struct SoftMaskImage<'a> {
     #[field("Width")]
     width: u32,
 
     #[field("Height")]
     height: u32,
 
+    /// Shall be DeviceGray.
     #[field("ColorSpace")]
     color_space: ColorSpace<'a>,
 
     #[field("BitsPerComponent")]
     bits_per_component: BitsPerComponent,
+
+    /// Ignored
+    #[field("Intent")]
+    intent: Option<RenderingIntent>,
+
+    /// Ignored
+    #[field("ImageMask")]
+    image_mask: Option<bool>,
 
     /// Default value: [0 1]
     #[field("Decode", default = vec![0.0, 1.0])]
@@ -186,6 +195,30 @@ pub struct SoftMask<'a> {
 
     #[field("Interpolate")]
     interpolate: Option<bool>,
+
+    /// Ignored
+    #[field("Alternates")]
+    alternates: Option<Object<'a>>,
+
+    /// Ignored
+    #[field("Name")]
+    name: Option<Name>,
+
+    /// Ignored
+    #[field("StructParent")]
+    struct_parent: Option<Object<'a>>,
+
+    /// Ignored
+    #[field("ID")]
+    id: Option<Object<'a>>,
+
+    /// Ignored
+    #[field("OPI")]
+    opi: Option<Object<'a>>,
+
+    /// A metadata stream containing metadata for the image
+    #[field("Metadata")]
+    metadata: Option<MetadataStream<'a>>,
 
     /// An array of component values specifying the matte colour with which the image data in
     /// the parent image shall have been preblended. The array shall consist of n numbers, where
