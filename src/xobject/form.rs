@@ -6,7 +6,7 @@ use crate::{
     date::Date,
     optional_content::OptionalContent,
     resources::Resources,
-    stream::Stream,
+    stream::Stream, objects::Name,
 };
 
 use super::{reference::ReferenceXObject, OpenPrepressInterface};
@@ -107,5 +107,5 @@ pub struct FormXObject<'a> {
     ///
     /// This entry is obsolescent and its use is no longer recommended
     #[field("Name")]
-    pub name: Option<String>,
+    pub name: Option<Name>,
 }

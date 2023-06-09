@@ -11,6 +11,7 @@ be shown when the document is opened.
 use crate::{
     acro_form::AcroForm,
     actions::Actions,
+    color::ColorSpace,
     data_structures::{NameTree, NumberTree},
     date::Date,
     destination::Destination,
@@ -499,9 +500,8 @@ pub struct GroupAttributes<'a> {
     ///
     /// For a transparency group XObject used as an annotation appearance, the default colour space
     /// shall be inherited from the page on which the annotation appears
-    // todo: type
     #[field("CS")]
-    cs: Option<Object<'a>>,
+    cs: Option<ColorSpace<'a>>,
 
     /// A flag specifying whether the transparency group is isolated.
     ///

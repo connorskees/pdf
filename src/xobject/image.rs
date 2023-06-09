@@ -3,7 +3,7 @@ use crate::{
     color::ColorSpace,
     error::PdfResult,
     filter::flate::BitsPerComponent,
-    objects::Object,
+    objects::{Name, Object},
     optional_content::{OptionalContent, OptionalContentGroup},
     resources::graphics_state_parameters::RenderingIntent,
     stream::Stream,
@@ -139,7 +139,7 @@ pub struct ImageXObject<'a> {
     ///
     /// This entry is obsolescent and shall no longer be used
     #[field("Name")]
-    pub name: Option<String>,
+    pub name: Option<Name>,
 
     /// The integer key of the image's entry in the structural parent tree
     #[field("StructParent")]

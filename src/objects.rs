@@ -1,5 +1,7 @@
 use std::{borrow::Cow, collections::HashMap, convert::TryFrom, fmt, marker::PhantomData, rc::Rc};
 
+use anyhow::Context;
+
 use crate::{
     assert_reference, catalog::assert_len, data_structures::Matrix, date::Date, stream::Stream,
     ParseError, PdfResult, Resolve,
@@ -131,6 +133,7 @@ impl<'a> Dictionary<'a> {
                 obj => Some(T::from_obj(obj, resolver)),
             })
             .transpose()
+            .with_context(|| format!("error getting key {}", key))
     }
 
     pub fn expect<T: FromObj<'a>>(
@@ -141,7 +144,8 @@ impl<'a> Dictionary<'a> {
         self.dict
             .remove(key)
             .map(|obj| T::from_obj(obj, resolver))
-            .ok_or(ParseError::MissingRequiredKey { key })?
+            .ok_or(ParseError::MissingRequiredKey { key })
+            .with_context(|| key.to_owned())?
     }
 
     pub fn get_stream(
