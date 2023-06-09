@@ -166,6 +166,7 @@ pub struct ImageXObject<'a> {
 }
 
 #[derive(Debug, Clone, FromObj)]
+#[obj_type("XObject", subtype = "Image")]
 pub struct SoftMask<'a> {
     #[field("Width")]
     width: u32,
