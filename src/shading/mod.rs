@@ -1,7 +1,8 @@
 use crate::{
-    assert_empty,
+    color::ColorSpace,
     data_structures::Rectangle,
     error::PdfResult,
+    function::StreamOrDict,
     objects::{Dictionary, Object},
     FromObj, Resolve,
 };
@@ -21,46 +22,23 @@ mod radial;
 mod tensor_product_patch_mesh;
 
 #[derive(Debug, Clone)]
-pub enum ShadingObject<'a> {
-    Dictionary(ShadingDictionary<'a>),
-    Stream(ShadingStream),
-}
-
-impl<'a> FromObj<'a> for ShadingObject<'a> {
-    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let obj = resolver.resolve(obj)?;
-
-        Ok(
-            if let Ok(mut stream) = resolver.assert_stream(obj.clone()) {
-                let dict = &mut stream.dict.other;
-
-                todo!("shading stream: {:?}", dict);
-            } else {
-                let dict = resolver.assert_dict(obj)?;
-
-                ShadingObject::Dictionary(ShadingDictionary::from_dict(dict, resolver)?)
-            },
-        )
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ShadingStream;
-
-#[derive(Debug, Clone)]
-pub struct ShadingDictionary<'a> {
+pub struct ShadingObject<'a> {
     base: BaseShadingDictionary<'a>,
     sub_type: SubtypeShadingDictionary<'a>,
 }
 
-impl<'a> ShadingDictionary<'a> {
-    pub fn from_dict(mut dict: Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let base = BaseShadingDictionary::from_dict(&mut dict, resolver)?;
-        let sub_type = SubtypeShadingDictionary::from_dict(&mut dict, base.shading_type, resolver)?;
+impl<'a> FromObj<'a> for ShadingObject<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut stream_or_dict = StreamOrDict::from_obj(obj, resolver)?;
 
-        assert_empty(dict);
+        let base = BaseShadingDictionary::from_dict(stream_or_dict.dict(), resolver)?;
+        let sub_type = SubtypeShadingDictionary::from_obj(
+            stream_or_dict.into_obj(),
+            base.shading_type,
+            resolver,
+        )?;
 
-        Ok(Self { base, sub_type })
+        Ok(ShadingObject { base, sub_type })
     }
 }
 
@@ -76,33 +54,33 @@ pub enum SubtypeShadingDictionary<'a> {
 }
 
 impl<'a> SubtypeShadingDictionary<'a> {
-    pub fn from_dict(
-        dict: &mut Dictionary<'a>,
+    pub fn from_obj(
+        obj: Object<'a>,
         sub_type: ShadingType,
         resolver: &mut dyn Resolve<'a>,
     ) -> PdfResult<Self> {
         Ok(match sub_type {
             ShadingType::FunctionBased => SubtypeShadingDictionary::FunctionBased(
-                FunctionBasedShading::from_dict(dict, resolver)?,
+                FunctionBasedShading::from_obj(obj, resolver)?,
             ),
             ShadingType::Axial => {
-                SubtypeShadingDictionary::Axial(AxialShading::from_dict(dict, resolver)?)
+                SubtypeShadingDictionary::Axial(AxialShading::from_obj(obj, resolver)?)
             }
             ShadingType::Radial => {
-                SubtypeShadingDictionary::Radial(RadialShading::from_dict(dict, resolver)?)
+                SubtypeShadingDictionary::Radial(RadialShading::from_obj(obj, resolver)?)
             }
             ShadingType::Freeform => {
-                SubtypeShadingDictionary::Freeform(FreeformShading::from_dict(dict, resolver)?)
+                SubtypeShadingDictionary::Freeform(FreeformShading::from_obj(obj, resolver)?)
             }
-            ShadingType::Latticeform => SubtypeShadingDictionary::Latticeform(
-                LatticeformShading::from_dict(dict, resolver)?,
-            ),
+            ShadingType::Latticeform => {
+                SubtypeShadingDictionary::Latticeform(LatticeformShading::from_obj(obj, resolver)?)
+            }
             ShadingType::CoonsPatchMesh => SubtypeShadingDictionary::CoonsPatchMesh(
-                CoonsPatchMeshShading::from_dict(dict, resolver)?,
+                CoonsPatchMeshShading::from_obj(obj, resolver)?,
             ),
             ShadingType::TensorProductPatchMesh => {
                 SubtypeShadingDictionary::TensorProductPatchMesh(
-                    TensorProductPatchMeshShading::from_dict(dict, resolver)?,
+                    TensorProductPatchMeshShading::from_obj(obj, resolver)?,
                 )
             }
         })
@@ -115,8 +93,7 @@ pub struct BaseShadingDictionary<'a> {
 
     /// The colour space in which colour values shall be expressed. This may be any device,
     /// CIE-based, or special colour space except a Pattern space
-    // todo: actually parse the color space
-    color_space: Object<'a>,
+    color_space: ColorSpace<'a>,
 
     /// An array of colour components appropriate to the colour space, specifying a single
     /// background colour value. If present, this colour shall be used, before any painting
@@ -128,7 +105,6 @@ pub struct BaseShadingDictionary<'a> {
     ///
     /// The background colour is applied only when the shading is used as part of a shading
     /// pattern, not when it is painted directly with the sh operator
-    // todo: better typing based on color space
     background: Option<Vec<f32>>,
 
     /// An array of four numbers giving the left, bottom, right, and top coordinates,
@@ -155,22 +131,11 @@ pub struct BaseShadingDictionary<'a> {
 
 impl<'a> BaseShadingDictionary<'a> {
     pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let shading_type =
-            ShadingType::from_integer(dict.expect_integer("ShadingType", resolver)?)?;
-
-        let color_space = dict.expect_object("ColorSpace", resolver)?;
-
-        let background = dict
-            .get_arr("Background", resolver)?
-            .map(|objs| {
-                objs.into_iter()
-                    .map(|obj| resolver.assert_number(obj))
-                    .collect()
-            })
-            .transpose()?;
-
-        let bbox = dict.get::<Rectangle>("BBox", resolver)?;
-        let anti_alias = dict.get_bool("AntiAlias", resolver)?.unwrap_or(false);
+        let shading_type = dict.expect("ShadingType", resolver)?;
+        let color_space = dict.expect("ColorSpace", resolver)?;
+        let background = dict.get("Background", resolver)?;
+        let bbox = dict.get("BBox", resolver)?;
+        let anti_alias = dict.get("AntiAlias", resolver)?.unwrap_or(false);
 
         Ok(Self {
             shading_type,

@@ -1,9 +1,5 @@
 use crate::{
-    catalog::assert_len,
-    error::PdfResult,
-    function::Function,
-    objects::{Dictionary, Object},
-    Resolve,
+    catalog::assert_len, error::PdfResult, function::Function, objects::Object, FromObj, Resolve,
 };
 
 /// Type 2 (axial) shadings define a colour blend that varies along a linear axis between two
@@ -11,10 +7,11 @@ use crate::{
 /// be extended beyond either or both endpoints by continuing the boundary colours indefinitely
 ///
 /// This type of shading shall not be used with an Indexed colour space.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
 pub struct AxialShading<'a> {
     /// An array of four numbers [x0 y0 x1 y1] specifying the starting and ending coordinates
     /// of the axis, expressed in the shading's target coordinate space
+    #[field("Coords")]
     coords: Coords,
 
     /// An array of two numbers [t0 t1] specifying the limiting values of a parametric variable
@@ -23,6 +20,7 @@ pub struct AxialShading<'a> {
     /// the input argument to the colour function(s)
     ///
     /// Default value: [0.0 1.0].
+    #[field("Domain", default = [0.0, 1.0])]
     domain: [f32; 2],
 
     /// A 1-in, n-out function or an array of n 1-in, 1-out functions (where n is the number of
@@ -31,27 +29,15 @@ pub struct AxialShading<'a> {
     /// Each function's domain shall be a superset of that of the shading dictionary. If the value
     /// returned by the function for a given colour component is out of range, it shall be adjusted
     /// to the nearest valid value
+    #[field("Function")]
     function: Function<'a>,
 
     /// An array of two boolean values specifying whether to extend the shading beyond the starting
-    /// and ending points of the axis, respectively. Default value: [false false].
+    /// and ending points of the axis, respectively
+    ///
+    /// Default value: [false false].
+    #[field("Extend", default = [false, false])]
     extend: [bool; 2],
-}
-
-impl<'a> AxialShading<'a> {
-    pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let coords = Coords::from_arr(dict.expect_arr("Coords", resolver)?, resolver)?;
-        let domain = dict.get("Domain", resolver)?.unwrap_or([0.0, 1.0]);
-        let function = dict.expect::<Function>("Function", resolver)?;
-        let extend = dict.get("Extend", resolver)?.unwrap_or([false, false]);
-
-        Ok(Self {
-            coords,
-            domain,
-            function,
-            extend,
-        })
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -62,8 +48,10 @@ struct Coords {
     y1: f32,
 }
 
-impl Coords {
-    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+impl<'a> FromObj<'a> for Coords {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut arr = resolver.assert_arr(obj)?;
+
         assert_len(&arr, 4)?;
 
         let y1 = resolver.assert_number(arr.pop().unwrap())?;

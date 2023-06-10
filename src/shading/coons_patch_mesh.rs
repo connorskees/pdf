@@ -1,7 +1,4 @@
-use crate::{
-    error::PdfResult, filter::flate::BitsPerComponent, function::Function, objects::Dictionary,
-    Resolve,
-};
+use crate::{filter::flate::BitsPerComponent, function::Function, stream::Stream};
 
 use super::freeform::{BitsPerCoordinate, BitsPerFlag};
 
@@ -15,22 +12,25 @@ use super::freeform::{BitsPerCoordinate, BitsPerFlag};
 ///   * Coordinates are mapped from the unit square into a four-sided patch whose sides are
 ///     not necessarily linear. The mapping is continuous: the corners of the unit square map
 ///     to corners of the patch and the sides of the unit square map to sides of the patch
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromObj)]
 pub struct CoonsPatchMeshShading<'a> {
     /// The number of bits used to represent each vertex coordinate.
     ///
     /// The value shall be 1, 2, 4, 8, 12, 16, 24, or 32.
+    #[field("BitsPerCoordinate")]
     bits_per_coordinate: BitsPerCoordinate,
 
     /// The number of bits used to represent each colour component.
     ///
     /// The value shall be 1, 2, 4, 8, 12, or 16.
+    #[field("BitsPerComponent")]
     bits_per_component: BitsPerComponent,
 
     /// The number of bits used to represent the edge flag for each vertex.
     /// The value of BitsPerFlag shall be 2, 4, or 8, but only the least
     /// significant 2 bits in each flag value shall be used. The value for
     /// the edge flag shall be 0, 1, or 2.
+    #[field("BitsPerFlag")]
     bits_per_flag: BitsPerFlag,
 
     /// An array of numbers specifying how to map coordinates and colour components into the
@@ -40,6 +40,7 @@ pub struct CoonsPatchMeshShading<'a> {
     /// [xmin xmax ymin ymax c1,min c1,max ... cn,min cn,max]
     ///
     /// Only one pair of c values shall be specified if a Function entry is present
+    #[field("Decode")]
     decode: Vec<f32>,
 
     /// A 1-in, n-out function or an array of n 1-in, 1-out functions (where n is
@@ -55,30 +56,9 @@ pub struct CoonsPatchMeshShading<'a> {
     /// to the nearest valid value.
     ///
     /// This entry shall not be used with an Indexed colour space
+    #[field("Function")]
     function: Option<Function<'a>>,
-}
 
-impl<'a> CoonsPatchMeshShading<'a> {
-    pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let bits_per_coordinate =
-            BitsPerCoordinate::from_integer(dict.expect_integer("BitsPerCoordinate", resolver)?)?;
-        let bits_per_component =
-            BitsPerComponent::from_integer(dict.expect_integer("BitsPerComponent", resolver)?)?;
-        let bits_per_flag =
-            BitsPerFlag::from_integer(dict.expect_integer("BitsPerFlag", resolver)?)?;
-        let decode = dict
-            .expect_arr("Decode", resolver)?
-            .into_iter()
-            .map(|obj| resolver.assert_number(obj))
-            .collect::<PdfResult<Vec<f32>>>()?;
-        let function = dict.get::<Function>("Function", resolver)?;
-
-        Ok(Self {
-            bits_per_coordinate,
-            bits_per_component,
-            bits_per_flag,
-            decode,
-            function,
-        })
-    }
+    #[field]
+    stream: Stream<'a>,
 }

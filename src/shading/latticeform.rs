@@ -1,7 +1,4 @@
-use crate::{
-    error::PdfResult, filter::flate::BitsPerComponent, function::Function, objects::Dictionary,
-    Resolve,
-};
+use crate::{filter::flate::BitsPerComponent, function::Function, stream::Stream};
 
 use super::freeform::BitsPerCoordinate;
 
@@ -55,28 +52,7 @@ pub struct LatticeformShading<'a> {
     /// This entry shall not be used with an Indexed colour space.
     #[field("Function")]
     function: Option<Function<'a>>,
-}
 
-impl<'a> LatticeformShading<'a> {
-    pub fn from_dict(dict: &mut Dictionary<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let bits_per_coordinate =
-            BitsPerCoordinate::from_integer(dict.expect_integer("BitsPerCoordinate", resolver)?)?;
-        let bits_per_component =
-            BitsPerComponent::from_integer(dict.expect_integer("BitsPerComponent", resolver)?)?;
-        let vertices_per_row = dict.expect_unsigned_integer("BitsPerFlag", resolver)?;
-        let decode = dict
-            .expect_arr("Decode", resolver)?
-            .into_iter()
-            .map(|obj| resolver.assert_number(obj))
-            .collect::<PdfResult<Vec<f32>>>()?;
-        let function = dict.get::<Function>("Function", resolver)?;
-
-        Ok(Self {
-            bits_per_coordinate,
-            bits_per_component,
-            vertices_per_row,
-            decode,
-            function,
-        })
-    }
+    #[field]
+    stream: Stream<'a>,
 }
