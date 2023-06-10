@@ -101,6 +101,10 @@ pub(crate) trait LexBase<'a> {
         }
     }
 
+    fn next_is_ascii_digit(&mut self) -> bool {
+        self.peek_byte().map_or(false, |b| b.is_ascii_digit())
+    }
+
     /// Does not modify the cursor
     fn next_matches(&mut self, bytes: &[u8]) -> bool {
         let start_pos = self.cursor();
@@ -246,22 +250,25 @@ pub(crate) trait LexBase<'a> {
                         Some(b'(') => string.push('('),
                         Some(b')') => string.push(')'),
                         Some(b'\\') => string.push('\\'),
-                        Some(b'0') => string.push('\0'),
                         // TODO: do we skip whitespace after `\` in multiline string?
                         Some(b'\n' | b'\r') => self.skip_whitespace(),
                         // octal escape of the form `\ddd`
                         Some(c) => {
                             let mut n = c - b'0';
 
-                            let digit_two =
-                                self.next_byte().ok_or(ParseError::UnexpectedEof)? - b'0';
-                            let digit_three =
-                                self.next_byte().ok_or(ParseError::UnexpectedEof)? - b'0';
+                            if self.next_is_ascii_digit() {
+                                let next_digit =
+                                    self.next_byte().ok_or(ParseError::UnexpectedEof)? - b'0';
+                                n *= 8;
+                                n += next_digit;
+                            }
 
-                            n *= 8;
-                            n += digit_two;
-                            n *= 8;
-                            n += digit_three;
+                            if self.next_is_ascii_digit() {
+                                let next_digit =
+                                    self.next_byte().ok_or(ParseError::UnexpectedEof)? - b'0';
+                                n *= 8;
+                                n += next_digit;
+                            }
 
                             string.push(n as char);
                         }
@@ -594,5 +601,39 @@ mod test {
         let obj = lexer.lex_object().unwrap();
 
         assert_eq!(obj, Object::Array(vec![Object::Real(1.0)]));
+    }
+
+    #[test]
+    fn string_with_escapes() {
+        let body = b"(\\n\\ra\\t\\)3\\\\)";
+
+        let mut lexer = Lexer::new(
+            body.to_vec(),
+            Rc::new(Xref {
+                objects: HashMap::new(),
+            }),
+        )
+        .unwrap();
+
+        let obj = lexer.lex_object().unwrap();
+
+        assert_eq!(obj, Object::String("\n\ra\t)3\\".to_owned()));
+    }
+
+    #[test]
+    fn string_with_octal_escapes() {
+        let body = b"(\\0\\0053\\053\\53)";
+
+        let mut lexer = Lexer::new(
+            body.to_vec(),
+            Rc::new(Xref {
+                objects: HashMap::new(),
+            }),
+        )
+        .unwrap();
+
+        let obj = lexer.lex_object().unwrap();
+
+        assert_eq!(obj, Object::String("\0\u{5}3++".to_owned()));
     }
 }
