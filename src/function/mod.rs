@@ -67,15 +67,23 @@ impl<'a> StreamOrDict<'a> {
     }
 }
 
-impl<'a> FromObj<'a> for Function<'a> {
+impl<'a> FromObj<'a> for StreamOrDict<'a> {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let obj = resolver.resolve(obj)?;
 
-        let mut stream_or_dict = if let Ok(stream) = resolver.assert_stream(obj.clone()) {
+        let stream_or_dict = if let Ok(stream) = resolver.assert_stream(obj.clone()) {
             StreamOrDict::Stream(stream)
         } else {
             StreamOrDict::Dict(resolver.assert_dict(obj)?)
         };
+
+        Ok(stream_or_dict)
+    }
+}
+
+impl<'a> FromObj<'a> for Function<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut stream_or_dict = StreamOrDict::from_obj(obj, resolver)?;
 
         let dict = stream_or_dict.dict();
 
@@ -102,11 +110,7 @@ enum FunctionSubtype<'a> {
 
 impl<'a> FromObj<'a> for FunctionSubtype<'a> {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let mut stream_or_dict = match resolver.resolve(obj)? {
-            Object::Stream(stream) => StreamOrDict::Stream(stream),
-            Object::Dictionary(dict) => StreamOrDict::Dict(dict),
-            _ => todo!(),
-        };
+        let mut stream_or_dict = StreamOrDict::from_obj(obj, resolver)?;
 
         let dict = stream_or_dict.dict();
         let subtype = FunctionType::from_integer(dict.expect_integer("FunctionType", resolver)?)?;

@@ -2,6 +2,7 @@ use crate::{destination::Destination, file_specification::FileSpecification};
 
 /// A go-to action changes the view to a specified destination (page, location, and magnification factor)
 #[derive(Debug, FromObj)]
+#[obj_type("Action")]
 pub struct GoToAction {
     /// The destination to jump to
     #[field("D")]
