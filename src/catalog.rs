@@ -8,6 +8,8 @@ displayed automatically and whether some location other than the first page shal
 be shown when the document is opened.
 */
 
+use std::rc::Rc;
+
 use crate::{
     acro_form::AcroForm,
     actions::Actions,
@@ -20,7 +22,7 @@ use crate::{
     stream::Stream,
     structure::StructTreeRoot,
     viewer_preferences::{PageMode, ViewerPreferences},
-    Dictionary, FromObj, Object, PdfResult, Reference, Resolve,
+    Dictionary, FromObj, Object, PdfResult, Reference, Resolve, job_ticket::JobTicket,
 };
 
 // todo: remove
@@ -195,6 +197,9 @@ pub struct DocumentCatalog<'a> {
 
     #[field("LastModified")]
     last_modified: Option<Date>,
+
+    #[field("JT")]
+    job_ticket: Option<Rc<JobTicket<'a>>>,
 }
 
 #[derive(Debug, Clone, FromObj)]
