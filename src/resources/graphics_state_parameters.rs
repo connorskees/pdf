@@ -13,12 +13,12 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-enum FunctionOrDefault<'a> {
-    Function(Function<'a>),
+enum OrDefault<T> {
+    Value(T),
     Default,
 }
 
-impl<'a> FromObj<'a> for FunctionOrDefault<'a> {
+impl<'a, T: FromObj<'a>> FromObj<'a> for OrDefault<T> {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let obj = resolver.resolve(obj)?;
 
@@ -28,7 +28,7 @@ impl<'a> FromObj<'a> for FunctionOrDefault<'a> {
             }
         }
 
-        Ok(Self::Function(Function::from_obj(obj, resolver)?))
+        Ok(Self::Value(T::from_obj(obj, resolver)?))
     }
 }
 
@@ -86,7 +86,7 @@ pub struct GraphicsStateParameters<'a> {
     /// function that was in effect at the start of the page. If both BG and BG2 are present in
     /// the same graphics state parameter dictionary, BG2 shall take precedence
     #[field("BG2")]
-    black_generation_two: Option<FunctionOrDefault<'a>>,
+    black_generation_two: Option<OrDefault<Function<'a>>>,
 
     /// The undercolor-removal function, which maps the interval [0.0 1.0] to the interval [-1.0 1.0]
     #[field("UCR")]
@@ -96,7 +96,7 @@ pub struct GraphicsStateParameters<'a> {
     /// function that was in effect at the start of the page. If both UCR and UCR2 are present in the
     /// same graphics state parameter dictionary, UCR2 shall take precedence
     #[field("UCR2")]
-    undercolor_removal_two: Option<FunctionOrDefault<'a>>,
+    undercolor_removal_two: Option<OrDefault<Function<'a>>>,
 
     /// The transfer function, which maps the interval [0.0 1.0] to the interval [0.0 1.0]. The value
     /// shall be either a single function (which applies to all process colorants) or an array of four
@@ -109,7 +109,7 @@ pub struct GraphicsStateParameters<'a> {
     /// that was in effect at the start of the page. If both TR and TR2 are present in the same graphics
     /// state parameter dictionary, TR2 shall take precedence
     #[field("TR2")]
-    transfer_two: Option<TransferFunction<'a>>,
+    transfer_two: Option<OrDefault<TransferFunction<'a>>>,
 
     /// The halftone dictionary or stream or the name Default, denoting the halftone that was in effect
     /// at the start of the page.

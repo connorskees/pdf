@@ -1,8 +1,8 @@
 use crate::{
     color::ColorSpace,
-    error::{ParseError, PdfResult},
+    error::PdfResult,
     function::{SpotFunction, TransferFunction},
-    objects::{Dictionary, Object, ObjectType},
+    objects::{Dictionary, Object},
     stream::Stream,
     FromObj, Resolve,
 };
@@ -16,17 +16,13 @@ pub enum Halftones<'a> {
 
 impl<'a> FromObj<'a> for Halftones<'a> {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        Ok(match obj {
+        Ok(match resolver.resolve(obj)? {
             Object::Name(name) if name == "Default" => Halftones::Default,
             obj @ Object::Stream(..) => Halftones::Stream(HalftoneStream::from_obj(obj, resolver)?),
             Object::Dictionary(dict) => {
                 Halftones::Dictionary(HalftoneDictionary::from_dict(dict, resolver)?)
             }
-            _ => {
-                anyhow::bail!(ParseError::MismatchedObjectTypeAny {
-                    expected: &[ObjectType::Name, ObjectType::Stream, ObjectType::Dictionary],
-                });
-            }
+            obj => anyhow::bail!("expected name, stream, or dictionary; found {:#?}", obj),
         })
     }
 }

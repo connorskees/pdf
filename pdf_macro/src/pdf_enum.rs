@@ -118,10 +118,10 @@ pub fn pdf_enum_inner(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         impl<'a> crate::FromObj<'a> for #name {
             fn from_obj(obj: crate::Object<'a>, resolver: &mut dyn crate::Resolve<'a>) -> crate::PdfResult<Self> {
-                Ok(match obj {
+                Ok(match resolver.resolve(obj)? {
                     #(crate::Object::#object_type(v) if v == #field_values => Self::#field_names,)*
                     crate::Object::#object_type(v) => anyhow::bail!("unrecognized variant {:#?} for {:?}", v, stringify!(#object_type)),
-                    _ => anyhow::bail!("invalid object type {:#?} (expected {:?})", obj, stringify!(#object_type)),
+                    obj => anyhow::bail!("invalid object type {:#?} (expected {:?})", obj, stringify!(#object_type)),
                 })
             }
         }

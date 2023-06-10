@@ -30,6 +30,7 @@ mod function;
 mod geometry;
 mod halftones;
 mod icc_profile;
+mod job_ticket;
 mod lex;
 mod object_stream;
 mod objects;
@@ -61,7 +62,7 @@ use crate::{
     filter::decode_stream,
     lex::{LexBase, LexObject},
     object_stream::{ObjectStream, ObjectStreamDict, ObjectStreamParser},
-    objects::{Dictionary, Object, ObjectType, Reference},
+    objects::{Dictionary, Object, Reference},
     page::{InheritablePageFields, PageNode, PageObject, PageTree, PageTreeNode},
     stream::StreamDict,
     trailer::Trailer,
@@ -95,9 +96,7 @@ pub fn assert_len(arr: &[Object], len: usize) -> PdfResult<()> {
 pub fn assert_reference(obj: Object) -> PdfResult<Reference> {
     match obj {
         Object::Reference(r) => Ok(r),
-        _ => anyhow::bail!(ParseError::MismatchedObjectType {
-            expected: ObjectType::Reference,
-        }),
+        obj => anyhow::bail!("expected reference, found {:?}", obj),
     }
 }
 

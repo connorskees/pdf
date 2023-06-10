@@ -3,13 +3,13 @@ use std::{borrow::Cow, collections::HashMap};
 use crate::{
     filter::decode_stream,
     lex::{LexBase, LexObject},
-    objects::{Object, ObjectType},
+    objects::Object,
     trailer::Trailer,
     xref::{
         stream::{XrefStream, XrefStreamDict},
         Xref,
     },
-    ParseError, PdfResult, Reference, Resolve,
+    PdfResult, Reference, Resolve,
 };
 
 use super::{stream::parser::XrefStreamParser, XrefEntry};
@@ -109,11 +109,7 @@ impl<'a> XrefParser {
 
         let xref_stream_dict = match self.lex_object()? {
             Object::Dictionary(dict) => XrefStreamDict::from_dict(dict, is_previous, self)?,
-            _ => {
-                anyhow::bail!(ParseError::MismatchedObjectType {
-                    expected: ObjectType::Dictionary,
-                });
-            }
+            obj => anyhow::bail!("expected dict, found {:?}", obj),
         };
 
         let stream = self.lex_stream(xref_stream_dict)?;

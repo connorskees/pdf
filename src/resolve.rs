@@ -1,8 +1,8 @@
 use std::convert::TryFrom;
 
 use crate::{
-    error::{ParseError, PdfResult},
-    objects::{Dictionary, Object, ObjectType, Reference},
+    error::PdfResult,
+    objects::{Dictionary, Object, Reference},
     stream::Stream,
 };
 
@@ -19,9 +19,7 @@ pub trait Resolve<'a> {
                 let obj = self.lex_object_from_reference(r)?;
                 self.assert_integer(obj)
             }
-            _ => anyhow::bail!(ParseError::MismatchedObjectType {
-                expected: ObjectType::Integer,
-            }),
+            obj => anyhow::bail!("expected integer, found {:?}", obj),
         }
     }
 
@@ -32,9 +30,7 @@ pub trait Resolve<'a> {
                 let obj = self.lex_object_from_reference(r)?;
                 self.assert_unsigned_integer(obj)
             }
-            _ => anyhow::bail!(ParseError::MismatchedObjectType {
-                expected: ObjectType::Integer,
-            }),
+            obj => anyhow::bail!("expected unsigned integer, found {:?}", obj),
         }
     }
 
@@ -47,9 +43,7 @@ pub trait Resolve<'a> {
                 let obj = self.lex_object_from_reference(r)?;
                 self.assert_number(obj)
             }
-            _ => anyhow::bail!(ParseError::MismatchedObjectType {
-                expected: ObjectType::Real,
-            }),
+            obj => anyhow::bail!("expected real, found {:?}", obj),
         }
     }
 
@@ -60,9 +54,7 @@ pub trait Resolve<'a> {
                 let obj = self.lex_object_from_reference(r)?;
                 self.assert_dict(obj)
             }
-            _ => anyhow::bail!(ParseError::MismatchedObjectType {
-                expected: ObjectType::Dictionary,
-            }),
+            obj => anyhow::bail!("expected dictionary, found {:?}", obj),
         }
     }
 
@@ -73,9 +65,7 @@ pub trait Resolve<'a> {
                 let obj = self.lex_object_from_reference(r)?;
                 self.assert_name(obj)
             }
-            _ => anyhow::bail!(ParseError::MismatchedObjectType {
-                expected: ObjectType::Name,
-            }),
+            obj => anyhow::bail!("expected name, found {:?}", obj),
         }
     }
 
@@ -86,9 +76,7 @@ pub trait Resolve<'a> {
                 let obj = self.lex_object_from_reference(r)?;
                 self.assert_string(obj)
             }
-            _ => anyhow::bail!(ParseError::MismatchedObjectType {
-                expected: ObjectType::String,
-            }),
+            obj => anyhow::bail!("expected string, found {:?}", obj),
         }
     }
 
@@ -99,9 +87,7 @@ pub trait Resolve<'a> {
                 let obj = self.lex_object_from_reference(r)?;
                 self.assert_arr(obj)
             }
-            _ => anyhow::bail!(ParseError::MismatchedObjectType {
-                expected: ObjectType::Array,
-            }),
+            obj => anyhow::bail!("expected array, found {:?}", obj),
         }
     }
 
@@ -113,9 +99,7 @@ pub trait Resolve<'a> {
                 let obj = self.lex_object_from_reference(r)?;
                 self.assert_bool(obj)
             }
-            _ => anyhow::bail!(ParseError::MismatchedObjectType {
-                expected: ObjectType::Boolean,
-            }),
+            obj => anyhow::bail!("expected boolean, found {:?}", obj),
         }
     }
 
@@ -126,9 +110,7 @@ pub trait Resolve<'a> {
                 let obj = self.lex_object_from_reference(r)?;
                 self.assert_stream(obj)
             }
-            _ => anyhow::bail!(ParseError::MismatchedObjectType {
-                expected: ObjectType::Stream,
-            }),
+            obj => anyhow::bail!("expected stream, found {:?}", obj),
         }
     }
 

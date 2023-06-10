@@ -52,9 +52,7 @@ impl<'a> StreamOrDict<'a> {
 
     pub fn expect_stream(self) -> PdfResult<Stream<'a>> {
         match self {
-            Self::Dict(..) => anyhow::bail!(ParseError::MismatchedObjectType {
-                expected: ObjectType::Stream,
-            }),
+            dict @ Self::Dict(..) => anyhow::bail!("expected stream, found {:?}", dict),
             Self::Stream(stream) => Ok(stream),
         }
     }

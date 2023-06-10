@@ -141,11 +141,13 @@ impl<'a> Dictionary<'a> {
         key: &'static str,
         resolver: &mut dyn Resolve<'a>,
     ) -> PdfResult<T> {
-        self.dict
+        Ok(self
+            .dict
             .remove(key)
             .map(|obj| T::from_obj(obj, resolver))
-            .ok_or(ParseError::MissingRequiredKey { key })
-            .with_context(|| key.to_owned())?
+            .transpose()
+            .with_context(|| format!("error getting key {}", key))?
+            .ok_or(ParseError::MissingRequiredKey { key })?)
     }
 
     pub fn get_stream(

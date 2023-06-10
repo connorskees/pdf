@@ -1,7 +1,7 @@
 use crate::{
     catalog::Collection,
-    error::{ParseError, PdfResult},
-    objects::{Dictionary, Object, ObjectType},
+    error::PdfResult,
+    objects::{Dictionary, Object},
     FromObj, Resolve,
 };
 
@@ -18,9 +18,7 @@ impl<'a> FromObj<'a> for FileSpecification<'a> {
             obj @ Object::Dictionary(..) => Ok(FileSpecification::Full(
                 FullFileSpecification::from_obj(obj, resolver)?,
             )),
-            _ => anyhow::bail!(ParseError::MismatchedObjectType {
-                expected: ObjectType::Dictionary,
-            }),
+            obj => anyhow::bail!("expected dictionary or string, found {:?}", obj),
         }
     }
 }

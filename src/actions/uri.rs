@@ -2,7 +2,6 @@
 #[derive(Debug, FromObj)]
 pub struct UriAction {
     /// The uniform resource identifier to resolve, encoded in 7-bit ASCII
-    // todo: perhaps ascii string as a newtype
     #[field("URI")]
     uri: String,
 

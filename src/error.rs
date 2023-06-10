@@ -14,9 +14,6 @@ pub enum ParseError {
     },
     UnexpectedEof,
     IoError(io::Error),
-    MismatchedObjectType {
-        expected: ObjectType,
-    },
     MismatchedObjectTypeAny {
         expected: &'static [ObjectType],
     },
