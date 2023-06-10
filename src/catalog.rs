@@ -17,12 +17,13 @@ use crate::{
     data_structures::{NameTree, NumberTree},
     date::Date,
     destination::Destination,
+    job_ticket::JobTicket,
     objects::{Name, TypedReference},
     optional_content::OptionalContentProperties,
     stream::Stream,
     structure::StructTreeRoot,
     viewer_preferences::{PageMode, ViewerPreferences},
-    Dictionary, FromObj, Object, PdfResult, Reference, Resolve, job_ticket::JobTicket,
+    Dictionary, FromObj, Object, PdfResult, Reference, Resolve,
 };
 
 // todo: remove
@@ -200,6 +201,11 @@ pub struct DocumentCatalog<'a> {
 
     #[field("JT")]
     job_ticket: Option<Rc<JobTicket<'a>>>,
+
+    /// Per the spec this should live on the trailer, but some PDFs also add a
+    /// reference in the catalog
+    #[field("Info")]
+    info: Option<TypedReference<'a, InformationDictionary<'a>>>,
 }
 
 #[derive(Debug, Clone, FromObj)]
@@ -354,6 +360,7 @@ enum MetadataStreamSubtype {
 }
 
 #[derive(Debug, FromObj)]
+#[obj_type("MarkInfo")]
 pub struct MarkInformationDictionary {
     /// A flag indicating whether the document conforms to Tagged PDF conventions.
     ///

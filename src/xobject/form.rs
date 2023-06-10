@@ -109,4 +109,11 @@ pub struct FormXObject<'a> {
     /// This entry is obsolescent and its use is no longer recommended
     #[field("Name")]
     pub name: Option<Name>,
+
+    /// A code identifying the type of form XObject that this dictionary describes.
+    /// The only valid value is 1
+    ///
+    /// Default value: 1
+    #[field("FormType", default = 1)]
+    pub form_type: i32,
 }

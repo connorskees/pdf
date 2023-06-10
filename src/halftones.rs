@@ -99,12 +99,16 @@ pub struct HalftoneOne<'a> {
     /// The name Identity may be used to specify the identity function
     #[field("TransferFunction")]
     transfer_function: Option<TransferFunction<'a>>,
+
+    #[field("HalftoneName")]
+    halftone_name: Option<String>,
 }
 
 #[derive(Debug, Clone)]
 pub struct HalftoneFive<'a> {
     colorant: ColorSpace<'a>,
     default: Box<Halftones<'a>>,
+    halftone_name: Option<String>,
 }
 
 impl<'a> FromObj<'a> for HalftoneFive<'a> {
@@ -121,6 +125,8 @@ pub struct HalftoneSix<'a> {
     height: i32,
     #[field("TransferFunction")]
     transfer_function: Option<TransferFunction<'a>>,
+    #[field("HalftoneName")]
+    halftone_name: Option<String>,
 }
 
 #[derive(Debug, Clone, FromObj)]
@@ -135,6 +141,9 @@ pub struct HalftoneTen<'a> {
 
     #[field("TransferFunction")]
     transfer_function: Option<TransferFunction<'a>>,
+
+    #[field("HalftoneName")]
+    halftone_name: Option<String>,
 }
 
 #[derive(Debug, Clone, FromObj)]
@@ -161,6 +170,9 @@ pub struct HalftoneSixteen<'a> {
 
     #[field("TransferFunction")]
     transfer_function: Option<TransferFunction<'a>>,
+
+    #[field("HalftoneName")]
+    halftone_name: Option<String>,
 }
 
 impl<'a> HalftoneDictionary<'a> {

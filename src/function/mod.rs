@@ -1,6 +1,6 @@
 use crate::{
-    error::{ParseError, PdfResult},
-    objects::{Dictionary, Object, ObjectType},
+    error::PdfResult,
+    objects::{Dictionary, Object},
     stream::Stream,
     FromObj, Resolve,
 };

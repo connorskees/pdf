@@ -5,7 +5,7 @@ use crate::{
     file_specification::FileSpecification,
     filter::FilterKind,
     objects::{Dictionary, Object, ObjectType},
-    Resolve, FromObj
+    FromObj, Resolve,
 };
 
 #[derive(Clone, PartialEq)]
@@ -132,22 +132,14 @@ impl<'a> StreamDict<'a> {
             .get_object("Filter", resolver)?
             .map(|obj| get_filters(obj, resolver))
             .transpose()?;
-        let decode_parms = dict
-            .get_object("DecodeParms", resolver)?
-            .map(|obj| DecodeParams::from_obj(obj, resolver))
-            .transpose()?;
-        let f = dict.get::<FileSpecification>("F", resolver)?;
+        let decode_parms = dict.get("DecodeParms", resolver)?;
+        let f = dict.get("F", resolver)?;
         let f_filter = dict
             .get_object("FFilter", resolver)?
             .map(|obj| get_filters(obj, resolver))
             .transpose()?;
-        let f_decode_parms = dict
-            .get_object("FDecodeParms", resolver)?
-            .map(|obj| DecodeParams::from_obj(obj, resolver))
-            .transpose()?;
-        let dl = dict
-            .get_unsigned_integer("DL", resolver)?
-            .map(|i| i as usize);
+        let f_decode_parms = dict.get("FDecodeParms", resolver)?;
+        let dl = dict.get::<u32>("DL", resolver)?.map(|i| i as usize);
 
         Ok(StreamDict {
             len,
