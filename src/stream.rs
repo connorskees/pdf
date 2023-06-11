@@ -48,11 +48,9 @@ impl<'a> FromObj<'a> for DecodeParams<'a> {
                 })
                 .collect::<PdfResult<Vec<Option<Dictionary>>>>()?,
             Object::Dictionary(dict) => vec![Some(dict)],
-            _ => {
-                anyhow::bail!(ParseError::MismatchedObjectTypeAny {
-                    expected: &[ObjectType::Array, ObjectType::Dictionary],
-                });
-            }
+            _ => anyhow::bail!(ParseError::MismatchedObjectTypeAny {
+                expected: &[ObjectType::Array, ObjectType::Dictionary],
+            }),
         };
 
         Ok(Self { params })
@@ -106,7 +104,7 @@ pub struct StreamDict<'a> {
     /// disk space is available to write a stream to a file. This value shall be
     /// considered a hint only; for some stream filters, it may not be possible to
     /// determine this value precisely
-    pub dl: Option<usize>,
+    pub decoded_len: Option<usize>,
 
     pub other: Dictionary<'a>,
 }
@@ -139,7 +137,7 @@ impl<'a> StreamDict<'a> {
             .map(|obj| get_filters(obj, resolver))
             .transpose()?;
         let f_decode_parms = dict.get("FDecodeParms", resolver)?;
-        let dl = dict.get::<u32>("DL", resolver)?.map(|i| i as usize);
+        let decoded_len = dict.get::<u32>("DL", resolver)?.map(|i| i as usize);
 
         Ok(StreamDict {
             len,
@@ -148,7 +146,7 @@ impl<'a> StreamDict<'a> {
             f,
             f_filter,
             f_decode_parms,
-            dl,
+            decoded_len,
             other: dict,
         })
     }

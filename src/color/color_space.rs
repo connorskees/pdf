@@ -1,7 +1,7 @@
-use std::{ rc::Rc};
+use std::rc::Rc;
 
 use crate::{
-    catalog::{assert_len},
+    catalog::assert_len,
     error::PdfResult,
     filter::decode_stream,
     function::Function,
@@ -11,7 +11,11 @@ use crate::{
     FromObj, Resolve,
 };
 
-use super::{device_n::{DeviceNColorSpace, DeviceNColorSpaceAttributes}, indexed::{IndexedColorSpace, IndexedLookupTable}, icc::IccStream};
+use super::{
+    device_n::{DeviceNColorSpace, DeviceNColorSpaceAttributes},
+    icc::IccStream,
+    indexed::{IndexedColorSpace, IndexedLookupTable},
+};
 
 #[derive(Debug, Clone)]
 pub struct SeparationColorSpace<'a> {

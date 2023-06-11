@@ -64,13 +64,13 @@ pub struct FullFileSpecification<'a> {
     ///
     /// This entry is obsolescent and should not be used by conforming writers.
     #[field("Mac")]
-    mac: Option<String>,
+    mac: Option<FileSpecificationString>,
 
     /// A file specification string representing a UNIX file name.
     ///
     /// This entry is obsolescent and should not be used by conforming writers.
     #[field("Unix")]
-    unix: Option<String>,
+    unix: Option<FileSpecificationString>,
 
     /// An array of two byte strings constituting a file identifier that should be included
     /// in the referenced file.

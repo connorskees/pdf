@@ -2,7 +2,7 @@ use crate::{
     catalog::MetadataStream,
     color::ColorSpace,
     error::PdfResult,
-    filter::flate::BitsPerComponent,
+    filter::{dct::ColorTransform, flate::BitsPerComponent},
     objects::{Name, Object},
     optional_content::{OptionalContent, OptionalContentGroup},
     resources::graphics_state_parameters::RenderingIntent,
@@ -163,6 +163,13 @@ pub struct ImageXObject<'a> {
     /// the entire image shall be skipped, as if there were no Do operator to invoke it
     #[field("OC")]
     pub oc: Option<OptionalContent>,
+
+    // Not part of spec, but found in practice
+    #[field("ImageName")]
+    image_name: Option<Name>,
+    // Same as above. Used for DCT decompression
+    #[field("ColorTransform")]
+    color_transform: Option<ColorTransform>,
 }
 
 #[derive(Debug, Clone, FromObj)]
