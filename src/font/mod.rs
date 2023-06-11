@@ -1,5 +1,3 @@
-use type0::Type0Font;
-
 use crate::{
     error::PdfResult,
     objects::{Dictionary, Object},
@@ -7,10 +5,12 @@ use crate::{
 };
 
 pub use self::{
+    cid::{CidFontSubtype, CidFontWidths, CidToGidMap},
     descriptor::FontDescriptor,
     embedded::Type3FontFile,
     glyph::Glyph,
     true_type::TrueTypeFont,
+    type0::Type0Font,
     type1::{MmType1Font, Type1Font},
     type3::Type3Font,
 };

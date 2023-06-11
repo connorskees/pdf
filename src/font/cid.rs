@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use crate::{
     error::{ParseError, PdfResult},
     objects::{Name, Object, ObjectType},
@@ -32,7 +34,7 @@ pub struct CidSystemInfo {
 }
 
 #[pdf_enum]
-enum CidFontSubtype {
+pub enum CidFontSubtype {
     /// A CIDFont whose glyph descriptions are based on Type 1 font technology
     CidFontType0 = "CIDFontType0",
 
@@ -44,30 +46,30 @@ enum CidFontSubtype {
 #[obj_type("Font")]
 pub struct CidFontDictionary<'a> {
     #[field("Subtype")]
-    subtype: CidFontSubtype,
+    pub subtype: CidFontSubtype,
 
     /// The PostScript name of the CIDFont. For Type 0 CIDFonts, this shall be
     /// the value of the CIDFontName entry in the CIDFont program. For Type 2
     /// CIDFonts, it shall be derived the same way as for a simple TrueType font.
     /// In either case, the name may have a subset prefix if appropriate
     #[field("BaseFont")]
-    base_font: Name,
+    pub base_font: Name,
 
     /// A dictionary containing entries that define the character collection of the
     /// CIDFont
     #[field("CIDSystemInfo")]
-    cid_system_info: CidSystemInfo,
+    pub cid_system_info: CidSystemInfo,
 
     /// A font descriptor describing the CIDFont’s default metrics other than its
     /// glyph widths
     #[field("FontDescriptor")]
-    font_descriptor: FontDescriptor<'a>,
+    pub font_descriptor: FontDescriptor<'a>,
 
     /// The default width for glyphs in the CIDFont
     ///
     /// Default value: 1000 (defined in user units)
     #[field("DW", default = 1000)]
-    dw: i32,
+    pub default_width: i32,
 
     /// A description of the widths for the glyphs in the CIDFont
     ///
@@ -75,20 +77,20 @@ pub struct CidFontDictionary<'a> {
     ///       widths for consecutive CIDs or one width for a range of CIDs
     ///
     /// Default value: none (the DW value shall be used for all glyphs)
-    #[field("W")]
-    w: Option<Vec<Object<'a>>>,
+    #[field("W", default = CidFontWidths::with_default(default_width))]
+    pub widths: CidFontWidths,
 
     /// An array of two numbers specifying the default metrics for vertical writing
     ///
     /// Default value: [880 −1000]
     #[field("DW2", default = [880.0, -1000.0])]
-    dw2: [f32; 2],
+    pub dw2: [f32; 2],
 
     /// A description of the metrics for vertical writing for the glyphs in the CIDFont
     ///
     /// Default value: none (the DW2 value shall be used for all glyphs)
     #[field("W2")]
-    w2: Option<Vec<Object<'a>>>,
+    pub w2: Option<Vec<Object<'a>>>,
 
     /// A specification of the mapping from CIDs to glyph indices. If the value is a
     /// stream, the bytes in the stream shall contain the mapping from CIDs to glyph
@@ -102,11 +104,11 @@ pub struct CidFontDictionary<'a> {
     /// This entry may appear only in a Type 2 CIDFont whose associated TrueType font program
     /// is embedded in the PDF file
     #[field("CIDToGIDMap", default = CidToGidMap::Identity)]
-    cid_to_gid_map: CidToGidMap<'a>,
+    pub cid_to_gid_map: CidToGidMap<'a>,
 }
 
-#[derive(Debug)]
-enum CidToGidMap<'a> {
+#[derive(Debug, Clone, PartialEq)]
+pub enum CidToGidMap<'a> {
     Identity,
     Stream(Stream<'a>),
 }
@@ -122,5 +124,59 @@ impl<'a> FromObj<'a> for CidToGidMap<'a> {
                 });
             }
         })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CidFontWidths {
+    pub map: BTreeMap<i32, f32>,
+    pub default: i32,
+}
+
+impl CidFontWidths {
+    pub fn with_default(default: i32) -> Self {
+        Self {
+            map: BTreeMap::new(),
+            default,
+        }
+    }
+}
+
+impl<'a> FromObj<'a> for CidFontWidths {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut map = BTreeMap::new();
+        let arr = resolver.assert_arr(obj)?;
+
+        let mut idx = 0;
+
+        while idx < arr.len() {
+            let mut first = resolver.assert_integer(arr[idx].clone())?;
+
+            idx += 1;
+
+            match resolver.resolve(arr[idx].clone())? {
+                arr @ Object::Array(..) => {
+                    let arr = <Vec<f32>>::from_obj(arr, resolver)?;
+
+                    for width in arr {
+                        map.insert(first, width);
+                        first += 1;
+                    }
+                }
+                Object::Integer(last) => {
+                    idx += 1;
+                    let width = resolver.assert_number(arr[idx].clone())?;
+
+                    for i in first..last {
+                        map.insert(i, width);
+                    }
+                }
+                obj => anyhow::bail!("expected array or integer, found {:?}", obj),
+            }
+
+            idx += 1;
+        }
+
+        Ok(Self { map, default: 1000 })
     }
 }

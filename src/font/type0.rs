@@ -33,7 +33,7 @@ impl<'a> FromObj<'a> for Type0FontEncoding<'a> {
 /// as the root font, and its associated CIDFont is called its descendant.
 #[derive(Debug)]
 pub struct Type0Font<'a> {
-    base: BaseFontDict<'a>,
+    pub base: BaseFontDict<'a>,
 
     /// The name of the font. If the descendant is a Type 0 CIDFont, this
     /// name should be the concatenation of the CIDFont’s BaseFont name,
@@ -45,7 +45,7 @@ pub struct Type0Font<'a> {
     ///       font program associated directly with a Type 0 font dictionary.
     ///       The conventions described here ensure maximum compatibility with
     ///       existing readers
-    base_font: String,
+    pub base_font: String,
 
     /// The name of a predefined CMap, or a stream containing a CMap that
     /// maps character codes to font numbers and CIDs. If the descendant is
@@ -55,7 +55,7 @@ pub struct Type0Font<'a> {
 
     /// A one-element array specifying the CIDFont dictionary that is the descendant
     /// of this Type 0 font
-    descendant_fonts: [CidFontDictionary<'a>; 1],
+    pub descendant_font: [CidFontDictionary<'a>; 1],
 
     /// A stream containing a CMap file that maps character codes to Unicode values
     to_unicode: Option<ToUnicodeCmapStream<'a>>,
@@ -67,14 +67,14 @@ impl<'a> FromObj<'a> for Type0Font<'a> {
         let base = BaseFontDict::from_dict(&mut dict, resolver)?;
         let base_font = dict.expect_name("BaseFont", resolver)?;
         let encoding = dict.expect("Encoding", resolver)?;
-        let descendant_fonts = dict.expect("DescendantFonts", resolver)?;
+        let descendant_font = dict.expect("DescendantFonts", resolver)?;
         let to_unicode = dict.get("ToUnicode", resolver)?;
 
         Ok(Self {
             base,
             base_font,
             encoding,
-            descendant_fonts,
+            descendant_font,
             to_unicode,
         })
     }
