@@ -636,4 +636,55 @@ mod test {
 
         assert_eq!(obj, Object::String("\0\u{5}3++".to_owned()));
     }
+
+    #[test]
+    fn empty_hex_string() {
+        let body = b"<>";
+
+        let mut lexer = Lexer::new(
+            body.to_vec(),
+            Rc::new(Xref {
+                objects: HashMap::new(),
+            }),
+        )
+        .unwrap();
+
+        let obj = lexer.lex_object().unwrap();
+
+        assert_eq!(obj, Object::String("".to_owned()));
+    }
+
+    #[test]
+    fn hex_string() {
+        let body = b"<005B>";
+
+        let mut lexer = Lexer::new(
+            body.to_vec(),
+            Rc::new(Xref {
+                objects: HashMap::new(),
+            }),
+        )
+        .unwrap();
+
+        let obj = lexer.lex_object().unwrap();
+
+        assert_eq!(obj, Object::String("\0\x5b".to_owned()));
+    }
+
+    #[test]
+    fn odd_length_hex_string() {
+        let body = b"<901FA>";
+
+        let mut lexer = Lexer::new(
+            body.to_vec(),
+            Rc::new(Xref {
+                objects: HashMap::new(),
+            }),
+        )
+        .unwrap();
+
+        let obj = lexer.lex_object().unwrap();
+
+        assert_eq!(obj, Object::String("\u{90}\x1f\u{a0}".to_owned()));
+    }
 }
