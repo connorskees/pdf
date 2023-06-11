@@ -25,9 +25,8 @@ use crate::{
         },
         Resources,
     },
-    shading::ShadingObject,
     xobject::{FormXObject, XObject},
-    Resolve,
+    FromObj, Resolve,
 };
 
 use canvas::Canvas;
@@ -62,10 +61,12 @@ pub struct Renderer<'a, 'b: 'a> {
 }
 
 impl<'a, 'b: 'a> Renderer<'a, 'b> {
-    fn pop(&mut self) -> PdfResult<Object<'b>> {
+    fn pop<T: FromObj<'b>>(&mut self) -> PdfResult<T> {
         Ok(self
             .operand_stack
             .pop()
+            .map(|obj| T::from_obj(obj, self.resolver))
+            .transpose()?
             .ok_or(PdfRenderError::StackUnderflow)?)
     }
 
@@ -106,7 +107,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         resolver: &'a mut dyn Resolve<'b>,
         page: Rc<PageObject<'b>>,
     ) -> Self {
-        let media_box: crate::data_structures::Rectangle = page.media_box.unwrap();
+        let media_box = page.media_box().unwrap();
 
         let width = media_box.width().ceil();
         let height = media_box.height().ceil();
@@ -263,9 +264,8 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                 .and_then(|shading| shading.get(&name));
 
             match shade {
-                Some(ShadingObject::Dictionary(dict)) => todo!("{:?}", dict),
-                Some(ShadingObject::Stream(stream)) => todo!("{:?}", stream),
-                None => todo!("unable to locate shade {:?}", name),
+                Some(shade) => todo!("{:#?}", shade),
+                None => todo!("unable to locate shade {:#?}", name),
             }
         }
 
@@ -316,7 +316,15 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
                 ColorSpace::IccBased { stream, channels }
             }
-            ColorSpace::Separation | ColorSpace::DeviceN(..) => {
+            ColorSpace::Separation(space) => {
+                let mut space = space.clone();
+                let tint = self.pop_number()?;
+
+                space.tint = tint;
+
+                ColorSpace::Separation(space)
+            }
+            ColorSpace::DeviceN(..) => {
                 todo!()
             }
             ColorSpace::Pattern(..) => {
@@ -334,8 +342,11 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
                 ColorSpace::Pattern(pattern)
             }
-            ColorSpace::Indexed(..) => {
-                todo!()
+            ColorSpace::Indexed { space, .. } => {
+                let space = Rc::clone(space);
+                let index = self.pop::<u32>()?;
+
+                ColorSpace::Indexed { index, space }
             }
             ColorSpace::DeviceGray(..) | ColorSpace::CalGray { .. } => {
                 todo!()
@@ -1063,6 +1074,14 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
                 glyph.outline.apply_transform(trm);
 
+                // self.canvas.stroke_outline(
+                //     &glyph.outline,
+                //     self.graphics_state
+                //         .device_independent
+                //         .color_space
+                //         .stroking
+                //         .as_u32(),
+                // );
                 self.canvas.fill_outline_even_odd(
                     &glyph.outline,
                     self.graphics_state
@@ -1106,6 +1125,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         let arr = self.pop_arr()?;
 
         self.draw_text(arr)?;
+
         Ok(())
     }
 
@@ -1265,7 +1285,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     /// associated with it in the Properties subdictionary of the current
     /// resource dictionary
     fn begin_marked_content_sequence_with_property_list(&mut self) -> PdfResult<()> {
-        let _properties = self.pop()?;
+        let _properties = self.pop::<Object<'b>>()?;
         let _tag = self.pop_name()?;
 
         println!("todo: unimplemented marked content operator: BDC");
