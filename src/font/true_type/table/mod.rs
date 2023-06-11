@@ -11,7 +11,7 @@ mod name;
 mod table_name;
 mod tag;
 
-pub(super) use cmap::CmapTable;
+pub(super) use cmap::{Cmap8Group, CmapSubtable, CmapTable};
 pub(super) use cvt::CvtTable;
 pub(super) use font_directory::{
     DirectoryTableEntry, FontDirectory, OffsetSubtable, TableDirectory,

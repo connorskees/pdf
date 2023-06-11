@@ -1,12 +1,13 @@
 use std::fmt;
 
-use crate::font::true_type::Fixed;
+use crate::font::true_type::{table::Cmap8Group, Fixed};
 
 use super::{
     table::{
-        CompoundGlyphPartDescription, CvtTable, DirectoryTableEntry, FontDirectory, GlyfTable,
-        Head, HeadFlags, LocaTable, MacStyle, MaxpTable, NameRecord, NameTable, OffsetSubtable,
-        OutlineFlag, SimpleGlyph, TableDirectory, TableTag, TrueTypeGlyph,
+        CmapSubtable, CmapTable, CompoundGlyphPartDescription, CvtTable, DirectoryTableEntry,
+        FontDirectory, GlyfTable, Head, HeadFlags, LocaTable, MacStyle, MaxpTable, NameRecord,
+        NameTable, OffsetSubtable, OutlineFlag, SimpleGlyph, TableDirectory, TableTag,
+        TrueTypeGlyph,
     },
     FWord, LongDateTime,
 };
@@ -456,5 +457,188 @@ impl<'a> TrueTypeParser<'a> {
         }
 
         Ok(CvtTable { entries })
+    }
+
+    pub fn read_cmap_table(&mut self, table_offset: usize) -> anyhow::Result<CmapTable> {
+        self.cursor = table_offset as usize;
+
+        let version = self.read_u16()?;
+        assert_eq!(version, 0);
+
+        let number_subtables = self.read_u16()?;
+        let mut offsets = Vec::with_capacity(usize::from(number_subtables));
+
+        for _ in 0..number_subtables {
+            let platform_id = self.read_u16()?;
+            let platform_specific_id = self.read_u16()?;
+            let offset = self.read_u32()?;
+
+            assert!(
+                matches!(platform_id, 0 | 1 | 3),
+                "invalid platform id: {:?}",
+                platform_id
+            );
+            match platform_id {
+                0 => assert!(matches!(platform_specific_id, 0..=6)),
+                1 => assert!(matches!(platform_specific_id, 0..=150)),
+                3 => assert!(matches!(platform_specific_id, 0..=5 | 10)),
+                _ => unreachable!(),
+            }
+
+            offsets.push(offset as usize);
+        }
+
+        let mut subtables = Vec::with_capacity(usize::from(number_subtables));
+
+        for subtable_offset in offsets {
+            self.cursor = table_offset + subtable_offset;
+            subtables.push(self.parse_cmap_subtable()?);
+        }
+
+        Ok(CmapTable { version, subtables })
+    }
+
+    fn parse_cmap_subtable(&mut self) -> anyhow::Result<CmapSubtable> {
+        let format = self.read_u16()?;
+
+        match format {
+            0 => self.parse_cmap_subtable_0(),
+            2 => todo!(),
+            4 => self.parse_cmap_subtable_4(),
+            6 => self.parse_cmap_subtable_6(),
+            8 => self.parse_cmap_subtable_8(),
+            10 => todo!(),
+            12 => todo!(),
+            13 => todo!(),
+            14 => todo!(),
+            _ => anyhow::bail!("invalid cmap subtable format: {:?}", format),
+        }
+    }
+
+    fn parse_cmap_subtable_0(&mut self) -> anyhow::Result<CmapSubtable> {
+        let length = self.read_u16()?;
+        assert_eq!(length, 262, "length must be 262 for type 0 cmap subtable");
+        let language = self.read_u16()?;
+        let glyph_index_array = self.get_byte_range(256).try_into()?;
+
+        Ok(CmapSubtable::Zero {
+            language,
+            glyph_index_array,
+        })
+    }
+
+    fn parse_cmap_subtable_4(&mut self) -> anyhow::Result<CmapSubtable> {
+        let start_pos = self.cursor - 2;
+        let length = self.read_u16()?;
+        let language = self.read_u16()?;
+        let seg_count_x2 = self.read_u16()?;
+        let search_range = self.read_u16()?;
+        let entry_selector = self.read_u16()?;
+        let range_shift = self.read_u16()?;
+
+        let seg_count = seg_count_x2 / 2;
+
+        let mut end_code = Vec::with_capacity(seg_count as usize);
+        for _ in 0..seg_count {
+            end_code.push(self.read_u16()?);
+        }
+
+        assert_eq!(end_code.last(), Some(&0xFFFF));
+
+        let reserved_pad = self.read_u16()?;
+        assert_eq!(reserved_pad, 0);
+
+        let mut start_code = Vec::with_capacity(seg_count as usize);
+        for _ in 0..seg_count {
+            start_code.push(self.read_u16()?);
+        }
+
+        let mut id_delta = Vec::with_capacity(seg_count as usize);
+        for _ in 0..seg_count {
+            id_delta.push(self.read_i16()?);
+        }
+
+        let mut id_range_offset = Vec::with_capacity(seg_count as usize);
+        for _ in 0..seg_count {
+            id_range_offset.push(self.read_u16()?);
+        }
+
+        assert!(start_pos + length as usize >= self.cursor);
+
+        let glyph_index_array = self
+            .get_byte_range(start_pos + length as usize - self.cursor)
+            .chunks_exact(2)
+            .map(|bytes| u16::from_be_bytes([bytes[0], bytes[1]]))
+            .collect();
+
+        assert_eq!(start_pos + length as usize, self.cursor);
+
+        Ok(CmapSubtable::Four {
+            language,
+            seg_count_x2,
+            search_range,
+            entry_selector,
+            range_shift,
+            end_code,
+            start_code,
+            id_delta,
+            id_range_offset,
+            glyph_index_array,
+        })
+    }
+
+    fn parse_cmap_subtable_6(&mut self) -> anyhow::Result<CmapSubtable> {
+        let start = self.cursor - 2;
+        let length = self.read_u16()?;
+        let language = self.read_u16()?;
+        let first_code = self.read_u16()?;
+        let entry_count = self.read_u16()?;
+
+        let mut glyph_index_array = Vec::with_capacity(entry_count as usize);
+
+        for _ in 0..entry_count {
+            glyph_index_array.push(self.read_u16()?);
+        }
+
+        assert_eq!(start + length as usize, self.cursor);
+
+        Ok(CmapSubtable::Six {
+            language,
+            first_code,
+            entry_count,
+            glyph_index_array,
+        })
+    }
+
+    fn parse_cmap_subtable_8(&mut self) -> anyhow::Result<CmapSubtable> {
+        let start = self.cursor - 2;
+        let reserved = self.read_u16()?;
+        assert_eq!(reserved, 0);
+        let length = self.read_u32()?;
+        let language = self.read_u32()?;
+        let is32 = self.get_byte_range(65536).to_vec();
+        let n_groups = self.read_u32()?;
+
+        let mut groups = Vec::with_capacity(n_groups as usize);
+
+        for _ in 0..n_groups {
+            let start_char_code = self.read_u32()?;
+            let end_char_code = self.read_u32()?;
+            let start_glyph_code = self.read_u32()?;
+
+            groups.push(Cmap8Group {
+                start_char_code,
+                end_char_code,
+                start_glyph_code,
+            })
+        }
+
+        assert_eq!(self.cursor, start + length as usize);
+
+        Ok(CmapSubtable::Eight {
+            language,
+            is32,
+            groups,
+        })
     }
 }

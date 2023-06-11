@@ -1,8 +1,8 @@
 use super::{
     parse::TrueTypeParser,
     table::{
-        CvtTable, FontDirectory, GlyfTable, Head, LocaTable, MaxpTable, NameTable, SimpleGlyph,
-        TableName, TrueTypeGlyph,
+        CmapTable, CvtTable, FontDirectory, GlyfTable, Head, LocaTable, MaxpTable, NameTable,
+        SimpleGlyph, TableName, TrueTypeGlyph,
     },
     FWord,
 };
@@ -14,6 +14,7 @@ pub struct ParsedTrueTypeFontFile<'a> {
     pub maxp: MaxpTable,
     pub loca: LocaTable,
     pub cvt: CvtTable,
+    pub cmap: Option<CmapTable>,
     parser: TrueTypeParser<'a>,
 }
 
@@ -27,6 +28,7 @@ impl<'a> ParsedTrueTypeFontFile<'a> {
         let maxp = Self::get_maxp(&mut parser, &font_directory)?;
         let loca = Self::get_loca(&mut parser, &font_directory, head.index_to_loc_format)?;
         let cvt = Self::get_cvt(&mut parser, &font_directory)?;
+        let cmap = Self::get_cmap(&mut parser, &font_directory)?;
 
         Ok(Self {
             font_directory,
@@ -34,6 +36,7 @@ impl<'a> ParsedTrueTypeFontFile<'a> {
             maxp,
             loca,
             cvt,
+            cmap,
             parser,
         })
     }
@@ -68,6 +71,18 @@ impl<'a> ParsedTrueTypeFontFile<'a> {
         parser.read_cvt_table(entry)
     }
 
+    fn get_cmap(
+        parser: &mut TrueTypeParser,
+        font_directory: &FontDirectory,
+    ) -> anyhow::Result<Option<CmapTable>> {
+        let offset = match font_directory.find_table_offset(TableName::Cmap.as_tag()) {
+            Some(o) => o,
+            None => return Ok(None),
+        };
+
+        parser.read_cmap_table(offset as usize).map(Some)
+    }
+
     fn get_loca(
         parser: &mut TrueTypeParser,
         font_directory: &FontDirectory,
@@ -80,7 +95,14 @@ impl<'a> ParsedTrueTypeFontFile<'a> {
     }
 
     pub fn glyph(&mut self, char_code: u32) -> anyhow::Result<TrueTypeGlyph> {
-        let glyf_entry = self.loca.get_glyf_entry(char_code).unwrap();
+        let glyph_index = if let Some(cmap) = &self.cmap {
+            // todo: be smarter about subtable selection
+            cmap.subtables[0].lookup_char_code(char_code)
+        } else {
+            char_code
+        };
+
+        let glyf_entry = self.loca.get_glyf_entry(glyph_index).unwrap();
 
         let glyf_table_offset = self
             .font_directory
