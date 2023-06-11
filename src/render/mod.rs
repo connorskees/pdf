@@ -13,7 +13,8 @@ use crate::{
     filter::decode_stream,
     font::{
         true_type::{ParsedTrueTypeFontFile, TrueTypeInterpreter},
-        Font, Glyph, TrueTypeFont, Type1Font,
+        CidFontSubtype, CidFontWidths, CidToGidMap, Font, Glyph, TrueTypeFont, Type0Font,
+        Type1Font, Widths,
     },
     geometry::{Path, Point},
     objects::Object,
@@ -987,7 +988,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         let ffs;
         let stream;
         let mut font: Box<dyn RenderableFont>;
-        let widths;
+        let widths: &dyn FontMetrics;
 
         match self.text_state.font.as_deref() {
             Some(Font::Type1(Type1Font { base, .. })) => {
@@ -1008,7 +1009,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                 stream = decode_stream(&ffs, &font_file.stream.dict, self.resolver)?;
 
                 font = Box::new(Type1PostscriptFont::load(&stream)?);
-                widths = &base.widths;
+                widths = base.widths.as_ref().unwrap();
             }
             Some(Font::TrueType(TrueTypeFont { base, .. })) => {
                 let font_file = base
@@ -1028,7 +1029,42 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                 stream = decode_stream(&ffs, &font_file.stream.dict, self.resolver)?;
 
                 font = Box::new(ParsedTrueTypeFontFile::load(&stream)?);
-                widths = &base.widths;
+                widths = base.widths.as_ref().unwrap();
+            }
+            Some(Font::Type0(Type0Font {
+                descendant_font: [descendant_font],
+                ..
+            })) => {
+                assert_eq!(descendant_font.cid_to_gid_map, CidToGidMap::Identity);
+
+                match descendant_font.subtype {
+                    CidFontSubtype::CidFontType0 => {
+                        let font_file = descendant_font.font_descriptor.font_file.clone().unwrap();
+
+                        ffs = font_file.stream.stream;
+
+                        stream = decode_stream(&ffs, &font_file.stream.dict, self.resolver)?;
+
+                        font = Box::new(Type1PostscriptFont::load(&stream)?);
+                    }
+                    CidFontSubtype::CidFontType2 => {
+                        let font_file = descendant_font
+                            .font_descriptor
+                            .font_file_two
+                            .clone()
+                            .unwrap();
+
+                        ffs = font_file.stream.stream;
+
+                        stream = decode_stream(&ffs, &font_file.stream.dict, self.resolver)?;
+
+                        font = Box::new(ParsedTrueTypeFontFile::load(&stream)?);
+                    }
+                }
+
+                assert_eq!(descendant_font.default_width, 1000);
+
+                widths = &descendant_font.widths;
             }
             Some(font) => todo!("unimplement font type: {:#?}", font),
             None => todo!("no font selected in text state"),
@@ -1093,8 +1129,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
                 self.canvas.refresh();
 
-                let mut x_transform = widths.as_ref().unwrap().get(c as u32)
-                    * self.text_state.font_size
+                let mut x_transform = widths.get(c as u32) * self.text_state.font_size
                     + self.text_state.character_spacing;
 
                 if c == ' ' {
@@ -1373,5 +1408,25 @@ impl<'a, 'b: 'a> RenderableFont<'a, 'b> for ParsedTrueTypeFontFile<'a> {
 
     fn font_matrix(&self) -> Matrix {
         Matrix::identity()
+    }
+}
+
+trait FontMetrics {
+    fn get(&self, codepoint: u32) -> f32;
+}
+
+impl FontMetrics for Widths {
+    fn get(&self, codepoint: u32) -> f32 {
+        self.get(codepoint)
+    }
+}
+
+impl FontMetrics for CidFontWidths {
+    fn get(&self, codepoint: u32) -> f32 {
+        self.map
+            .get(&(codepoint as i32))
+            .copied()
+            .unwrap_or(self.default as f32)
+            / 1000.0
     }
 }
