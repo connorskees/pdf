@@ -14,6 +14,7 @@ description = "PDF parser"
 [lib]
 name = "pdf"
 path = "src/lib.rs"
+doctest = false
 
 [[bin]]
 name = "pdf"
@@ -21,11 +22,16 @@ path = "src/main.rs"
 
 
 [dependencies]
+aes = "0.8.2"
 anyhow = { version = "1.0.71", features = ["backtrace"] }
+bitvec = { git = "https://github.com/ferrilab/bitvec", default-features = false, features = ["std"] }
+cbc = "0.1.2"
 fast-float = "0.2.0"
 fixed = "1.23.1"
 flate2 = "1.0.20"
 jpeg-decoder = "0.1.22"
+md5 = "0.7.0"
 minifb = "0.19.3"
+once_cell = "1.17.2"
 pdf_macro = { path = "pdf_macro" }
 png = "0.17.8"
