@@ -5,7 +5,7 @@ use crate::{data_structures::Matrix, postscript::object::ArrayIndex};
 use super::{
     charstring::{CharString, CharStrings},
     object::{PostScriptArray, PostScriptDictionary, PostScriptObject, PostScriptString},
-    PostScriptError, PostScriptResult, PostscriptInterpreter,
+    PostScriptError, PostScriptResult, interpreter::PostscriptInterpreter,
 };
 
 #[derive(Debug, Clone, Copy)]

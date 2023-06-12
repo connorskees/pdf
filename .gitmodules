@@ -1,0 +1,3 @@
+[submodule "pdf_fonts"]
+	path = pdf_fonts
+	url = https://github.com/s3bk/pdf_fonts

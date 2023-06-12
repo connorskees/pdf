@@ -3,8 +3,8 @@ use std::borrow::Cow;
 use crate::{error::PdfResult, lex::LexBase};
 
 use super::{
-    object::{Container, StringIndex},
-    PostScriptObject, PostScriptString, PostscriptOperator,
+    object::{Container, StringIndex, PostScriptObject, PostScriptString},
+    operator::PostscriptOperator,
 };
 
 pub(super) fn ident_token_from_bytes(bytes: &[u8]) -> PdfResult<PostScriptObject> {
@@ -69,6 +69,7 @@ pub(super) fn ident_token_from_bytes(bytes: &[u8]) -> PdfResult<PostScriptObject
         literal => {
             // todo: only to detect unimplemented operators
             match literal {
+                // special cased literals here are known to be used inside standard dictionaries
                 b"StandardEncoding" | b"|" | b"|-" | b"-|" | b"systemdict" | b"RD" | b"NP"
                 | b"ND" | b"userdict" | b"errordict" | b"FontDirectory" | b"findfont" => {}
                 found => println!(

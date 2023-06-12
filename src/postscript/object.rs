@@ -7,7 +7,7 @@ use std::{
 
 use crate::data_structures::Matrix;
 
-use super::{PostScriptError, PostScriptResult, PostscriptOperator};
+use super::{PostScriptError, PostScriptResult, operator::PostscriptOperator};
 
 pub(super) type Name = PostScriptString;
 

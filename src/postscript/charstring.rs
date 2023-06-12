@@ -7,14 +7,14 @@ use std::{
 use crate::{
     font::Glyph,
     geometry::{Outline, Path, Point},
-    postscript::GraphicsOperator,
 };
 
 use super::{
     decode::decrypt_charstring,
     font::{Encoding, Type1PostscriptFont},
+    graphics_operator::GraphicsOperator,
     object::{PostScriptArray, PostScriptDictionary, PostScriptObject, PostScriptString},
-    PostScriptError, PostScriptResult, PostscriptInterpreter,
+    PostScriptError, PostScriptResult, interpreter::PostscriptInterpreter,
 };
 
 #[derive(Debug)]
