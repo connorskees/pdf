@@ -3,7 +3,11 @@ pub(super) mod error;
 pub(crate) mod graphics_state;
 pub(crate) mod text_state;
 
-use std::{borrow::Cow, rc::Rc};
+use std::{
+    borrow::Cow,
+    rc::Rc,
+    sync::{Arc, RwLock},
+};
 
 use crate::{
     color::{ColorSpace, ColorSpaceName},
@@ -14,7 +18,7 @@ use crate::{
     font::{
         true_type::{ParsedTrueTypeFontFile, TrueTypeInterpreter},
         CidFontSubtype, CidFontWidths, CidToGidMap, Font, Glyph, TrueTypeFont, Type0Font,
-        Type1Font, Widths,
+        Type1Font, Widths, BASE_14_FONTS,
     },
     geometry::{Path, Point},
     objects::Object,
@@ -987,7 +991,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     fn draw_text(&mut self, arr: Vec<Object<'b>>) -> PdfResult<()> {
         let ffs;
         let stream;
-        let mut font: Box<dyn RenderableFont>;
+        let font: Arc<RwLock<dyn RenderableFont>>;
         let widths: &dyn FontMetrics;
 
         match self.text_state.font.as_deref() {
@@ -1003,12 +1007,10 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                 }
 
                 let font_file = font_file.unwrap();
-
                 ffs = font_file.stream.stream;
-
                 stream = decode_stream(&ffs, &font_file.stream.dict, self.resolver)?;
 
-                font = Box::new(Type1PostscriptFont::load(&stream)?);
+                font = Arc::new(RwLock::new(Type1PostscriptFont::load(&stream)?));
                 widths = base.widths.as_ref().unwrap();
             }
             Some(Font::TrueType(TrueTypeFont { base, .. })) => {
@@ -1017,19 +1019,21 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     .as_ref()
                     .and_then(|desc| desc.font_file_two.clone());
 
-                if font_file.is_none() {
-                    println!("skipping unsupported true type font");
-                    return Ok(());
-                }
-
-                let font_file = font_file.unwrap();
-
-                ffs = font_file.stream.stream;
-
-                stream = decode_stream(&ffs, &font_file.stream.dict, self.resolver)?;
-
-                font = Box::new(ParsedTrueTypeFontFile::load(&stream)?);
                 widths = base.widths.as_ref().unwrap();
+
+                if font_file.is_none() {
+                    let base_font = BASE_14_FONTS
+                        .get(&base.font_descriptor.as_ref().unwrap().font_name.0.as_ref())
+                        .unwrap();
+
+                    font = Arc::<RwLock<Type1PostscriptFont>>::clone(base_font);
+                } else {
+                    let font_file = font_file.unwrap();
+                    ffs = font_file.stream.stream;
+                    stream = decode_stream(&ffs, &font_file.stream.dict, self.resolver)?;
+
+                    font = Arc::new(RwLock::new(TrueTypeInterpreter::load(&stream)?));
+                }
             }
             Some(Font::Type0(Type0Font {
                 descendant_font: [descendant_font],
@@ -1039,13 +1043,16 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
                 match descendant_font.subtype {
                     CidFontSubtype::CidFontType0 => {
-                        let font_file = descendant_font.font_descriptor.font_file.clone().unwrap();
+                        let font_file = descendant_font.font_descriptor.font_file.clone();
+                        if font_file.is_none() {
+                            println!("skipping unsupported type 1 font");
+                            return Ok(());
+                        }
 
+                        let font_file = font_file.unwrap();
                         ffs = font_file.stream.stream;
-
                         stream = decode_stream(&ffs, &font_file.stream.dict, self.resolver)?;
-
-                        font = Box::new(Type1PostscriptFont::load(&stream)?);
+                        font = Arc::new(RwLock::new(Type1PostscriptFont::load(&stream)?));
                     }
                     CidFontSubtype::CidFontType2 => {
                         let font_file = descendant_font
@@ -1058,7 +1065,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
                         stream = decode_stream(&ffs, &font_file.stream.dict, self.resolver)?;
 
-                        font = Box::new(ParsedTrueTypeFontFile::load(&stream)?);
+                        font = Arc::new(RwLock::new(TrueTypeInterpreter::load(&stream)?));
                     }
                 }
 
@@ -1099,25 +1106,17 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     self.text_state.font_size,
                     0.0,
                     self.text_state.rise,
-                ) * font.font_matrix()
+                ) * font.read().unwrap().font_matrix()
                     * self.text_state.text_matrix
                     * self
                         .graphics_state
                         .device_independent
                         .current_transformation_matrix;
 
-                let mut glyph = font.evaluate(c as u32)?;
+                let mut glyph = font.write().unwrap().evaluate(c as u32)?;
 
                 glyph.outline.apply_transform(trm);
 
-                // self.canvas.stroke_outline(
-                //     &glyph.outline,
-                //     self.graphics_state
-                //         .device_independent
-                //         .color_space
-                //         .stroking
-                //         .as_u32(),
-                // );
                 self.canvas.fill_outline_even_odd(
                     &glyph.outline,
                     self.graphics_state
@@ -1361,7 +1360,7 @@ enum OverprintMode {
     NonZero = 1,
 }
 
-trait RenderableFont<'a, 'b> {
+pub trait RenderableFont<'a, 'b> {
     fn load(stream: &'a [u8]) -> PdfResult<Self>
     where
         Self: Sized;
@@ -1393,17 +1392,17 @@ impl<'a, 'b> RenderableFont<'a, 'b> for Type1PostscriptFont {
     }
 }
 
-impl<'a, 'b: 'a> RenderableFont<'a, 'b> for ParsedTrueTypeFontFile<'a> {
+impl<'a, 'b: 'a> RenderableFont<'a, 'b> for TrueTypeInterpreter<'a> {
     fn load(stream: &'a [u8]) -> PdfResult<Self>
     where
         Self: Sized,
     {
-        ParsedTrueTypeFontFile::new(stream)
+        let file = ParsedTrueTypeFontFile::new(stream)?;
+        Ok(TrueTypeInterpreter::new(file))
     }
 
     fn evaluate(&mut self, codepoint: u32) -> PdfResult<Glyph> {
-        let mut interpreter = TrueTypeInterpreter::new(self);
-        interpreter.render_glyph(codepoint)
+        self.render_glyph(codepoint)
     }
 
     fn font_matrix(&self) -> Matrix {

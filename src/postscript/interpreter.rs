@@ -46,6 +46,7 @@ impl<'a> PostscriptInterpreter<'a> {
     pub fn new(mut buffer: &'a [u8]) -> Self {
         // skip .pfb section header
         let in_pfb = if buffer.get(0) == Some(&0x80) {
+            assert_eq!(buffer[1], 0x01);
             buffer = &buffer[6..];
             true
         } else {
@@ -707,7 +708,7 @@ impl<'a> PostscriptInterpreter<'a> {
         let mut buffer = &self.lexer.buffer[self.lexer.cursor..];
 
         // skip .pfb section header
-        if buffer[0] == 0x80 {
+        if buffer[0] == 0x80 && self.in_pfb {
             assert_eq!(buffer[0], 0x80);
             assert_eq!(buffer[1], 0x02);
             let len = u32::from_le_bytes([buffer[2], buffer[3], buffer[4], buffer[5]]);

@@ -16,7 +16,7 @@ pub struct FontDescriptor<'a> {
     /// The PostScript name of the font. This name shall be the same as the value of
     /// BaseFont in the font or CIDFont dictionary that refers to this font descriptor
     #[field("FontName")]
-    font_name: Name,
+    pub font_name: Name,
 
     /// A byte string specifying the preferred font family name
     #[field("FontFamily")]

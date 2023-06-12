@@ -1,6 +1,15 @@
+use std::{
+    collections::BTreeMap,
+    sync::{Arc, RwLock},
+};
+
+use once_cell::sync::Lazy;
+
 use crate::{
     error::PdfResult,
     objects::{Dictionary, Object},
+    postscript::font::Type1PostscriptFont,
+    render::RenderableFont,
     FromObj, Resolve,
 };
 
@@ -37,6 +46,61 @@ pub enum Font<'a> {
     Type3(Type3Font<'a>),
     Type0(Type0Font<'a>),
 }
+
+pub(crate) static BASE_14_FONTS: Lazy<BTreeMap<&'static str, Arc<RwLock<Type1PostscriptFont>>>> =
+    Lazy::new(|| {
+        BTreeMap::from_iter(
+            [
+                ("Courier", "/root/pdf/pdf_fonts/n022003l.pfb"),
+                ("CourierNewPSMT", "/root/pdf/pdf_fonts/n022003l.pfb"),
+                ("Courier-Bold", "/root/pdf/pdf_fonts/n022004l.pfb"),
+                ("Courier-Oblique", "/root/pdf/pdf_fonts/n022023l.pfb"),
+                ("Courier-BoldOblique", "/root/pdf/pdf_fonts/n022024l.pfb"),
+                ("Times-Roman", "/root/pdf/pdf_fonts/p052003l.pfb"),
+                ("Times New Roman", "/root/pdf/pdf_fonts/p052003l.pfb"),
+                ("TimesNewRomanPSMT", "/root/pdf/pdf_fonts/p052003l.pfb"),
+                ("TimesNewRoman", "/root/pdf/pdf_fonts/p052003l.pfb"),
+                ("Times-Bold", "/root/pdf/pdf_fonts/p052004l.pfb"),
+                ("Times New Roman,Bold", "/root/pdf/pdf_fonts/p052004l.pfb"),
+                ("TimesNewRomanPS-BoldMT", "/root/pdf/pdf_fonts/p052004l.pfb"),
+                ("TimesNewRoman,Bold", "/root/pdf/pdf_fonts/p052004l.pfb"),
+                ("Times-Italic", "/root/pdf/pdf_fonts/p052023l.pfb"),
+                ("TimesNewRoman,Italic", "/root/pdf/pdf_fonts/p052023l.pfb"),
+                (
+                    "TimesNewRomanPS-ItalicMT",
+                    "/root/pdf/pdf_fonts/p052023l.pfb",
+                ),
+                ("Times-BoldItalic", "/root/pdf/pdf_fonts/p052024l.pfb"),
+                (
+                    "TimesNewRomanPS-BoldItalicMT",
+                    "/root/pdf/pdf_fonts/p052024l.pfb",
+                ),
+                (
+                    "TimesNewRoman,BoldItalic",
+                    "/root/pdf/pdf_fonts/p052024l.pfb",
+                ),
+                ("Helvetica", "/root/pdf/pdf_fonts/n019003l.pfb"),
+                ("Helvetica-Bold", "/root/pdf/pdf_fonts/n019004l.pfb"),
+                ("Helvetica-Oblique", "/root/pdf/pdf_fonts/n019023l.pfb"),
+                ("Helvetica-BoldOblique", "/root/pdf/pdf_fonts/n019024l.pfb"),
+                ("Symbol", "/root/pdf/pdf_fonts/s050000l.pfb"),
+                ("ZapfDingbats", "/root/pdf/pdf_fonts/d050000l.pfb"),
+                ("Arial-BoldMT", "/root/pdf/pdf_fonts/n019004l.pfb"),
+                ("ArialMT", "/root/pdf/pdf_fonts/n019003l.pfb"),
+                ("Arial", "/root/pdf/pdf_fonts/n019003l.pfb"),
+                ("Arial-ItalicMT", "/root/pdf/pdf_fonts/n019023l.pfb"),
+                ("Arial-Italic", "/root/pdf/pdf_fonts/n019023l.pfb"),
+            ]
+            .map(|(name, path)| {
+                (
+                    name,
+                    Arc::new(RwLock::new(
+                        Type1PostscriptFont::load(&std::fs::read(path).unwrap()).unwrap(),
+                    )),
+                )
+            }),
+        )
+    });
 
 impl<'a> Font<'a> {
     const TYPE: &'static str = "Font";

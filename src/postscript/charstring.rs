@@ -13,8 +13,9 @@ use super::{
     decode::decrypt_charstring,
     font::{Encoding, Type1PostscriptFont},
     graphics_operator::GraphicsOperator,
+    interpreter::PostscriptInterpreter,
     object::{PostScriptArray, PostScriptDictionary, PostScriptObject, PostScriptString},
-    PostScriptError, PostScriptResult, interpreter::PostscriptInterpreter,
+    PostScriptError, PostScriptResult,
 };
 
 #[derive(Debug)]
