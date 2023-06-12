@@ -81,7 +81,7 @@ pub struct ImageXObject<'a> {
     /// array specifying a range of colours to be applied to it as a colour key
     /// mask. If ImageMask is true, this entry shall not be present
     #[field("Mask")]
-    pub mask: Option<ImageMask>,
+    pub mask: Option<ImageMask<'a>>,
 
     /// An array of numbers describing how to map image samples into the range of
     /// values appropriate for the image's colour space. If ImageMask is true, the
@@ -277,5 +277,40 @@ impl<'a> FromObj<'a> for AlternateImage<'a> {
     }
 }
 
-#[derive(Debug, Clone, FromObj)]
-pub struct ImageMask;
+#[derive(Debug, Clone)]
+pub enum ImageMask<'a> {
+    /// A black-and-white image xobject whose `ImageMask` field is set to true
+    ///
+    /// Based on the `Decode` field, pixels are masked out of the parent image if
+    /// they are white or black in the image mask
+    ///
+    /// This is also called a stencil mask
+    Explicit(Box<ImageXObject<'a>>),
+
+    /// An array specifying a range of colours to be masked out. Samples in the image
+    /// that fall within this range shall not be painted, allowing the existing
+    /// background to show through.
+    ///
+    /// For colour key masking, the value of the Mask entry shall be an array of 2 *
+    /// n integers, [min1 max1 ... minn maxn], where n is the number of colour
+    /// components in the image’s colour space. Each integer shall be in the
+    /// range 0 to 2BitsPerComponent - 1, representing colour values before
+    /// decoding with the Decode array. An image sample shall be masked (not
+    /// painted) if all of its colour components before decoding, c1...cn, fall
+    /// within the specified ranges (that is, if mini <= ci <= maxi for all 1 <=
+    /// i <= n).
+    ColorKey(Vec<f32>),
+}
+
+impl<'a> FromObj<'a> for ImageMask<'a> {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        Ok(match resolver.resolve(obj)? {
+            Object::Stream(..) => todo!("explicit"),
+            arr @ Object::Array(..) => {
+                let colors = <Vec<f32>>::from_obj(arr, resolver)?;
+                Self::ColorKey(colors)
+            }
+            obj => anyhow::bail!("expected stream or arr, found {:#?}", obj),
+        })
+    }
+}
