@@ -79,6 +79,7 @@ pub(super) enum Access {
 pub(super) struct PostScriptDictionary {
     inner: HashMap<Name, PostScriptObject>,
     access: Access,
+    capacity: usize,
 }
 
 impl PostScriptDictionary {
@@ -86,6 +87,7 @@ impl PostScriptDictionary {
         Self {
             inner: HashMap::new(),
             access: Access::default(),
+            capacity: 0,
         }
     }
 
@@ -93,6 +95,7 @@ impl PostScriptDictionary {
         Self {
             inner: HashMap::with_capacity(capacity),
             access: Access::default(),
+            capacity,
         }
     }
 
@@ -114,6 +117,14 @@ impl PostScriptDictionary {
 
     pub fn into_iter(self) -> impl Iterator<Item = (Name, PostScriptObject)> {
         self.inner.into_iter()
+    }
+
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    pub fn capacity(&self) -> usize {
+        self.capacity
     }
 }
 
@@ -317,6 +328,10 @@ impl PostScriptString {
     pub fn as_bytes(&self) -> &[u8] {
         &self.inner
     }
+
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.inner
+    }
 }
 
 impl PartialEq for PostScriptString {
@@ -373,6 +388,14 @@ impl PostScriptArray {
         }
     }
 
+    pub fn new_procedure(inner: Vec<PostScriptObject>) -> Self {
+        Self {
+            capacity: 0,
+            inner,
+            access: Access::ExecuteOnly,
+        }
+    }
+
     pub fn put(&mut self, idx: usize, obj: PostScriptObject) {
         self.inner[idx] = obj;
     }
@@ -399,7 +422,7 @@ impl PostScriptArray {
         &self.inner
     }
 
-    fn len(&self) -> usize {
+    pub(super) fn len(&self) -> usize {
         self.inner.len()
     }
 

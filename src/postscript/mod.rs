@@ -1,12 +1,18 @@
-use std::{borrow::Cow, collections::HashMap, convert::TryFrom};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    convert::TryFrom,
+    ops::{Add, Div, Mul, Sub},
+};
 
 use crate::{error::PdfResult, lex::LexBase};
 
+use anyhow::Ok;
 pub(crate) use error::{PostScriptError, PostScriptResult};
 
 use self::{
     font::Type1PostscriptFont,
-    lexer::PostScriptLexer,
+    lexer::{ident_token_from_bytes, PostScriptLexer},
     object::{
         Access, ArrayIndex, Container, DictionaryIndex, PostScriptArray, PostScriptDictionary,
         PostScriptObject, PostScriptString, StringIndex,
@@ -36,106 +42,121 @@ pub(crate) struct PostscriptInterpreter<'a> {
     resources: PostScriptDictionary,
 
     pub fonts: HashMap<PostScriptString, Type1PostscriptFont>,
+
+    /// Whether or not we're interpreting an external pfb file
+    in_pfb: bool,
 }
 
 fn gen_system_dict() -> PostScriptDictionary {
     let mut system_dict = PostScriptDictionary::new();
 
     system_dict.insert(
-        PostScriptString::from_bytes(b"Abs".to_vec()),
+        PostScriptString::from_bytes(b"abs".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::Abs),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"Add".to_vec()),
+        PostScriptString::from_bytes(b"add".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::Add),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"Dict".to_vec()),
+        PostScriptString::from_bytes(b"dict".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::Dict),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"Begin".to_vec()),
+        PostScriptString::from_bytes(b"begin".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::Begin),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"Dup".to_vec()),
+        PostScriptString::from_bytes(b"dup".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::Dup),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"Def".to_vec()),
+        PostScriptString::from_bytes(b"def".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::Def),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"ReadOnly".to_vec()),
+        PostScriptString::from_bytes(b"readonly".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::ReadOnly),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"ExecuteOnly".to_vec()),
+        PostScriptString::from_bytes(b"executeonly".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::ExecuteOnly),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"NoAccess".to_vec()),
+        PostScriptString::from_bytes(b"noaccess".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::NoAccess),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"False".to_vec()),
+        PostScriptString::from_bytes(b"false".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::False),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"True".to_vec()),
+        PostScriptString::from_bytes(b"true".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::True),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"End".to_vec()),
+        PostScriptString::from_bytes(b"end".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::End),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"CurrentFile".to_vec()),
+        PostScriptString::from_bytes(b"currentfile".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::CurrentFile),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"EExec".to_vec()),
+        PostScriptString::from_bytes(b"eexec".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::EExec),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"ArrayStart".to_vec()),
+        PostScriptString::from_bytes(b"arraystart".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::ArrayStart),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"ArrayEnd".to_vec()),
+        PostScriptString::from_bytes(b"arrayend".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::ArrayEnd),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"ProcedureStart".to_vec()),
+        PostScriptString::from_bytes(b"{".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::ProcedureStart),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"ProcedureEnd".to_vec()),
+        PostScriptString::from_bytes(b"}".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::ProcedureEnd),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"CurrentDict".to_vec()),
+        PostScriptString::from_bytes(b"currentdict".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::CurrentDict),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"String".to_vec()),
+        PostScriptString::from_bytes(b"string".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::String),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"Exch".to_vec()),
+        PostScriptString::from_bytes(b"exch".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::Exch),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"ReadString".to_vec()),
+        PostScriptString::from_bytes(b"readstring".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::ReadString),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"Pop".to_vec()),
+        PostScriptString::from_bytes(b"pop".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::Pop),
     );
     system_dict.insert(
-        PostScriptString::from_bytes(b"Put".to_vec()),
+        PostScriptString::from_bytes(b"put".to_vec()),
         PostScriptObject::Operator(PostscriptOperator::Put),
+    );
+    system_dict.insert(
+        PostScriptString::from_bytes(b"internaldict".to_vec()),
+        PostScriptObject::Operator(PostscriptOperator::InternalDict),
+    );
+    system_dict.insert(
+        PostScriptString::from_bytes(b"cvx".to_vec()),
+        PostScriptObject::Operator(PostscriptOperator::Cvx),
+    );
+    system_dict.insert(
+        PostScriptString::from_bytes(b"maxlength".to_vec()),
+        PostScriptObject::Operator(PostscriptOperator::MaxLength),
     );
 
     system_dict
@@ -208,8 +229,17 @@ fn gen_standard_encoding_vector(interpreter: &mut PostscriptInterpreter) -> Post
     )
 }
 
+/// Operator methods
 impl<'a> PostscriptInterpreter<'a> {
-    pub fn new(buffer: &'a [u8]) -> Self {
+    pub fn new(mut buffer: &'a [u8]) -> Self {
+        // skip .pfb section header
+        let in_pfb = if buffer.get(0) == Some(&0x80) {
+            buffer = &buffer[6..];
+            true
+        } else {
+            false
+        };
+
         let mut interpreter = Self {
             lexer: PostScriptLexer::new(Cow::Borrowed(buffer)),
             operand_stack: Vec::new(),
@@ -219,6 +249,7 @@ impl<'a> PostscriptInterpreter<'a> {
             dictionaries: Container::new(),
             fonts: HashMap::new(),
             resources: PostScriptDictionary::new(),
+            in_pfb,
         };
 
         let system_dict = interpreter.new_dict(gen_system_dict());
@@ -241,15 +272,30 @@ impl<'a> PostscriptInterpreter<'a> {
             interpreter.new_dict(dict)
         };
 
-        interpreter.get_dict_mut(&user_dict).insert(
+        interpreter.get_dict_mut(user_dict).insert(
             PostScriptString::from_bytes(b"userdict".to_vec()),
             PostScriptObject::Dictionary(user_dict),
         );
 
         let errordict = interpreter.new_dict(PostScriptDictionary::new());
-        interpreter.get_dict_mut(&system_dict).insert(
+        interpreter.get_dict_mut(system_dict).insert(
             PostScriptString::from_bytes(b"errordict".to_vec()),
             PostScriptObject::Dictionary(errordict),
+        );
+
+        let font_directory = interpreter.new_dict(PostScriptDictionary::new());
+        interpreter.get_dict_mut(system_dict).insert(
+            PostScriptString::from_bytes(b"FontDirectory".to_vec()),
+            PostScriptObject::Dictionary(font_directory),
+        );
+
+        let findfont = interpreter.new_array(PostScriptArray::new_procedure(vec![
+            PostScriptObject::Name(PostScriptString::from_bytes(b"Font".to_vec())),
+            PostScriptObject::Operator(PostscriptOperator::FindResource),
+        ]));
+        interpreter.get_dict_mut(system_dict).insert(
+            PostScriptString::from_bytes(b"findfont".to_vec()),
+            PostScriptObject::Array(findfont),
         );
 
         interpreter.push_dict_stack(system_dict);
@@ -295,6 +341,16 @@ impl<'a> PostscriptInterpreter<'a> {
 
     fn execute(&mut self, op: PostscriptOperator) -> PdfResult<()> {
         match op {
+            PostscriptOperator::Gt => self.cmp(|a, b| a > b, |a, b| a > b),
+            PostscriptOperator::Ge => self.cmp(|a, b| a >= b, |a, b| a >= b),
+            PostscriptOperator::Lt => self.cmp(|a, b| a < b, |a, b| a < b),
+            PostscriptOperator::Le => self.cmp(|a, b| a <= b, |a, b| a <= b),
+            PostscriptOperator::Ceiling => self.float_op(f32::ceil),
+            PostscriptOperator::Floor => self.float_op(f32::floor),
+            PostscriptOperator::Round => self.float_op(f32::round),
+            PostscriptOperator::MaxLength => self.max_length(),
+            PostscriptOperator::Length => self.length(),
+            PostscriptOperator::Cvx => self.cvx(),
             PostscriptOperator::Copy => self.copy(),
             PostscriptOperator::Dict => self.dict(),
             PostscriptOperator::Begin => self.begin(),
@@ -329,18 +385,24 @@ impl<'a> PostscriptInterpreter<'a> {
             PostscriptOperator::Exec => self.exec(),
             PostscriptOperator::If => self.if_op(),
             PostscriptOperator::IfElse => self.if_else(),
-            PostscriptOperator::Lt => self.lt(),
             PostscriptOperator::Index => self.index(),
             PostscriptOperator::DefineFont => self.define_font(),
             PostscriptOperator::Mark => self.mark(),
             PostscriptOperator::CloseFile => self.close_file(),
             PostscriptOperator::For => self.for_loop(),
-            PostscriptOperator::Add => self.add(),
+            PostscriptOperator::Add => self.arith(i32::checked_add, f32::add),
+            PostscriptOperator::Sub => self.arith(i32::checked_sub, f32::sub),
+            PostscriptOperator::Mul => self.arith(i32::checked_mul, f32::mul),
+            PostscriptOperator::Div => self.arith(i32::checked_div, f32::div),
+            PostscriptOperator::Idiv => self.idiv(),
             PostscriptOperator::Count => self.count(),
             PostscriptOperator::Eq => self.eq(),
             PostscriptOperator::Ne => self.ne(),
             PostscriptOperator::Type => self.object_type(),
             PostscriptOperator::Bind => self.bind(),
+            PostscriptOperator::And => self.and(),
+            PostscriptOperator::Or => self.or(),
+            PostscriptOperator::InternalDict => self.internal_dict(),
             op @ (PostscriptOperator::DefineResource
             | PostscriptOperator::UndefineResource
             | PostscriptOperator::FindResource
@@ -362,7 +424,36 @@ impl<'a> PostscriptInterpreter<'a> {
         Ok(())
     }
 
-    fn add(&mut self) -> PdfResult<()> {
+    fn cmp(
+        &mut self,
+        cmp_int: impl Fn(i32, i32) -> bool,
+        cmp_str: impl Fn(&PostScriptString, &PostScriptString) -> bool,
+    ) -> PdfResult<()> {
+        match self.pop()? {
+            PostScriptObject::Int(i2) => {
+                let i1 = self.pop_int()?;
+
+                self.push(PostScriptObject::Bool(cmp_int(i1, i2)));
+            }
+            PostScriptObject::String(s2) => {
+                let s1 = self.pop_string()?;
+
+                self.push(PostScriptObject::Bool(cmp_str(
+                    self.get_str(s1),
+                    self.get_str(s2),
+                )));
+            }
+            obj => anyhow::bail!("expected int or string, found {:?}", obj),
+        }
+
+        Ok(())
+    }
+
+    fn arith(
+        &mut self,
+        checked: impl Fn(i32, i32) -> Option<i32>,
+        real: impl Fn(f32, f32) -> f32,
+    ) -> PdfResult<()> {
         let n2 = self.pop()?;
         let n1 = self.pop()?;
 
@@ -370,9 +461,9 @@ impl<'a> PostscriptInterpreter<'a> {
             let n1 = n1.into_int()?;
             let n2 = n2.into_int()?;
 
-            match n1.checked_add(n2) {
-                Some(sum) => self.push(PostScriptObject::Int(sum)),
-                None => self.push(PostScriptObject::Float(n1 as f32 + n2 as f32)),
+            match checked(n1, n2) {
+                Some(result) => self.push(PostScriptObject::Int(result)),
+                None => self.push(PostScriptObject::Float(real(n1 as f32, n2 as f32))),
             }
 
             return Ok(());
@@ -381,7 +472,16 @@ impl<'a> PostscriptInterpreter<'a> {
         let n1 = n1.into_float()?;
         let n2 = n2.into_float()?;
 
-        self.push(PostScriptObject::Float(n1 + n2));
+        self.push(PostScriptObject::Float(real(n1, n2)));
+
+        Ok(())
+    }
+
+    fn idiv(&mut self) -> PdfResult<()> {
+        let n2 = self.pop_number()?;
+        let n1 = self.pop_number()?;
+
+        self.push(PostScriptObject::Int((n1 / n2) as i32));
 
         Ok(())
     }
@@ -457,24 +557,6 @@ impl<'a> PostscriptInterpreter<'a> {
         let len = usize::try_from(self.pop_int()?)?;
 
         self.push_arr(vec![PostScriptObject::Null; len]);
-
-        Ok(())
-    }
-
-    fn lt(&mut self) -> PdfResult<()> {
-        match self.pop()? {
-            PostScriptObject::Int(i2) => {
-                let i1 = self.pop_int()?;
-
-                self.push(PostScriptObject::Bool(i1 < i2));
-            }
-            PostScriptObject::String(s2) => {
-                let s1 = self.pop_string()?;
-
-                self.push(PostScriptObject::Bool(self.get_str(s1) < self.get_str(s2)));
-            }
-            obj => anyhow::bail!("expected int or string in lt, found {:?}", obj),
-        }
 
         Ok(())
     }
@@ -564,6 +646,50 @@ impl<'a> PostscriptInterpreter<'a> {
                 self.push(PostScriptObject::Int(!i));
             }
             obj => anyhow::bail!("expected bool or int in `not`, found {:?}", obj),
+        }
+
+        Ok(())
+    }
+
+    fn internal_dict(&mut self) -> PdfResult<()> {
+        let n = self.pop_int()?;
+        assert_eq!(n, 1183615869);
+
+        let dict = self.new_dict(PostScriptDictionary::new());
+
+        // todo: don't recreate on each execution
+        self.push(PostScriptObject::Dictionary(dict));
+
+        Ok(())
+    }
+
+    fn or(&mut self) -> PdfResult<()> {
+        match self.pop()? {
+            PostScriptObject::Bool(b1) => {
+                let b2 = self.pop_bool()?;
+                self.push(PostScriptObject::Bool(b1 || b2));
+            }
+            PostScriptObject::Int(i1) => {
+                let i2 = self.pop_int()?;
+                self.push(PostScriptObject::Int(i1 | i2));
+            }
+            obj => anyhow::bail!("expected int or bool in `or`, found {:?}", obj),
+        }
+
+        Ok(())
+    }
+
+    fn and(&mut self) -> PdfResult<()> {
+        match self.pop()? {
+            PostScriptObject::Bool(b1) => {
+                let b2 = self.pop_bool()?;
+                self.push(PostScriptObject::Bool(b1 && b2));
+            }
+            PostScriptObject::Int(i1) => {
+                let i2 = self.pop_int()?;
+                self.push(PostScriptObject::Int(i1 & i2));
+            }
+            obj => anyhow::bail!("expected int or bool in `and`, found {:?}", obj),
         }
 
         Ok(())
@@ -706,7 +832,7 @@ impl<'a> PostscriptInterpreter<'a> {
                     _ => anyhow::bail!(PostScriptError::TypeCheck),
                 };
 
-                self.get_dict_mut(&dict).insert(key, value);
+                self.get_dict_mut(dict).insert(key, value);
             }
             PostScriptObject::Array(arr) => {
                 let idx = usize::try_from(key_or_idx.into_int()?)?;
@@ -765,9 +891,18 @@ impl<'a> PostscriptInterpreter<'a> {
 
     fn eexec(&mut self) -> PdfResult<()> {
         let _file = self.pop_file()?;
-        let buffer = self.lexer.buffer_from_cursor();
+        self.lexer.skip_whitespace();
+        let mut buffer = &self.lexer.buffer[self.lexer.cursor..];
 
-        // println!("{}", String::from_utf8_lossy(&decode::decrypt(buffer)[4..]));
+        // skip .pfb section header
+        if buffer[0] == 0x80 {
+            assert_eq!(buffer[0], 0x80);
+            assert_eq!(buffer[1], 0x02);
+            let len = u32::from_le_bytes([buffer[2], buffer[3], buffer[4], buffer[5]]);
+            buffer = &buffer[6..len as usize + 6];
+        }
+
+        // println!("{}", String::from_utf8_lossy(&decode::decrypt(buffer)));
         let decoded_buffer = decode::decrypt(buffer)[4..].to_vec();
         self.lexer.reset_buffer(Cow::Owned(decoded_buffer));
 
@@ -797,7 +932,7 @@ impl<'a> PostscriptInterpreter<'a> {
             match tok? {
                 PostScriptObject::Operator(PostscriptOperator::ProcedureStart) => {
                     let proc = self.lex_procedure()?;
-                    let arr_idx = self.arrays.insert(PostScriptArray::from_objects(proc));
+                    let arr_idx = self.arrays.insert(PostScriptArray::new_procedure(proc));
                     objs.push(PostScriptObject::Array(arr_idx));
                 }
                 PostScriptObject::Operator(PostscriptOperator::ProcedureEnd) => break,
@@ -811,7 +946,7 @@ impl<'a> PostscriptInterpreter<'a> {
     fn procedure_start(&mut self) -> PdfResult<()> {
         let proc = self.lex_procedure()?;
 
-        self.push_arr(proc);
+        self.push_procedure(proc);
 
         Ok(())
     }
@@ -842,7 +977,7 @@ impl<'a> PostscriptInterpreter<'a> {
 
         match obj {
             PostScriptObject::Dictionary(dict) => {
-                self.get_dict_mut(&dict).set_access(access);
+                self.get_dict_mut(dict).set_access(access);
 
                 obj = PostScriptObject::Dictionary(dict);
             }
@@ -876,7 +1011,7 @@ impl<'a> PostscriptInterpreter<'a> {
 
         let dict = self.get_current_dict()?;
 
-        self.get_dict_mut(&dict).insert(key, value);
+        self.get_dict_mut(dict).insert(key, value);
 
         Ok(())
     }
@@ -901,6 +1036,71 @@ impl<'a> PostscriptInterpreter<'a> {
         Ok(())
     }
 
+    fn cvx(&mut self) -> PdfResult<()> {
+        let obj = self.pop()?;
+
+        match obj {
+            PostScriptObject::Name(name) | PostScriptObject::Literal(name) => {
+                self.push(ident_token_from_bytes(name.as_bytes())?);
+            }
+            PostScriptObject::Array(arr_idx) => {
+                let arr = self.get_arr_mut(arr_idx);
+                arr.set_access(Access::ExecuteOnly);
+                self.push(PostScriptObject::Array(arr_idx));
+            }
+            PostScriptObject::Null => todo!(),
+            PostScriptObject::Int(_) => todo!(),
+            PostScriptObject::Float(_) => todo!(),
+            PostScriptObject::Bool(_) => todo!(),
+            PostScriptObject::String(_) => todo!(),
+            PostScriptObject::Mark => todo!(),
+            PostScriptObject::File => todo!(),
+            PostScriptObject::Dictionary(_) => todo!(),
+            PostScriptObject::Operator(_) => todo!(),
+        }
+
+        Ok(())
+    }
+
+    fn float_op(&mut self, func: impl Fn(f32) -> f32) -> PdfResult<()> {
+        let n = self.pop()?;
+
+        if n.is_int() {
+            self.push(n);
+            return Ok(());
+        }
+
+        let n = func(n.into_float()?);
+
+        self.push(PostScriptObject::Float(n));
+
+        Ok(())
+    }
+
+    fn max_length(&mut self) -> PdfResult<()> {
+        let dict_idx = self.pop_dict()?;
+        let dict = self.get_dict(dict_idx);
+        let capacity = dict.capacity();
+
+        self.push(PostScriptObject::Int(capacity as i32));
+
+        Ok(())
+    }
+
+    fn length(&mut self) -> PdfResult<()> {
+        let len = match self.pop()? {
+            PostScriptObject::Name(s) => s.len(),
+            PostScriptObject::String(s) => self.get_str(s).len(),
+            PostScriptObject::Array(a) => self.get_arr(a).len(),
+            PostScriptObject::Dictionary(d) => self.get_dict(d).len(),
+            obj => anyhow::bail!("expected name, string, array, or dict; found {:?}", obj),
+        };
+
+        self.push(PostScriptObject::Int(len as i32));
+
+        Ok(())
+    }
+
     fn copy(&mut self) -> PdfResult<()> {
         match self.pop()? {
             PostScriptObject::Int(i) => {
@@ -908,10 +1108,14 @@ impl<'a> PostscriptInterpreter<'a> {
 
                 for _ in 0..i {
                     let obj = self.pop()?;
-                    to_dup.push(obj.clone());
-                    self.push(obj);
+                    to_dup.push(obj);
                 }
 
+                to_dup.reverse();
+
+                for obj in to_dup.clone() {
+                    self.push(obj);
+                }
                 for obj in to_dup {
                     self.push(obj);
                 }
@@ -965,6 +1169,7 @@ impl<'a> PostscriptInterpreter<'a> {
     }
 }
 
+/// Utils
 impl<'a> PostscriptInterpreter<'a> {
     fn push(&mut self, obj: PostScriptObject) {
         self.operand_stack.push(obj);
@@ -972,6 +1177,11 @@ impl<'a> PostscriptInterpreter<'a> {
 
     fn push_arr(&mut self, arr: Vec<PostScriptObject>) {
         let idx = self.arrays.insert(PostScriptArray::from_objects(arr));
+        self.operand_stack.push(PostScriptObject::Array(idx));
+    }
+
+    fn push_procedure(&mut self, arr: Vec<PostScriptObject>) {
+        let idx = self.arrays.insert(PostScriptArray::new_procedure(arr));
         self.operand_stack.push(PostScriptObject::Array(idx));
     }
 
@@ -1077,6 +1287,10 @@ impl<'a> PostscriptInterpreter<'a> {
         self.dictionaries.insert(dict)
     }
 
+    fn new_array(&mut self, arr: PostScriptArray) -> ArrayIndex {
+        self.arrays.insert(arr)
+    }
+
     fn push_dict_stack(&mut self, dict: DictionaryIndex) {
         self.dictionary_stack.push(dict);
     }
@@ -1098,8 +1312,8 @@ impl<'a> PostscriptInterpreter<'a> {
         self.dictionaries.get(&key).unwrap()
     }
 
-    fn get_dict_mut(&mut self, key: &DictionaryIndex) -> &mut PostScriptDictionary {
-        self.dictionaries.get_mut(key).unwrap()
+    fn get_dict_mut(&mut self, key: DictionaryIndex) -> &mut PostScriptDictionary {
+        self.dictionaries.get_mut(&key).unwrap()
     }
 
     fn get_key(&mut self, key: &PostScriptString) -> PdfResult<PostScriptObject> {
@@ -1124,7 +1338,38 @@ pub(self) enum PostscriptOperator {
     /// Examples
     ///    3 4 add ⇒ 7
     ///    9.9 1.1 add ⇒ 11.0
+    ///
+    /// num1 num2 `add` sum
     Add,
+
+    /// returns the result of subtracting num2 from num1. If both operands are
+    /// integers and the result is within integer range, the result is an
+    /// integer; otherwise, the result is a real number.
+    ///
+    /// num1 num2 `sub` difference
+    Sub,
+
+    /// returns the product of num1 and num2. If both operands are integers and the
+    /// result is within integer range, the result is an integer; otherwise, the
+    /// result is a real number
+    ///
+    /// num1 num2 `mul` product
+    Mul,
+
+    /// divides num1 by num2, producing a result that is always a real number even if
+    /// both operands are integers. Use idiv instead if the operands are integers
+    /// and an integer result is desired
+    ///
+    /// num1 num2 `div` quotient
+    Div,
+
+    /// divides int1 by int2 and returns the integer part of the quotient, with any
+    /// fractional part discarded. Both operands of idiv must be integers and the
+    /// result is an integer
+    ///
+    /// int1 int2 `idiv` quotient
+    Idiv,
+
     Dict,
     Begin,
     Dup,
@@ -1186,10 +1431,43 @@ pub(self) enum PostscriptOperator {
     If,
     IfElse,
     Lt,
+    Le,
     Index,
     DefineFont,
     Mark,
     CloseFile,
+
+    /// returns the number of elements in the value of its operand if the operand is
+    /// an array, a packed array, or a string. If the operand is a dictionary,
+    /// length returns the current number of entries it contains (as opposed to
+    /// its maximum capacity, which is returned by maxlength). If the operand is
+    /// a name object, the length returned is the number of characters in the
+    /// text string that defines it
+    ///
+    /// array `length` int
+    /// packedarray `length` int
+    /// dict `length` int
+    /// string `length` int
+    /// name `length` int
+    Length,
+
+    /// (convert to executable) makes the object on the top of the operand stack have
+    /// the executable instead of the literal attribute
+    ///
+    /// any `cvx` any
+    Cvx,
+
+    /// returns the capacity of the dictionary dict—in other words, the maximum
+    /// number of entries that dict can hold using the virtual memory currently
+    /// allocated to it. In LanguageLevel 1, maxlength returns the length operand
+    /// of the dict operator that created the dictionary; this is the
+    /// dictionary’s maximum capacity (exceeding it causes a dictfull error). In
+    /// a LanguageLevels 2 and 3, which permit a dictionary to grow beyond its
+    /// initial capacity, maxlength returns its current capacity, a number at
+    /// least as large as that returned by the length operator
+    ///
+    ///  dict `maxlength` int
+    MaxLength,
 
     /// pops two objects from the operand stack and pushes true if they are equal,
     /// or false if not. The definition of equality depends on the types of the
@@ -1424,6 +1702,67 @@ pub(self) enum PostscriptOperator {
     ///
     /// any1 … anyn n `copy` any1 … anyn any1 … anyn
     Copy,
+
+    /// returns the logical conjunction of the operands if they are boolean. If the
+    /// operands are integers, and returns the bitwise “and” of their binary
+    /// representations
+    ///
+    /// bool1 bool2 `and` bool3
+    /// int1 int2 `and` int3
+    And,
+
+    /// returns the logical disjunction of the operands if they are boolean. If the
+    /// operands are integers, or returns the bitwise “inclusive or” of their
+    /// binary representations
+    ///
+    /// bool1 bool2 `or` bool3
+    /// int1 int2 `or` int3
+    Or,
+
+    /// returns the least integer value greater than or equal to num1. The type of
+    /// the result is the same as the type of the operand
+    ///
+    /// num1 `ceiling` num2
+    Ceiling,
+    Floor,
+    Round,
+
+    /// pops two objects from the operand stack and pushes true if the first operand
+    /// is greater than or equal to the second, or false otherwise. If both
+    /// operands are numbers, ge compares their mathematical values. If both
+    /// operands are strings, ge compares them element by element, treating the
+    /// elements as integers in the range 0 to 255, to determine whether the
+    /// first string is lexically greater than or equal to the second. If the
+    /// operands are of other types or one is a string and the other is a number,
+    /// a typecheck error occurs
+    ///
+    /// num1 num2 `ge` bool
+    /// string1 string2 `ge` bool
+    Ge,
+
+    /// pops two objects from the operand stack and pushes true if the first operand
+    /// is greater than the second, or false otherwise. If both operands are
+    /// numbers, gt compares their mathematical values. If both operands are
+    /// strings, gt compares them element by element, treating the elements as
+    /// integers in the range 0 to 255, to determine whether the first string is
+    /// lexically greater than the second. If the operands are of other types or
+    /// one is a string and the other is a number, a typecheck error occurs
+    ///
+    /// num1 num2 `gt` bool
+    /// string1 string2 `gt` bool
+    Gt,
+
+    /// pushes the internal dictionary object on the operand stack. The int operand
+    /// must be the integer 1183615869. The internal dictionary is in local VM
+    /// and is writeable. It contains operators and other information whose
+    /// purpose is internal to the PostScript interpreter. It should be
+    /// referenced only in special circumstances, such as during construction of
+    /// Type 1 font programs. (See the book Adobe Type 1 Font Format for specific
+    /// information about constructing Type 1 fonts.) The contents of
+    /// internaldict are undocumented and subject to change at any time
+    ///
+    /// int `internaldict` dict
+    InternalDict,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1711,6 +2050,15 @@ pub(super) enum GraphicsOperator {
 mod test {
     use super::*;
 
+    /// Assert the next operand on the stack is a string with the given contents
+    macro_rules! assert_string {
+        ($interpreter:ident, $str:literal) => {
+            let s = $interpreter.pop_string().unwrap();
+            let resolved = $interpreter.get_str(s);
+            assert_eq!(resolved, &PostScriptString::from_bytes($str.to_vec()));
+        };
+    }
+
     #[test]
     fn add_two_integers() {
         let mut interpreter = PostscriptInterpreter::new(b"1 2 add");
@@ -1854,5 +2202,98 @@ mod test {
         assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Float(2.5));
         assert_eq!(interpreter.pop().unwrap(), PostScriptObject::Float(3.0));
         assert!(interpreter.pop().is_err());
+    }
+
+    #[test]
+    fn operator_inside_array_is_executed() {
+        let mut interpreter = PostscriptInterpreter::new(b"[1 2 add]");
+
+        interpreter.run().unwrap();
+
+        assert_eq!(interpreter.operand_stack.len(), 1);
+
+        let arr = interpreter.pop_arr().unwrap();
+        let arr = interpreter.get_arr(arr);
+
+        assert_eq!(arr.as_inner(), &[PostScriptObject::Int(3)]);
+    }
+
+    #[test]
+    #[ignore = "copy not yet implemented for composite objects"]
+    fn copy_composite() {
+        let mut interpreter = PostscriptInterpreter::new(
+            b"
+            /a1 [1 2 3] def
+            a1 dup length array copy
+        ",
+        );
+
+        interpreter.run().unwrap();
+
+        assert_eq!(interpreter.operand_stack.len(), 1);
+
+        let arr = interpreter.pop_arr().unwrap();
+        let arr = interpreter.get_arr(arr);
+
+        assert_eq!(
+            arr.as_inner(),
+            &[
+                PostScriptObject::Int(1),
+                PostScriptObject::Int(2),
+                PostScriptObject::Int(3)
+            ]
+        );
+    }
+
+    #[test]
+    fn copy_non_composite_len_2() {
+        let mut interpreter = PostscriptInterpreter::new(
+            b"
+            (a) (b) (c) 2 copy
+        ",
+        );
+
+        interpreter.run().unwrap();
+
+        assert_string!(interpreter, b"c");
+        assert_string!(interpreter, b"b");
+        assert_string!(interpreter, b"c");
+        assert_string!(interpreter, b"b");
+        assert_string!(interpreter, b"a");
+        assert!(interpreter.pop().is_err());
+    }
+
+    #[test]
+    fn copy_non_composite_len_0() {
+        let mut interpreter = PostscriptInterpreter::new(
+            b"
+            (a) (b) (c) 0 copy
+        ",
+        );
+
+        interpreter.run().unwrap();
+
+        assert_string!(interpreter, b"c");
+        assert_string!(interpreter, b"b");
+        assert_string!(interpreter, b"a");
+        assert!(interpreter.pop().is_err());
+    }
+
+    #[test]
+    fn getting_internal_dict_doesnt_crash() {
+        let mut interpreter = PostscriptInterpreter::new(
+            b"
+            /Private 17 dict dup begin
+            /ND{noaccess def}executeonly def
+            systemdict /internaldict known
+            {
+                1183615869 systemdict /internaldict get exec
+                /StemSnapLength 2 copy known { get 8 lt } { pop pop true } ifelse
+            }
+            { true } ifelse { pop [49 57] } if ND
+        ",
+        );
+
+        interpreter.run().unwrap();
     }
 }

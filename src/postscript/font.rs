@@ -396,7 +396,8 @@ impl Private {
                     .filter(|obj| !obj.is_null())
                     .map(|obj| match obj {
                         PostScriptObject::String(s) => {
-                            CharString::parse(interpreter.get_str(s).as_bytes())
+                            let mut s = interpreter.get_str(s).clone().into_bytes();
+                            CharString::parse(&mut s, interpreter.in_pfb)
                         }
                         _ => anyhow::bail!(PostScriptError::TypeCheck),
                     })

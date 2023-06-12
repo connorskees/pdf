@@ -7,7 +7,7 @@ use super::{
     PostScriptObject, PostScriptString, PostscriptOperator,
 };
 
-fn ident_token_from_bytes(bytes: &[u8]) -> PdfResult<PostScriptObject> {
+pub(super) fn ident_token_from_bytes(bytes: &[u8]) -> PdfResult<PostScriptObject> {
     Ok(PostScriptObject::Operator(match bytes {
         b"abs" => PostscriptOperator::Abs,
         b"add" => PostscriptOperator::Add,
@@ -51,11 +51,26 @@ fn ident_token_from_bytes(bytes: &[u8]) -> PdfResult<PostScriptObject> {
         b"restore" => PostscriptOperator::Restore,
         b"bind" => PostscriptOperator::Bind,
         b"copy" => PostscriptOperator::Copy,
+        b"and" => PostscriptOperator::And,
+        b"internaldict" => PostscriptOperator::InternalDict,
+        b"length" => PostscriptOperator::Length,
+        b"cvx" => PostscriptOperator::Cvx,
+        b"maxlength" => PostscriptOperator::MaxLength,
+        b"or" => PostscriptOperator::Or,
+        b"sub" => PostscriptOperator::Sub,
+        b"mul" => PostscriptOperator::Mul,
+        b"div" => PostscriptOperator::Div,
+        b"gt" => PostscriptOperator::Gt,
+        b"ge" => PostscriptOperator::Ge,
+        b"le" => PostscriptOperator::Le,
+        b"ceiling" => PostscriptOperator::Ceiling,
+        b"floor" => PostscriptOperator::Floor,
+        b"round" => PostscriptOperator::Round,
         literal => {
             // todo: only to detect unimplemented operators
             match literal {
                 b"StandardEncoding" | b"|" | b"|-" | b"-|" | b"systemdict" | b"RD" | b"NP"
-                | b"ND" | b"userdict" | b"errordict" => {}
+                | b"ND" | b"userdict" | b"errordict" | b"FontDirectory" | b"findfont" => {}
                 found => println!(
                     "found unknown literal: {:?}",
                     String::from_utf8_lossy(found)
@@ -71,8 +86,8 @@ fn ident_token_from_bytes(bytes: &[u8]) -> PdfResult<PostScriptObject> {
 
 #[derive(Debug)]
 pub(super) struct PostScriptLexer<'a> {
-    cursor: usize,
-    buffer: Cow<'a, [u8]>,
+    pub cursor: usize,
+    pub buffer: Cow<'a, [u8]>,
 
     /// Not excessively pretty, but we intern strings inside the lexer
     pub(super) strings: Container<StringIndex, PostScriptString>,
@@ -90,11 +105,6 @@ impl<'a> PostScriptLexer<'a> {
     pub fn reset_buffer(&mut self, buffer: Cow<'a, [u8]>) {
         self.cursor = 0;
         self.buffer = buffer;
-    }
-
-    pub fn buffer_from_cursor(&mut self) -> &[u8] {
-        self.skip_whitespace();
-        &self.buffer[self.cursor..]
     }
 
     pub fn get_range_from_cursor(&mut self, length: usize) -> (&[u8], bool) {

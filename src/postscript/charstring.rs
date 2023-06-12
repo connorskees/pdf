@@ -88,10 +88,12 @@ enum CharStringElement {
 }
 
 impl CharString {
-    pub fn parse(b: &[u8]) -> PostScriptResult<Self> {
+    pub fn parse(b: &mut [u8], in_pfb: bool) -> PostScriptResult<Self> {
         let mut b = decrypt_charstring(b);
 
-        if b.get(..4) == Some(&[0, 0, 0, 0]) {
+        // external pfb files always have padding bytes. embedded type 1 fonts
+        // somtimes omit them
+        if b.get(..4) == Some(&[0, 0, 0, 0]) || in_pfb {
             b = b[4..].to_vec();
         }
 
@@ -247,7 +249,8 @@ impl CharStrings {
         for (key, value) in dict.into_iter() {
             let char_string = match value {
                 PostScriptObject::String(s) => {
-                    CharString::parse(interpreter.get_str(s).clone().as_bytes())?
+                    let mut s = interpreter.get_str(s).clone().into_bytes();
+                    CharString::parse(&mut s, interpreter.in_pfb)?
                 }
                 _ => anyhow::bail!(PostScriptError::TypeCheck),
             };
@@ -270,312 +273,20 @@ impl CharStrings {
     }
 }
 
-pub(crate) struct CharStringPainter<'a> {
+#[derive(Debug)]
+struct PathBuilder {
     outline: Outline,
     width_vector: Point,
     current_path: Path,
-    has_current_point: bool,
-    subroutines: &'a [CharString],
-    other_subroutines: &'a [PostScriptArray],
-    operand_stack: CharStringStack,
-    interpreter: PostscriptInterpreter<'a>,
-    encoding: &'a Encoding,
-    char_strings: &'a CharStrings,
-    gylph_cache: BTreeMap<u32, Glyph>,
 }
 
-impl<'a> CharStringPainter<'a> {
-    pub fn new(font: &'a Type1PostscriptFont) -> Self {
+impl PathBuilder {
+    pub fn new() -> Self {
         Self {
+            current_path: Path::new(Point::new(0.0, 0.0)),
             outline: Outline::empty(),
             width_vector: Point::new(0.0, 0.0),
-            current_path: Path::new(Point::new(0.0, 0.0)),
-            has_current_point: false,
-            subroutines: font.private.subroutines.as_deref().unwrap_or(&[]),
-            other_subroutines: font.private.other_subroutines.as_deref().unwrap_or(&[]),
-            encoding: &font.encoding,
-            char_strings: &font.char_strings,
-            operand_stack: CharStringStack::new(),
-            interpreter: PostscriptInterpreter::new(&[]),
-            gylph_cache: BTreeMap::new(),
         }
-    }
-
-    fn reinit(&mut self) {
-        self.current_path = Path::new(Point::new(0.0, 0.0));
-        self.outline = Outline::empty();
-        self.width_vector = Point::new(0.0, 0.0);
-    }
-
-    pub fn evaluate(&mut self, char_code: u32) -> PostScriptResult<Glyph> {
-        if let Some(glyph) = self.gylph_cache.get(&char_code) {
-            return Ok(glyph.clone());
-        }
-
-        self.reinit();
-
-        let charstring_name = self.encoding.get(char_code);
-
-        if let Some(charstring) = self.char_strings.get_by_name(charstring_name.borrow()) {
-            let glyph = self.evaluate_as_subroutine(charstring)?;
-
-            self.gylph_cache.insert(char_code, glyph.clone());
-
-            Ok(glyph)
-        } else {
-            Ok(Glyph::empty())
-        }
-    }
-
-    fn evaluate_as_subroutine(&mut self, c: &CharString) -> PostScriptResult<Glyph> {
-        for &elem in &c.0 {
-            match elem {
-                CharStringElement::Int(n) => self.operand_stack.push(n as f32)?,
-                CharStringElement::Op(GraphicsOperator::HorizontalStem) => {
-                    let y = self.operand_stack.pop_front()?;
-                    let dy = self.operand_stack.pop_front()?;
-
-                    self.horizontal_stem(y, dy);
-
-                    self.operand_stack.clear();
-                }
-                CharStringElement::Op(GraphicsOperator::VerticalStem) => {
-                    let x = self.operand_stack.pop_front()?;
-                    let dx = self.operand_stack.pop_front()?;
-
-                    self.vertical_stem(x, dx);
-
-                    self.operand_stack.clear();
-                }
-                CharStringElement::Op(GraphicsOperator::VerticalMoveTo) => {
-                    let dy = self.operand_stack.pop_front()?;
-
-                    self.operand_stack.clear();
-
-                    self.current_path.relative_move_to(0.0, dy);
-                }
-                CharStringElement::Op(GraphicsOperator::RelativeLineTo) => {
-                    let dx = self.operand_stack.pop_front()?;
-                    let dy = self.operand_stack.pop_front()?;
-
-                    self.operand_stack.clear();
-
-                    self.current_path.relative_line_to(dx, dy);
-                }
-                CharStringElement::Op(GraphicsOperator::HorizontalLineTo) => {
-                    let dx = self.operand_stack.pop_front()?;
-
-                    self.horizontal_line_to(dx);
-
-                    self.operand_stack.clear();
-                }
-                CharStringElement::Op(GraphicsOperator::VerticalLineTo) => {
-                    let dy = self.operand_stack.pop_front()?;
-
-                    self.vertical_line_to(dy);
-
-                    self.operand_stack.clear();
-                }
-                CharStringElement::Op(GraphicsOperator::RelativeRelativeCurveTo) => {
-                    let dx1 = self.operand_stack.pop_front()?;
-                    let dy1 = self.operand_stack.pop_front()?;
-                    let dx2 = self.operand_stack.pop_front()?;
-                    let dy2 = self.operand_stack.pop_front()?;
-                    let dx3 = self.operand_stack.pop_front()?;
-                    let dy3 = self.operand_stack.pop_front()?;
-
-                    self.relative_relative_curve_to(dx1, dy1, dx2, dy2, dx3, dy3);
-
-                    self.operand_stack.clear();
-                }
-                CharStringElement::Op(GraphicsOperator::ClosePath) => self.close_path(),
-                CharStringElement::Op(GraphicsOperator::CallSubroutine) => {
-                    let subr_number = self.operand_stack.pop()? as usize;
-
-                    self.call_subroutine(subr_number)?;
-                }
-                CharStringElement::Op(GraphicsOperator::Return) => break,
-                CharStringElement::Op(GraphicsOperator::DotSection) => todo!(),
-                CharStringElement::Op(GraphicsOperator::VerticalStem3) => {
-                    let x0 = self.operand_stack.pop_front()?;
-                    let dx0 = self.operand_stack.pop_front()?;
-                    let x1 = self.operand_stack.pop_front()?;
-                    let dx1 = self.operand_stack.pop_front()?;
-                    let x2 = self.operand_stack.pop_front()?;
-                    let dx2 = self.operand_stack.pop_front()?;
-
-                    self.operand_stack.clear();
-
-                    self.vertical_stem3(x0, dx0, x1, dx1, x2, dx2);
-                }
-                CharStringElement::Op(GraphicsOperator::HorizontalStem3) => {
-                    let y0 = self.operand_stack.pop_front()?;
-                    let dy0 = self.operand_stack.pop_front()?;
-                    let y1 = self.operand_stack.pop_front()?;
-                    let dy1 = self.operand_stack.pop_front()?;
-                    let y2 = self.operand_stack.pop_front()?;
-                    let dy2 = self.operand_stack.pop_front()?;
-
-                    self.operand_stack.clear();
-
-                    self.horizontal_stem3(y0, dy0, y1, dy1, y2, dy2);
-                }
-                #[allow(unused)]
-                CharStringElement::Op(GraphicsOperator::StandardEncodingAccentedCharacter) => {
-                    let asb = self.operand_stack.pop_front()?;
-                    let adx = self.operand_stack.pop_front()?;
-                    let ady = self.operand_stack.pop_front()?;
-                    let bchar = self.operand_stack.pop_front()?;
-                    let achar = self.operand_stack.pop_front()?;
-
-                    self.operand_stack.clear();
-
-                    todo!()
-                }
-                #[allow(unused)]
-                CharStringElement::Op(GraphicsOperator::SideBearingWidth) => {
-                    let sbx = self.operand_stack.pop_front()?;
-                    let sby = self.operand_stack.pop_front()?;
-                    let wx = self.operand_stack.pop_front()?;
-                    let wy = self.operand_stack.pop_front()?;
-
-                    self.operand_stack.clear();
-
-                    todo!()
-                }
-                CharStringElement::Op(GraphicsOperator::Div) => {
-                    let num1 = self.operand_stack.stack[0];
-                    let num2 = self.operand_stack.stack[1];
-
-                    self.operand_stack.push(num1 / num2)?;
-                }
-                CharStringElement::Op(GraphicsOperator::CallOtherSubroutine) => {
-                    let other_subr_number = self.operand_stack.pop()?;
-                    let num_of_args = self.operand_stack.pop()?;
-
-                    let mut args = Vec::new();
-
-                    for _ in 0..(num_of_args as u32) {
-                        args.push(self.operand_stack.pop()?);
-                    }
-
-                    self.call_other_subroutine(other_subr_number as usize, args)?;
-                }
-                CharStringElement::Op(GraphicsOperator::Pop) => match self.interpreter.pop()? {
-                    PostScriptObject::Float(n) => self.operand_stack.push(n)?,
-                    PostScriptObject::Int(n) => self.operand_stack.push(n as f32)?,
-                    _ => todo!(),
-                },
-                CharStringElement::Op(GraphicsOperator::SetCurrentPoint) => todo!(),
-                CharStringElement::Op(GraphicsOperator::HorizontalSideBearingWidth) => {
-                    let side_bearing_x_coord = self.operand_stack.pop_front()?;
-                    let width_vector_x_coord = self.operand_stack.pop_front()?;
-
-                    self.hsbw(side_bearing_x_coord, width_vector_x_coord);
-
-                    self.operand_stack.clear();
-                }
-                CharStringElement::Op(GraphicsOperator::EndChar) => {
-                    // todo: rest of this operator
-                    if !self.current_path.subpaths.is_empty() {
-                        self.outline.paths.push(self.current_path.clone());
-                    }
-                    break;
-                }
-                CharStringElement::Op(GraphicsOperator::RelativeMoveTo) => {
-                    let dx = self.operand_stack.pop_front()?;
-                    let dy = self.operand_stack.pop_front()?;
-
-                    self.relative_move_to(dx, dy);
-
-                    self.operand_stack.clear();
-                }
-                CharStringElement::Op(GraphicsOperator::HorizontalMoveTo) => {
-                    let dx = self.operand_stack.pop_front()?;
-
-                    self.operand_stack.clear();
-
-                    self.current_path.relative_move_to(dx, 0.0);
-                }
-                CharStringElement::Op(GraphicsOperator::VerticalHorizontalCurveTo) => {
-                    let dy1 = self.operand_stack.pop_front()?;
-                    let dx2 = self.operand_stack.pop_front()?;
-                    let dy2 = self.operand_stack.pop_front()?;
-                    let dx3 = self.operand_stack.pop_front()?;
-
-                    self.vertical_horizontal_curve_to(dy1, dx2, dy2, dx3);
-
-                    self.operand_stack.clear();
-                }
-                CharStringElement::Op(GraphicsOperator::HorizontalVerticalCurveTo) => {
-                    let dx1 = self.operand_stack.pop_front()?;
-                    let dx2 = self.operand_stack.pop_front()?;
-                    let dy2 = self.operand_stack.pop_front()?;
-                    let dy3 = self.operand_stack.pop_front()?;
-
-                    self.horizontal_vertical_curve_to(dx1, dx2, dy2, dy3);
-
-                    self.operand_stack.clear();
-                }
-            }
-        }
-
-        assert!(self.operand_stack.is_empty(), "{:?}", self.operand_stack);
-
-        Ok(Glyph {
-            outline: self.outline.clone(),
-            width_vector: self.width_vector,
-        })
-    }
-
-    fn hsbw(&mut self, side_bearing_x_coord: f32, width_vector_x_coord: f32) {
-        self.current_path = Path::new(Point::new(side_bearing_x_coord, 0.0));
-        self.width_vector = Point::new(width_vector_x_coord, 0.0);
-    }
-
-    #[allow(unused)]
-    fn horizontal_stem(&mut self, y: f32, dy: f32) {}
-    #[allow(unused)]
-    fn vertical_stem(&mut self, x: f32, dx: f32) {}
-    #[allow(unused)]
-    fn horizontal_stem3(&mut self, y0: f32, dy0: f32, y1: f32, dy1: f32, y2: f32, dy2: f32) {}
-    #[allow(unused)]
-    fn vertical_stem3(&mut self, x0: f32, dx0: f32, x1: f32, dx1: f32, x2: f32, dx2: f32) {}
-
-    fn call_subroutine(&mut self, subr_number: usize) -> PostScriptResult<()> {
-        match subr_number {
-            0..=3 => todo!(),
-            _ => {
-                let subr = &self.subroutines[subr_number];
-
-                self.evaluate_as_subroutine(subr)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn call_other_subroutine(
-        &mut self,
-        other_subr_number: usize,
-        args: Vec<f32>,
-    ) -> PostScriptResult<()> {
-        match other_subr_number {
-            0..=3 => {
-                let subr = &self.other_subroutines[other_subr_number];
-
-                for arg in args {
-                    self.interpreter.push(PostScriptObject::Float(arg));
-                }
-
-                self.interpreter
-                    .execute_procedure(subr.clone().into_inner())
-                    .unwrap();
-            }
-            _ => todo!("use of reserved other subroutine idx"),
-        }
-
-        Ok(())
     }
 
     fn relative_line_to(&mut self, dx: f32, dy: f32) {
@@ -631,5 +342,318 @@ impl<'a> CharStringPainter<'a> {
 
     fn horizontal_line_to(&mut self, dx: f32) {
         self.current_path.relative_line_to(dx, 0.0);
+    }
+
+    fn hsbw(&mut self, side_bearing_x_coord: f32, width_vector_x_coord: f32) {
+        self.current_path = Path::new(Point::new(side_bearing_x_coord, 0.0));
+        self.width_vector = Point::new(width_vector_x_coord, 0.0);
+    }
+
+    #[allow(unused)]
+    fn horizontal_stem(&mut self, y: f32, dy: f32) {}
+    #[allow(unused)]
+    fn vertical_stem(&mut self, x: f32, dx: f32) {}
+    #[allow(unused)]
+    fn horizontal_stem3(&mut self, y0: f32, dy0: f32, y1: f32, dy1: f32, y2: f32, dy2: f32) {}
+    #[allow(unused)]
+    fn vertical_stem3(&mut self, x0: f32, dx0: f32, x1: f32, dx1: f32, x2: f32, dx2: f32) {}
+}
+
+pub(crate) struct CharStringPainter<'a> {
+    path_builder: PathBuilder,
+    has_current_point: bool,
+    subroutines: &'a [CharString],
+    other_subroutines: &'a [PostScriptArray],
+    operand_stack: CharStringStack,
+    interpreter: PostscriptInterpreter<'a>,
+    encoding: &'a Encoding,
+    char_strings: &'a CharStrings,
+    gylph_cache: BTreeMap<u32, Glyph>,
+}
+
+impl<'a> CharStringPainter<'a> {
+    pub fn new(font: &'a Type1PostscriptFont) -> Self {
+        Self {
+            path_builder: PathBuilder::new(),
+            has_current_point: false,
+            subroutines: font.private.subroutines.as_deref().unwrap_or(&[]),
+            other_subroutines: font.private.other_subroutines.as_deref().unwrap_or(&[]),
+            encoding: &font.encoding,
+            char_strings: &font.char_strings,
+            operand_stack: CharStringStack::new(),
+            interpreter: PostscriptInterpreter::new(&[]),
+            gylph_cache: BTreeMap::new(),
+        }
+    }
+
+    fn reinit(&mut self) {
+        self.path_builder = PathBuilder::new();
+    }
+
+    pub fn evaluate(&mut self, char_code: u32) -> PostScriptResult<Glyph> {
+        if let Some(glyph) = self.gylph_cache.get(&char_code) {
+            return Ok(glyph.clone());
+        }
+
+        self.reinit();
+
+        let charstring_name = self.encoding.get(char_code);
+
+        if let Some(charstring) = self.char_strings.get_by_name(charstring_name.borrow()) {
+            let glyph = self.evaluate_as_subroutine(charstring)?;
+
+            self.gylph_cache.insert(char_code, glyph.clone());
+
+            Ok(glyph)
+        } else {
+            Ok(Glyph::empty())
+        }
+    }
+
+    fn evaluate_as_subroutine(&mut self, c: &CharString) -> PostScriptResult<Glyph> {
+        for &elem in &c.0 {
+            match elem {
+                CharStringElement::Int(n) => self.operand_stack.push(n as f32)?,
+                CharStringElement::Op(GraphicsOperator::HorizontalStem) => {
+                    let y = self.operand_stack.pop_front()?;
+                    let dy = self.operand_stack.pop_front()?;
+
+                    self.path_builder.horizontal_stem(y, dy);
+
+                    self.operand_stack.clear();
+                }
+                CharStringElement::Op(GraphicsOperator::VerticalStem) => {
+                    let x = self.operand_stack.pop_front()?;
+                    let dx = self.operand_stack.pop_front()?;
+
+                    self.path_builder.vertical_stem(x, dx);
+
+                    self.operand_stack.clear();
+                }
+                CharStringElement::Op(GraphicsOperator::VerticalMoveTo) => {
+                    let dy = self.operand_stack.pop_front()?;
+
+                    self.operand_stack.clear();
+
+                    self.path_builder.relative_move_to(0.0, dy);
+                }
+                CharStringElement::Op(GraphicsOperator::RelativeLineTo) => {
+                    let dx = self.operand_stack.pop_front()?;
+                    let dy = self.operand_stack.pop_front()?;
+
+                    self.operand_stack.clear();
+
+                    self.path_builder.relative_line_to(dx, dy);
+                }
+                CharStringElement::Op(GraphicsOperator::HorizontalLineTo) => {
+                    let dx = self.operand_stack.pop_front()?;
+
+                    self.path_builder.horizontal_line_to(dx);
+
+                    self.operand_stack.clear();
+                }
+                CharStringElement::Op(GraphicsOperator::VerticalLineTo) => {
+                    let dy = self.operand_stack.pop_front()?;
+
+                    self.path_builder.vertical_line_to(dy);
+
+                    self.operand_stack.clear();
+                }
+                CharStringElement::Op(GraphicsOperator::RelativeRelativeCurveTo) => {
+                    let dx1 = self.operand_stack.pop_front()?;
+                    let dy1 = self.operand_stack.pop_front()?;
+                    let dx2 = self.operand_stack.pop_front()?;
+                    let dy2 = self.operand_stack.pop_front()?;
+                    let dx3 = self.operand_stack.pop_front()?;
+                    let dy3 = self.operand_stack.pop_front()?;
+
+                    self.path_builder
+                        .relative_relative_curve_to(dx1, dy1, dx2, dy2, dx3, dy3);
+
+                    self.operand_stack.clear();
+                }
+                CharStringElement::Op(GraphicsOperator::ClosePath) => {
+                    self.path_builder.close_path()
+                }
+                CharStringElement::Op(GraphicsOperator::CallSubroutine) => {
+                    let subr_number = self.operand_stack.pop()? as usize;
+
+                    self.call_subroutine(subr_number)?;
+                }
+                CharStringElement::Op(GraphicsOperator::Return) => break,
+                CharStringElement::Op(GraphicsOperator::DotSection) => todo!(),
+                CharStringElement::Op(GraphicsOperator::VerticalStem3) => {
+                    let x0 = self.operand_stack.pop_front()?;
+                    let dx0 = self.operand_stack.pop_front()?;
+                    let x1 = self.operand_stack.pop_front()?;
+                    let dx1 = self.operand_stack.pop_front()?;
+                    let x2 = self.operand_stack.pop_front()?;
+                    let dx2 = self.operand_stack.pop_front()?;
+
+                    self.operand_stack.clear();
+
+                    self.path_builder.vertical_stem3(x0, dx0, x1, dx1, x2, dx2);
+                }
+                CharStringElement::Op(GraphicsOperator::HorizontalStem3) => {
+                    let y0 = self.operand_stack.pop_front()?;
+                    let dy0 = self.operand_stack.pop_front()?;
+                    let y1 = self.operand_stack.pop_front()?;
+                    let dy1 = self.operand_stack.pop_front()?;
+                    let y2 = self.operand_stack.pop_front()?;
+                    let dy2 = self.operand_stack.pop_front()?;
+
+                    self.operand_stack.clear();
+
+                    self.path_builder
+                        .horizontal_stem3(y0, dy0, y1, dy1, y2, dy2);
+                }
+                #[allow(unused)]
+                CharStringElement::Op(GraphicsOperator::StandardEncodingAccentedCharacter) => {
+                    let asb = self.operand_stack.pop_front()?;
+                    let adx = self.operand_stack.pop_front()?;
+                    let ady = self.operand_stack.pop_front()?;
+                    let bchar = self.operand_stack.pop_front()?;
+                    let achar = self.operand_stack.pop_front()?;
+
+                    self.operand_stack.clear();
+
+                    todo!()
+                }
+                #[allow(unused)]
+                CharStringElement::Op(GraphicsOperator::SideBearingWidth) => {
+                    let sbx = self.operand_stack.pop_front()?;
+                    let sby = self.operand_stack.pop_front()?;
+                    let wx = self.operand_stack.pop_front()?;
+                    let wy = self.operand_stack.pop_front()?;
+
+                    self.operand_stack.clear();
+
+                    todo!()
+                }
+                CharStringElement::Op(GraphicsOperator::Div) => {
+                    let num1 = self.operand_stack.stack[0];
+                    let num2 = self.operand_stack.stack[1];
+
+                    self.operand_stack.push(num1 / num2)?;
+                }
+                CharStringElement::Op(GraphicsOperator::CallOtherSubroutine) => {
+                    let other_subr_number = self.operand_stack.pop()?;
+                    let num_of_args = self.operand_stack.pop()?;
+
+                    let mut args = Vec::new();
+
+                    for _ in 0..(num_of_args as u32) {
+                        args.push(self.operand_stack.pop()?);
+                    }
+
+                    self.call_other_subroutine(other_subr_number as usize, args)?;
+                }
+                CharStringElement::Op(GraphicsOperator::Pop) => match self.interpreter.pop()? {
+                    PostScriptObject::Float(n) => self.operand_stack.push(n)?,
+                    PostScriptObject::Int(n) => self.operand_stack.push(n as f32)?,
+                    _ => todo!(),
+                },
+                CharStringElement::Op(GraphicsOperator::SetCurrentPoint) => todo!(),
+                CharStringElement::Op(GraphicsOperator::HorizontalSideBearingWidth) => {
+                    let side_bearing_x_coord = self.operand_stack.pop_front()?;
+                    let width_vector_x_coord = self.operand_stack.pop_front()?;
+
+                    self.path_builder
+                        .hsbw(side_bearing_x_coord, width_vector_x_coord);
+
+                    self.operand_stack.clear();
+                }
+                CharStringElement::Op(GraphicsOperator::EndChar) => {
+                    // todo: rest of this operator
+                    if !self.path_builder.current_path.subpaths.is_empty() {
+                        self.path_builder
+                            .outline
+                            .paths
+                            .push(self.path_builder.current_path.clone());
+                    }
+                    break;
+                }
+                CharStringElement::Op(GraphicsOperator::RelativeMoveTo) => {
+                    let dx = self.operand_stack.pop_front()?;
+                    let dy = self.operand_stack.pop_front()?;
+
+                    self.path_builder.relative_move_to(dx, dy);
+
+                    self.operand_stack.clear();
+                }
+                CharStringElement::Op(GraphicsOperator::HorizontalMoveTo) => {
+                    let dx = self.operand_stack.pop_front()?;
+
+                    self.operand_stack.clear();
+
+                    self.path_builder.relative_move_to(dx, 0.0);
+                }
+                CharStringElement::Op(GraphicsOperator::VerticalHorizontalCurveTo) => {
+                    let dy1 = self.operand_stack.pop_front()?;
+                    let dx2 = self.operand_stack.pop_front()?;
+                    let dy2 = self.operand_stack.pop_front()?;
+                    let dx3 = self.operand_stack.pop_front()?;
+
+                    self.path_builder
+                        .vertical_horizontal_curve_to(dy1, dx2, dy2, dx3);
+
+                    self.operand_stack.clear();
+                }
+                CharStringElement::Op(GraphicsOperator::HorizontalVerticalCurveTo) => {
+                    let dx1 = self.operand_stack.pop_front()?;
+                    let dx2 = self.operand_stack.pop_front()?;
+                    let dy2 = self.operand_stack.pop_front()?;
+                    let dy3 = self.operand_stack.pop_front()?;
+
+                    self.path_builder
+                        .horizontal_vertical_curve_to(dx1, dx2, dy2, dy3);
+
+                    self.operand_stack.clear();
+                }
+            }
+        }
+
+        assert!(self.operand_stack.is_empty(), "{:?}", self.operand_stack);
+
+        Ok(Glyph {
+            outline: self.path_builder.outline.clone(),
+            width_vector: self.path_builder.width_vector,
+        })
+    }
+
+    fn call_subroutine(&mut self, subr_number: usize) -> PostScriptResult<()> {
+        match subr_number {
+            0..=3 => todo!(),
+            _ => {
+                let subr = &self.subroutines[subr_number];
+
+                self.evaluate_as_subroutine(subr)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn call_other_subroutine(
+        &mut self,
+        other_subr_number: usize,
+        args: Vec<f32>,
+    ) -> PostScriptResult<()> {
+        match other_subr_number {
+            0..=3 => {
+                let subr = &self.other_subroutines[other_subr_number];
+
+                for arg in args {
+                    self.interpreter.push(PostScriptObject::Float(arg));
+                }
+
+                self.interpreter
+                    .execute_procedure(subr.clone().into_inner())
+                    .unwrap();
+            }
+            _ => todo!("use of reserved other subroutine idx"),
+        }
+
+        Ok(())
     }
 }
