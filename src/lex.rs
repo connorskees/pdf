@@ -569,122 +569,104 @@ mod test {
 
     use super::LexObject;
 
+    macro_rules! lex_obj {
+        ($input:expr, $output:expr) => {
+            let mut lexer = Lexer::new(
+                $input.to_vec(),
+                Rc::new(Xref {
+                    objects: HashMap::new(),
+                }),
+            )
+            .unwrap();
+
+            let obj = lexer.lex_object().unwrap();
+
+            assert_eq!(obj, $output);
+        };
+    }
+
     #[test]
-    fn empty_array_with_whitespace() {
-        let body = b"[   ]";
-
-        let mut lexer = Lexer::new(
-            body.to_vec(),
-            Rc::new(Xref {
-                objects: HashMap::new(),
-            }),
-        )
-        .unwrap();
-
-        let obj = lexer.lex_object().unwrap();
-
-        assert_eq!(obj, Object::Array(Vec::new()));
+    fn empty_array() {
+        lex_obj!(b"[]", Object::Array(Vec::new()));
+        lex_obj!(b"[   ]", Object::Array(Vec::new()));
     }
 
     #[test]
     fn array_with_single_element_leading_and_trailing_whitespace() {
-        let body = b"[   1.0   ]";
-
-        let mut lexer = Lexer::new(
-            body.to_vec(),
-            Rc::new(Xref {
-                objects: HashMap::new(),
-            }),
-        )
-        .unwrap();
-
-        let obj = lexer.lex_object().unwrap();
-
-        assert_eq!(obj, Object::Array(vec![Object::Real(1.0)]));
+        lex_obj!(b"[1.0]", Object::Array(vec![Object::Real(1.0)]));
+        lex_obj!(b"[   1.0   ]", Object::Array(vec![Object::Real(1.0)]));
+        lex_obj!(b"[1.0   ]", Object::Array(vec![Object::Real(1.0)]));
+        lex_obj!(b"[   1.0]", Object::Array(vec![Object::Real(1.0)]));
     }
 
     #[test]
     fn string_with_escapes() {
-        let body = b"(\\n\\ra\\t\\)3\\\\)";
-
-        let mut lexer = Lexer::new(
-            body.to_vec(),
-            Rc::new(Xref {
-                objects: HashMap::new(),
-            }),
-        )
-        .unwrap();
-
-        let obj = lexer.lex_object().unwrap();
-
-        assert_eq!(obj, Object::String("\n\ra\t)3\\".to_owned()));
+        lex_obj!(
+            b"(\\n\\ra\\t\\)3\\\\)",
+            Object::String("\n\ra\t)3\\".to_owned())
+        );
     }
 
     #[test]
     fn string_with_octal_escapes() {
-        let body = b"(\\0\\0053\\053\\53)";
-
-        let mut lexer = Lexer::new(
-            body.to_vec(),
-            Rc::new(Xref {
-                objects: HashMap::new(),
-            }),
-        )
-        .unwrap();
-
-        let obj = lexer.lex_object().unwrap();
-
-        assert_eq!(obj, Object::String("\0\u{5}3++".to_owned()));
+        lex_obj!(
+            b"(\\0\\0053\\053\\53)",
+            Object::String("\0\u{5}3++".to_owned())
+        );
     }
 
     #[test]
     fn empty_hex_string() {
-        let body = b"<>";
-
-        let mut lexer = Lexer::new(
-            body.to_vec(),
-            Rc::new(Xref {
-                objects: HashMap::new(),
-            }),
-        )
-        .unwrap();
-
-        let obj = lexer.lex_object().unwrap();
-
-        assert_eq!(obj, Object::String("".to_owned()));
+        lex_obj!(b"<>", Object::String("".to_owned()));
     }
 
     #[test]
     fn hex_string() {
-        let body = b"<005B>";
-
-        let mut lexer = Lexer::new(
-            body.to_vec(),
-            Rc::new(Xref {
-                objects: HashMap::new(),
-            }),
-        )
-        .unwrap();
-
-        let obj = lexer.lex_object().unwrap();
-
-        assert_eq!(obj, Object::String("\0\x5b".to_owned()));
+        lex_obj!(b"<005B>", Object::String("\0\x5b".to_owned()));
     }
 
     #[test]
     fn odd_length_hex_string() {
-        let body = b"<901FA>";
+        lex_obj!(b"<901FA>", Object::String("\u{90}\x1f\u{a0}".to_owned()));
+    }
 
-        let mut lexer = Lexer::new(
-            body.to_vec(),
-            Rc::new(Xref {
-                objects: HashMap::new(),
-            }),
-        )
-        .unwrap();
+    #[test]
+    fn keywords() {
+        lex_obj!(b"true", Object::True);
+        lex_obj!(b"false", Object::False);
+        lex_obj!(b"null", Object::Null);
+    }
 
-        let obj = lexer.lex_object().unwrap();
+    #[test]
+    fn floats() {
+        lex_obj!(b"1.0", Object::Real(1.0));
+        lex_obj!(b"+1.0", Object::Real(1.0));
+        lex_obj!(b".5", Object::Real(0.5));
+        lex_obj!(b"+.5", Object::Real(0.5));
+        lex_obj!(b"-1.0", Object::Real(-1.0));
+        lex_obj!(b"-.5", Object::Real(-0.5));
+        lex_obj!(b"05.05", Object::Real(5.05));
+    }
 
-        assert_eq!(obj, Object::String("\u{90}\x1f\u{a0}".to_owned()));
+    #[test]
+    fn names() {
+        lex_obj!(b"/a", Object::Name("a".to_owned()));
+        lex_obj!(b"/abcde", Object::Name("abcde".to_owned()));
+        lex_obj!(b"/1.4", Object::Name("1.4".to_owned()));
+        lex_obj!(b"/$1.4", Object::Name("$1.4".to_owned()));
+        lex_obj!(b"/abc[", Object::Name("abc".to_owned()));
+        lex_obj!(b"/abc<", Object::Name("abc".to_owned()));
+    }
+
+    #[test]
+    fn comments() {
+        lex_obj!(b"%\n(abc)", Object::String("abc".to_owned()));
+        lex_obj!(b"%%\n(abc)", Object::String("abc".to_owned()));
+        lex_obj!(b"%%%%%\n(abc)", Object::String("abc".to_owned()));
+        lex_obj!(b"%(effg)\n(abc)", Object::String("abc".to_owned()));
+        lex_obj!(
+            b"%(z)\n%(y)\n%(x)\n(abc)%(z)\n%(y)\n%(x)\n",
+            Object::String("abc".to_owned())
+        );
     }
 }
