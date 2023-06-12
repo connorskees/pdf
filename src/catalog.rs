@@ -8,7 +8,7 @@ displayed automatically and whether some location other than the first page shal
 be shown when the document is opened.
 */
 
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     acro_form::AcroForm,
@@ -262,8 +262,37 @@ pub enum Trapped {
     Unknown = "Unknown",
 }
 
+#[derive(Debug)]
+pub struct Extensions(HashMap<String, DeveloperExtensions>);
+
+impl<'a> FromObj<'a> for Extensions {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut dict = resolver.assert_dict(obj)?;
+        dict.expect_type("Extensions", resolver, false)?;
+        Ok(Self(<HashMap<String, DeveloperExtensions>>::from_obj(
+            Object::Dictionary(dict),
+            resolver,
+        )?))
+    }
+}
+
 #[derive(Debug, FromObj)]
-pub struct Extensions;
+#[obj_type("DeveloperExtensions")]
+pub struct DeveloperExtensions {
+    /// The name of the PDF version to which this extension applies. The name shall
+    /// be consistent with the syntax used for the Version entry of the catalog
+    /// dictionary
+    #[field("BaseVersion")]
+    base_version: Name,
+
+    /// An integer defined by the developer to denote the extension being used. If
+    /// the developer introduces more than one extension to a given BaseVersion
+    /// the extension level numbers assigned by that developer shall increase
+    /// over time.
+    #[field("ExtensionLevel")]
+    extension_level: i32,
+}
+
 #[derive(Debug, FromObj)]
 struct Language;
 
