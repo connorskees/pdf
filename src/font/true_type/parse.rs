@@ -571,8 +571,6 @@ impl<'a> TrueTypeParser<'a> {
             .map(|bytes| u16::from_be_bytes([bytes[0], bytes[1]]))
             .collect();
 
-        assert_eq!(start_pos + length as usize, self.cursor);
-
         Ok(CmapSubtable::Four {
             language,
             seg_count_x2,

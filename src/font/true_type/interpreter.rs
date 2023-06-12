@@ -160,11 +160,11 @@ impl InstructionStream {
     }
 }
 
-pub struct TrueTypeInterpreter<'a, 'b> {
+pub struct TrueTypeInterpreter<'a> {
     instruction_stream: InstructionStream,
     interpreter_stack: Vec<u32>,
     graphics_state: TrueTypeGraphicsState,
-    ttf_file: &'b mut ParsedTrueTypeFontFile<'a>,
+    ttf_file: ParsedTrueTypeFontFile<'a>,
     storage_area: Vec<u32>,
     original_positions: Vec<Point>,
     glyph_zone: Vec<Point>,
@@ -259,8 +259,8 @@ impl<'a> Iterator for PointIterator<'a> {
     }
 }
 
-impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
-    pub fn new(ttf_file: &'b mut ParsedTrueTypeFontFile<'a>) -> Self {
+impl<'a> TrueTypeInterpreter<'a> {
+    pub fn new(ttf_file: ParsedTrueTypeFontFile<'a>) -> Self {
         let storage_area_size = ttf_file.max_storage();
         let max_twilight_points = ttf_file.max_twilight_points();
         Self {
@@ -506,7 +506,7 @@ impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
     }
 }
 
-impl<'a, 'b> TrueTypeInterpreter<'a, 'b> {
+impl<'a> TrueTypeInterpreter<'a> {
     fn push_bytes(&mut self, abc: u8) -> anyhow::Result<()> {
         let (a, b, c) = ((abc >> 2) & 1, (abc >> 1) & 1, abc & 1);
         let n = 4 * a + 2 * b + c;

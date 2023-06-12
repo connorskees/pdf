@@ -13,7 +13,7 @@ pub struct ParsedTrueTypeFontFile<'a> {
     pub head: Head,
     pub maxp: MaxpTable,
     pub loca: LocaTable,
-    pub cvt: CvtTable,
+    pub cvt: Option<CvtTable>,
     pub cmap: Option<CmapTable>,
     parser: TrueTypeParser<'a>,
 }
@@ -64,11 +64,12 @@ impl<'a> ParsedTrueTypeFontFile<'a> {
     fn get_cvt(
         parser: &mut TrueTypeParser,
         font_directory: &FontDirectory,
-    ) -> anyhow::Result<CvtTable> {
-        let entry = font_directory
-            .find_table_entry(TableName::Cvt.as_tag())
-            .unwrap();
-        parser.read_cvt_table(entry)
+    ) -> anyhow::Result<Option<CvtTable>> {
+        let entry = match font_directory.find_table_entry(TableName::Cvt.as_tag()) {
+            Some(e) => e,
+            None => return Ok(None),
+        };
+        parser.read_cvt_table(entry).map(Some)
     }
 
     fn get_cmap(
@@ -154,7 +155,9 @@ impl<'a> ParsedTrueTypeFontFile<'a> {
     }
 
     pub fn cvt_entry(&self, n: usize) -> Option<FWord> {
-        self.cvt.entries.get(n).copied()
+        self.cvt
+            .as_ref()
+            .and_then(|cvt| cvt.entries.get(n).copied())
     }
 
     pub fn name_table(&mut self) -> anyhow::Result<NameTable> {
