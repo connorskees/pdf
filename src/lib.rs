@@ -45,6 +45,7 @@ mod stream;
 mod structure;
 mod trailer;
 mod viewer_preferences;
+mod parse_binary;
 mod xobject;
 mod xref;
 

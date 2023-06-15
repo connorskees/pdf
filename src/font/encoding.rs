@@ -32,41 +32,45 @@ impl<'a> FromObj<'a> for FontEncoding {
 pub enum BaseFontEncoding {
     /// Mac OS standard encoding for Latin text in Western writing systems.
     ///
-    /// Conforming readers shall have a predefined encoding named MacRomanEncoding that may be used with
-    /// both Type 1 and TrueType fonts.
+    /// Conforming readers shall have a predefined encoding named MacRomanEncoding
+    /// that may be used with both Type 1 and TrueType fonts.
     MacRomanEncoding = "MacRomanEncoding",
 
-    /// An encoding for use with expert fonts-ones containing the expert character set.
+    /// An encoding for use with expert fonts-ones containing the expert character
+    /// set.
     ///
-    /// Conforming readers shall have a predefined encoding named MacExpertEncoding. Despite its
-    /// name, it is not a platform specific encoding; however, only certain fonts have the
-    /// appropriate character set for use with this encoding. No such fonts are among the
-    /// standard 14 predefined fonts.
+    /// Conforming readers shall have a predefined encoding named MacExpertEncoding.
+    /// Despite its name, it is not a platform specific encoding; however, only
+    /// certain fonts have the appropriate character set for use with this
+    /// encoding. No such fonts are among the standard 14 predefined fonts.
     MacExpertEncoding = "MacExpertEncoding",
 
     /// Windows Code Page 1252, often called the "Windows ANSI" encoding.
     ///
-    /// This is the standard Windows encoding for Latin text in Western writing systems. Conforming
-    /// readers shall have a predefined encoding named WinAnsiEncoding that may be used with both
-    /// Type 1 and TrueType fonts.
+    /// This is the standard Windows encoding for Latin text in Western writing
+    /// systems. Conforming readers shall have a predefined encoding named
+    /// WinAnsiEncoding that may be used with both Type 1 and TrueType fonts.
     WinAnsiEncoding = "WinAnsiEncoding",
 }
 
 #[derive(Debug, FromObj)]
 #[obj_type("Encoding")]
 pub struct FontEncodingDict {
-    /// The base encoding—that is, the encoding from which the Differences entry (if present)
-    /// describes differences— shall be the name of one of the predefined encodings
-    /// MacRomanEncoding, MacExpertEncoding, or WinAnsiEncoding. If this entry is absent,
-    /// the Differences entry shall describe differences from an implicit base encoding. For
-    /// a font program that is embedded in the PDF file, the implicit base encoding shall be
-    /// the font program’s built-in encoding. Otherwise, for a nonsymbolic font, it shall be
-    /// StandardEncoding, and for a symbolic font, it shall be the font’s built-in encoding
+    /// The base encoding—that is, the encoding from which the Differences entry (if
+    /// present) describes differences— shall be the name of one of the
+    /// predefined encodings MacRomanEncoding, MacExpertEncoding, or
+    /// WinAnsiEncoding. If this entry is absent, the Differences entry shall
+    /// describe differences from an implicit base encoding. For a font program
+    /// that is embedded in the PDF file, the implicit base encoding shall be the
+    /// font program’s built-in encoding. Otherwise, for a nonsymbolic font, it
+    /// shall be StandardEncoding, and for a symbolic font, it shall be the
+    /// font’s built-in encoding
     #[field("BaseEncoding")]
     base_encoding: Option<BaseFontEncoding>,
 
-    /// An array describing the differences from the encoding specified by BaseEncoding or,
-    /// if BaseEncoding is absent, from an implicit base encoding
+    /// An array describing the differences from the encoding specified by
+    /// BaseEncoding or, if BaseEncoding is absent, from an implicit base
+    /// encoding
     #[field("Differences")]
     differences: Option<FontDifferences>,
 }

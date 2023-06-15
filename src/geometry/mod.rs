@@ -12,6 +12,7 @@ mod cubic_bezier;
 mod line;
 mod outline;
 mod path;
+pub mod path_builder;
 mod point;
 mod quadratic_bezier;
 mod ray;

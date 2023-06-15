@@ -3,8 +3,8 @@ use std::{borrow::Cow, collections::HashMap, convert::TryFrom, fmt, marker::Phan
 use anyhow::Context;
 
 use crate::{
-    assert_reference, catalog::assert_len, data_structures::Matrix, date::Date, stream::Stream,
-    ParseError, PdfResult, Resolve,
+    assert_reference, catalog::assert_len, date::Date, stream::Stream, ParseError, PdfResult,
+    Resolve,
 };
 
 #[derive(Debug)]
@@ -499,13 +499,6 @@ impl<'a> FromObj<'a> for Date {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         let s = resolver.assert_string(obj)?;
         Date::from_str(&s)
-    }
-}
-
-impl<'a> FromObj<'a> for Matrix {
-    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let arr = resolver.assert_arr(obj)?;
-        Matrix::from_arr(arr, resolver)
     }
 }
 

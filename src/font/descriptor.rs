@@ -121,15 +121,17 @@ pub struct FontDescriptor<'a> {
     #[field("FontFile2")]
     pub font_file_two: Option<TrueTypeFontFile<'a>>,
 
-    /// A stream containing a font program whose format is specified by the Subtype entry in the
-    /// stream dictionary
+    /// A stream containing a font program whose format is specified by the Subtype
+    /// entry in the stream dictionary
     #[field("FontFile3")]
     pub font_file_three: Option<Type3FontFile<'a>>,
 
-    /// A string listing the character names defined in a font subset. The names in this string
-    /// shall be in PDF syntax—that is, each name preceded by a slash (/). The names may appear in
-    /// any order. The name .notdef shall be omitted; it shall exist in the font subset. If this entry
-    /// is absent, the only indication of a font subset shall be the subset tag in the FontName entry
+    /// A string listing the character names defined in a font subset. The names in
+    /// this string shall be in PDF syntax—that is, each name preceded by a slash
+    /// (/). The names may appear in any order. The name .notdef shall be
+    /// omitted; it shall exist in the font subset. If this entry is absent, the
+    /// only indication of a font subset shall be the subset tag in the FontName
+    /// entry
     ///
     /// Meaningful only in Type 1 fonts
     #[field("CharSet")]

@@ -463,7 +463,7 @@ impl<'a> CharStringPainter<'a> {
                 CharStringElement::Op(GraphicsOperator::Pop) => match self.interpreter.pop()? {
                     PostScriptObject::Float(n) => self.operand_stack.push(n)?,
                     PostScriptObject::Int(n) => self.operand_stack.push(n as f32)?,
-                    _ => todo!(),
+                    obj => todo!("unexpected operand: {:#?}", obj),
                 },
                 CharStringElement::Op(GraphicsOperator::SetCurrentPoint) => todo!(),
                 CharStringElement::Op(GraphicsOperator::HorizontalSideBearingWidth) => {
