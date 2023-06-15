@@ -89,6 +89,8 @@ impl CmapSubtable {
                 start_code,
                 id_delta,
                 id_range_offset,
+                seg_count_x2,
+                glyph_index_array,
                 ..
             } => {
                 let (idx, _) = end_code
@@ -105,7 +107,13 @@ impl CmapSubtable {
                 if id_range_offset[idx] == 0 {
                     (id_delta[idx] as i32 + char_code as i32) as u32 % 65536
                 } else {
-                    todo!()
+                    let addr = glyph_index_array[(idx as u16
+                        + id_range_offset[idx] / 2
+                        + (char_code as u16 - start_code)
+                        - *seg_count_x2 / 2)
+                        as usize];
+
+                    (id_delta[idx] as i32 + addr as i32) as u32 % 65536
                 }
             }
             CmapSubtable::Zero {
@@ -113,6 +121,21 @@ impl CmapSubtable {
             } => {
                 assert!(char_code <= 256);
                 glyph_index_array[char_code as usize] as u32
+            }
+            CmapSubtable::Six {
+                glyph_index_array,
+                first_code,
+                ..
+            } => {
+                println!("likely incorrect ttf cmap subtable 6");
+                if char_code == 0 {
+                    return *first_code as u32;
+                }
+
+                glyph_index_array
+                    .get(char_code as usize - 1)
+                    .copied()
+                    .unwrap_or(0) as u32
             }
             _ => todo!("unimplemented cmap table lookup: {:#?}", self),
         }
