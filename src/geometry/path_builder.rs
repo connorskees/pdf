@@ -41,6 +41,9 @@ impl PathBuilder {
     }
 
     pub fn relative_move_to(&mut self, dx: f32, dy: f32) {
+        if !self.current_path.subpaths.is_empty() {
+            self.close_path();
+        }
         self.current_path.relative_move_to(dx, dy);
     }
 
