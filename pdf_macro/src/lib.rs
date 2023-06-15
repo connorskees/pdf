@@ -1,5 +1,6 @@
 mod pdf_enum;
 mod pdf_obj;
+mod util;
 
 use pdf_enum::pdf_enum_inner;
 use pdf_obj::pdf_obj_inner;
