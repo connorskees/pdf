@@ -170,7 +170,7 @@ impl<'a> ColorSpace<'a> {
                 (0xff << 24) | (b << 16) | (g << 8) | r
             }
             Self::Separation(space) => {
-                todo!("{:#?}", space)
+                todo!("unimplemented separation color space: {:#?}", space)
             }
             c => todo!("unimplemented color space: {:#?}", c),
         }
