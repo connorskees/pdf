@@ -1,14 +1,17 @@
 use std::{fs::File, io::BufWriter, mem, path::Path as FilePath};
 
+use bitvec::{prelude::Lsb0, slice::BitSlice};
+
 use crate::{
-    color::Color,
+    color::{Color, ColorSpace, ColorSpaceName},
     error::PdfResult,
-    filter::decode_stream,
+    filter::{decode_stream, flate::BitsPerComponent},
     geometry::{CubicBezierCurve, Line, Outline, Path, Point, QuadraticBezierCurve, Subpath},
     resolve::Resolve,
     xobject::ImageXObject,
 };
 
+#[cfg(feature = "window")]
 use minifb::{Key, Window, WindowOptions};
 
 use super::FillRule;
@@ -31,10 +34,33 @@ pub(super) struct Canvas {
     width: usize,
     height: usize,
     buffer: Vec<u32>,
+    #[cfg(feature = "window")]
     window: Window,
 }
 
+fn parse_rgba(color: u32) -> [u8; 4] {
+    let r = color & 0xff;
+    let g = (color >> 8) & 0xff;
+    let b = (color >> 16) & 0xff;
+
+    [r as u8, g as u8, b as u8, 0xff]
+}
+
+fn apply_opacity(color: u32, opacity: f32) -> u32 {
+    assert!(opacity >= 0.0 && opacity <= 1.0);
+
+    let [red, green, blue, _] = parse_rgba(color);
+
+    ColorSpace::DeviceRGB {
+        red: ((red as f32 * opacity) + 255.0 * (1.0 - opacity)) / 255.0,
+        green: ((green as f32 * opacity) + 255.0 * (1.0 - opacity)) / 255.0,
+        blue: ((blue as f32 * opacity) + 255.0 * (1.0 - opacity)) / 255.0,
+    }
+    .as_u32()
+}
+
 impl Canvas {
+    #[cfg(feature = "window")]
     pub fn new(width: usize, height: usize) -> Self {
         let mut window = Window::new("PDF", width, height, WindowOptions::default()).unwrap();
 
@@ -48,6 +74,15 @@ impl Canvas {
         }
     }
 
+    #[cfg(not(feature = "window"))]
+    pub fn new(width: usize, height: usize) -> Self {
+        Self {
+            width,
+            height,
+            buffer: vec![u32::MAX; width * height],
+        }
+    }
+
     pub fn fill_path_non_zero_winding_number(&mut self, path: &Path, color: u32) {
         self.fill_path_even_odd(path, color)
     }
@@ -58,17 +93,50 @@ impl Canvas {
         let x = bbox.min.x as u32;
         let y = bbox.min.y as u32;
 
-        for h in y..(bbox.height().ceil() as u32 + y) {
-            for w in x..(bbox.width().ceil() as u32 + x) {
-                let point = Point::new(w as f32, h as f32);
+        let mut h = bbox.min.y;
+        while h < bbox.height().ceil() + y as f32 {
+            let mut w = bbox.min.x;
+            while w < bbox.width().ceil() + x as f32 {
+                let point = Point::new(w as f32 + 0.5, h as f32 + 0.5);
 
-                if path.intersects_line_even_odd(Line::new(
-                    point,
-                    Point::new(point.x + bbox.max.x + 1.0, point.y + bbox.max.y + 1.0),
-                )) {
+                let subpixel_step = 0.125;
+
+                let left = Point::new(point.x - subpixel_step, point.y);
+                let right = Point::new(point.x + subpixel_step, point.y);
+                let down = Point::new(point.x, point.y - subpixel_step);
+                let up = Point::new(point.x, point.y + subpixel_step);
+
+                let upper_left = Point::new(point.x - subpixel_step, point.y + subpixel_step);
+                let upper_right = Point::new(point.x + subpixel_step, point.y + subpixel_step);
+                let lower_left = Point::new(point.x - subpixel_step, point.y - subpixel_step);
+                let lower_right = Point::new(point.x + subpixel_step, point.y - subpixel_step);
+
+                let end = Point::new(point.x + bbox.max.x + 1.0, point.y + bbox.max.y + 1.0);
+
+                if path.intersects_line_even_odd(Line::new(point, end)) {
                     self.paint_point(point, color);
+                } else {
+                    let count = [
+                        left,
+                        right,
+                        down,
+                        up,
+                        upper_left,
+                        upper_right,
+                        lower_left,
+                        lower_right,
+                    ]
+                    .into_iter()
+                    .filter(|point| path.intersects_line_even_odd(Line::new(*point, end)))
+                    .count();
+
+                    self.paint_point(point, apply_opacity(color, count as f32 / 8.0));
                 }
+
+                w += 1.0;
             }
+
+            h += 1.0;
         }
     }
 
@@ -128,13 +196,6 @@ impl Canvas {
 
         fn r_fractional_part(f: f32) -> f32 {
             1.0 - fractional_part(f)
-        }
-
-        // todo: use framebuffer that supports alpha channel
-        fn apply_opacity(color: u32, opacity: f32) -> u32 {
-            assert!(opacity >= 0.0 && opacity <= 1.0);
-
-            color
         }
 
         let steep = (line.end.y - line.start.y).abs() > (line.end.x - line.start.x).abs();
@@ -247,12 +308,12 @@ impl Canvas {
     pub fn stroke_line(&mut self, line: Line, color: u32) {
         // todo: maybe do this optimization
         let mut start = (
-            (line.start.x as i32), //.min(self.width as i32),
-            (line.start.y as i32), //.min(self.height as i32),
+            (line.start.x.round() as i32), //.min(self.width as i32),
+            (line.start.y.round() as i32), //.min(self.height as i32),
         );
         let end = (
-            (line.end.x as i32), //.min(self.width as i32),
-            (line.end.y as i32), //.min(self.height as i32),
+            (line.end.x.round() as i32), //.min(self.width as i32),
+            (line.end.y.round() as i32), //.min(self.height as i32),
         );
 
         let dx = (end.0 - start.0).abs();
@@ -342,15 +403,56 @@ impl Canvas {
     ) -> PdfResult<()> {
         let pixel_data = decode_stream(&image.stream.stream, &image.stream.dict, resolver)?;
 
-        // assert!(pixel_data.len() % 3 == 0);
+        let rgb_data = match image.color_space.as_ref().map(ColorSpace::name) {
+            Some(ColorSpaceName::DeviceGray) => match image.bits_per_component {
+                Some(BitsPerComponent::Eight) => pixel_data
+                    .iter()
+                    .map(|b| ColorSpace::DeviceGray(*b as f32).as_u32())
+                    .collect::<Vec<u32>>(),
+                Some(BitsPerComponent::One) => BitSlice::<u8, Lsb0>::from_slice(&pixel_data)
+                    .iter()
+                    .by_vals()
+                    .map(|b| ColorSpace::DeviceGray(b as u8 as f32).as_u32())
+                    .collect::<Vec<u32>>(),
+                _ => todo!(),
+            },
+            Some(ColorSpaceName::DeviceCMYK) => pixel_data
+                .chunks_exact(4)
+                .map(|chunk| {
+                    ColorSpace::DeviceCMYK {
+                        cyan: chunk[3] as f32,
+                        magenta: chunk[2] as f32,
+                        yellow: chunk[1] as f32,
+                        key: chunk[0] as f32,
+                    }
+                    .as_u32()
+                })
+                .collect::<Vec<u32>>(),
+            Some(ColorSpaceName::CalGray) => todo!(),
+            Some(ColorSpaceName::CalRGB) => todo!(),
+            Some(ColorSpaceName::Lab) => todo!(),
+            Some(ColorSpaceName::ICCBased) => todo!(),
+            Some(ColorSpaceName::Indexed) => todo!(),
+            Some(ColorSpaceName::Pattern) => todo!(),
+            Some(ColorSpaceName::Separation) => todo!(),
+            Some(ColorSpaceName::DeviceN) => todo!(),
+            Some(ColorSpaceName::DeviceRGB) | None => pixel_data
+                .chunks_exact(3)
+                .map(|chunk| {
+                    ColorSpace::DeviceRGB {
+                        red: chunk[2] as f32,
+                        green: chunk[1] as f32,
+                        blue: chunk[0] as f32,
+                    }
+                    .as_u32()
+                })
+                .collect::<Vec<u32>>(),
+        };
 
-        let rgb_data = pixel_data
-            .chunks_exact(3)
-            .map(|chunk| u32::from_le_bytes([chunk[2], chunk[1], chunk[0], 255]))
-            .collect::<Vec<u32>>();
+        assert_eq!(rgb_data.len() % image.width as usize, 0);
 
         for i in 0..self.height {
-            let start = i * self.width;
+            let start: usize = i * self.width;
             let end = start + (image.width as usize).min(self.width);
 
             if end > self.width * self.height {
@@ -393,14 +495,25 @@ impl Canvas {
     }
 
     pub fn draw(&mut self) {
-        while self.window.is_open() && !self.window.is_key_down(Key::Escape) {
-            self.refresh();
+        #[cfg(feature = "window")]
+        {
+            while self.window.is_open() && !self.window.is_key_down(Key::Escape) {
+                self.refresh();
+            }
+        }
+
+        #[cfg(not(feature = "window"))]
+        {
+            self.render_to_image("/root/pdf/foo.png");
         }
     }
 
     pub fn refresh(&mut self) {
-        self.window
-            .update_with_buffer(&self.buffer, self.width, self.height)
-            .unwrap();
+        #[cfg(feature = "window")]
+        {
+            self.window
+                .update_with_buffer(&self.buffer, self.width, self.height)
+                .unwrap();
+        }
     }
 }
