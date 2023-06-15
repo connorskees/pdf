@@ -17,8 +17,8 @@ use crate::{
     filter::decode_stream,
     font::{
         true_type::{ParsedTrueTypeFontFile, TrueTypeInterpreter},
-        CidFontSubtype, CidFontWidths, CidToGidMap, Font, Glyph, TrueTypeFont, Type0Font,
-        Type1Font, Widths, BASE_14_FONTS,
+        CffCharStringInterpreter, CffFile, CffParser, CidFontSubtype, CidFontWidths, CidToGidMap,
+        Font, Glyph, TrueTypeFont, Type0Font, Type1Font, Type3FontFile, Widths, BASE_14_FONTS,
     },
     geometry::{Path, Point},
     objects::Object,
@@ -47,6 +47,8 @@ pub enum FillRule {
     EvenOdd,
     NonZeroWindingNumber,
 }
+
+const SCALE: f32 = 1.0;
 
 pub struct Renderer<'a, 'b: 'a> {
     content: &'a mut ContentLexer<'b>,
@@ -114,8 +116,8 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     ) -> Self {
         let media_box = page.media_box().unwrap();
 
-        let width = media_box.width().ceil();
-        let height = media_box.height().ceil();
+        let width = media_box.width().ceil() * SCALE;
+        let height = media_box.height().ceil() * SCALE;
 
         Self {
             content,
@@ -411,7 +413,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     /// a positive number. Going to the next line entails decreasing the y
     /// coordinate.
     fn move_to_next_line(&mut self) -> PdfResult<()> {
-        let matrix = Matrix::new_translation(0.0, self.text_state.leading)
+        let matrix = Matrix::new_translation(0.0, -self.text_state.leading)
             * self.text_state.text_line_matrix;
 
         self.text_state.text_matrix = matrix;
@@ -989,29 +991,60 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     }
 
     fn draw_text(&mut self, arr: Vec<Object<'b>>) -> PdfResult<()> {
-        let ffs;
-        let stream;
+        // todo: should actually get undefined/default width from the glyph itself
+        let default_width = Widths::new(Some(Vec::new()), Some(0), Some(0), 1000.0).unwrap();
+        let ffs: Cow<[u8]>;
+        let stream: Cow<[u8]>;
         let font: Arc<RwLock<dyn RenderableFont>>;
         let widths: &dyn FontMetrics;
 
         match self.text_state.font.as_deref() {
-            Some(Font::Type1(Type1Font { base, .. })) => {
+            Some(Font::Type1(Type1Font {
+                base, base_font, ..
+            })) => {
                 let font_file = base
                     .font_descriptor
                     .as_ref()
                     .and_then(|desc| desc.font_file.clone());
 
                 if font_file.is_none() {
-                    println!("skipping unsupported type 1 font");
-                    return Ok(());
+                    if base.font_descriptor.is_none() {
+                        let base_font = BASE_14_FONTS.get(&base_font.as_ref()).unwrap();
+
+                        font = Arc::<RwLock<Type1PostscriptFont>>::clone(base_font);
+                        widths = base.widths.as_ref().unwrap_or(&default_width);
+                    } else {
+                        match base
+                            .font_descriptor
+                            .as_ref()
+                            .unwrap()
+                            .font_file_three
+                            .as_ref()
+                            .unwrap()
+                            .clone()
+                        {
+                            Type3FontFile::CompactType1(compact_type1) => {
+                                ffs = compact_type1.stream.stream;
+                                stream =
+                                    decode_stream(&ffs, &compact_type1.stream.dict, self.resolver)?;
+
+                                let cff_file = CffFile::load(&stream)?;
+
+                                font = Arc::new(RwLock::new(cff_file));
+                                widths = base.widths.as_ref().unwrap_or(&default_width);
+                            }
+                            Type3FontFile::CompactType0Cid(_) => todo!(),
+                            Type3FontFile::OpenType(_) => todo!(),
+                        }
+                    }
+                } else {
+                    let font_file = font_file.unwrap();
+                    ffs = font_file.stream.stream;
+                    stream = decode_stream(&ffs, &font_file.stream.dict, self.resolver)?;
+
+                    font = Arc::new(RwLock::new(Type1PostscriptFont::load(&stream)?));
+                    widths = base.widths.as_ref().unwrap();
                 }
-
-                let font_file = font_file.unwrap();
-                ffs = font_file.stream.stream;
-                stream = decode_stream(&ffs, &font_file.stream.dict, self.resolver)?;
-
-                font = Arc::new(RwLock::new(Type1PostscriptFont::load(&stream)?));
-                widths = base.widths.as_ref().unwrap();
             }
             Some(Font::TrueType(TrueTypeFont { base, .. })) => {
                 let font_file = base
@@ -1045,7 +1078,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     CidFontSubtype::CidFontType0 => {
                         let font_file = descendant_font.font_descriptor.font_file.clone();
                         if font_file.is_none() {
-                            println!("skipping unsupported type 1 font");
+                            println!("skipping unsupported type 0 cid font");
                             return Ok(());
                         }
 
@@ -1117,6 +1150,10 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
                 glyph.outline.apply_transform(trm);
 
+                glyph
+                    .outline
+                    .apply_transform(Matrix::new_scale(SCALE, SCALE));
+
                 self.canvas.fill_outline_even_odd(
                     &glyph.outline,
                     self.graphics_state
@@ -1131,8 +1168,9 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                 let mut x_transform = widths.get(c as u32) * self.text_state.font_size
                     + self.text_state.character_spacing;
 
+                // todo: this should actually consult the cmap
                 if c == ' ' {
-                    x_transform += self.text_state.word_spacing
+                    x_transform += self.text_state.word_spacing * SCALE;
                 }
 
                 x_transform *= self.text_state.horizontal_scaling;
@@ -1407,6 +1445,35 @@ impl<'a, 'b: 'a> RenderableFont<'a, 'b> for TrueTypeInterpreter<'a> {
 
     fn font_matrix(&self) -> Matrix {
         Matrix::identity()
+    }
+}
+
+impl<'a, 'b: 'a> RenderableFont<'a, 'b> for CffFile<'a> {
+    fn load(stream: &'a [u8]) -> PdfResult<Self>
+    where
+        Self: Sized,
+    {
+        CffParser::new(stream).parse()
+    }
+
+    fn evaluate(&mut self, codepoint: u32) -> PdfResult<Glyph> {
+        let idx = self.encoding.lookup(codepoint).unwrap_or(0);
+        let cs = match self.charstring_index.get(idx as usize + 1) {
+            Some(cs) => cs,
+            None => {
+                println!(
+                    "found invalid cff charstring idx: {:?} for len: {}",
+                    idx, self.charstring_index.count
+                );
+                return Ok(Glyph::empty());
+            }
+        };
+
+        CffCharStringInterpreter::evaluate(cs)
+    }
+
+    fn font_matrix(&self) -> Matrix {
+        Matrix::from_arr(self.top_dict.font_matrix)
     }
 }
 
