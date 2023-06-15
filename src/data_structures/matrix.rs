@@ -1,6 +1,8 @@
 use std::ops::{Mul, MulAssign};
 
-use crate::{catalog::assert_len, error::PdfResult, geometry::Point, objects::Object, Resolve};
+use crate::{
+    catalog::assert_len, error::PdfResult, geometry::Point, objects::Object, FromObj, Resolve,
+};
 
 /// A 3x3 matrix
 ///
@@ -101,7 +103,15 @@ impl Matrix {
         Self::new(1.0, a.tan(), b.tan(), 1.0, 0.0, 0.0)
     }
 
-    pub fn from_arr(mut arr: Vec<Object>, resolver: &mut dyn Resolve) -> PdfResult<Self> {
+    pub fn from_arr(arr: [f32; 6]) -> Self {
+        let [a, b, c, d, e, f] = arr;
+        Self { a, b, c, d, e, f }
+    }
+}
+
+impl<'a> FromObj<'a> for Matrix {
+    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
+        let mut arr = resolver.assert_arr(obj)?;
         assert_len(&arr, 6)?;
 
         let f = resolver.assert_number(arr.pop().unwrap())?;
