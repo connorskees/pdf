@@ -996,6 +996,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         let ffs: Cow<[u8]>;
         let stream: Cow<[u8]>;
         let font: Arc<RwLock<dyn RenderableFont>>;
+        let cid_font_widths: CidFontWidths;
         let widths: &dyn FontMetrics;
 
         match self.text_state.font.as_deref() {
@@ -1102,11 +1103,15 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     }
                 }
 
-                assert_eq!(descendant_font.default_width, 1000);
-
-                widths = &descendant_font.widths;
+                if descendant_font.default_width != 1000 {
+                    cid_font_widths = CidFontWidths::with_default(descendant_font.default_width);
+                    widths = &cid_font_widths;
+                } else {
+                    widths = &descendant_font.widths;
+                }
             }
-            Some(font) => todo!("unimplement font type: {:#?}", font),
+            Some(font @ Font::Type3(..)) => todo!("unimplemented type 3 font: {:#?}", font),
+            Some(font @ Font::MmType1(_)) => todo!("unimplemented mm font: {:#?}", font),
             None => todo!("no font selected in text state"),
         };
 
