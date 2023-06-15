@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::{error::PdfResult, lex::LexBase};
 
 use super::{
-    object::{Container, StringIndex, PostScriptObject, PostScriptString},
+    object::{Container, PostScriptObject, PostScriptString, StringIndex},
     operator::PostscriptOperator,
 };
 
@@ -67,7 +67,10 @@ pub(super) fn ident_token_from_bytes(bytes: &[u8]) -> PdfResult<PostScriptObject
         b"floor" => PostscriptOperator::Floor,
         b"round" => PostscriptOperator::Round,
         literal => {
-            // todo: only to detect unimplemented operators
+            // todo: we print a warning if we see a literal we don't recognize
+            // to catch subtle bugs arising from unimplemented operators.
+            //
+            // a complete implementation would not need to print here
             match literal {
                 // special cased literals here are known to be used inside standard dictionaries
                 b"StandardEncoding" | b"|" | b"|-" | b"-|" | b"systemdict" | b"RD" | b"NP"
