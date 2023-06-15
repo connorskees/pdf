@@ -319,6 +319,7 @@ impl<'a> TrueTypeInterpreter<'a> {
             }
 
             if let Some(mut path) = path.take() {
+                path.close_path();
                 paths.push(path);
             }
 
