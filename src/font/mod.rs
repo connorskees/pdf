@@ -14,6 +14,7 @@ use crate::{
 };
 
 pub use self::{
+    cff::{CffCharStringInterpreter, CffFile, CffParser},
     cid::{CidFontSubtype, CidFontWidths, CidToGidMap},
     descriptor::FontDescriptor,
     embedded::Type3FontFile,
@@ -24,6 +25,7 @@ pub use self::{
     type3::Type3Font,
 };
 
+mod cff;
 mod cid;
 mod cid_font_type0;
 mod cid_font_type2;

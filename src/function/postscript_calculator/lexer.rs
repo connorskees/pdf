@@ -199,9 +199,9 @@ impl PostScriptFunctionLexer {
         if self.consume_if_next_byte_is(b'.') {
             self.lex_whole_number();
 
-            return Ok(PostScriptFunctionToken::Real(fast_float::parse(
-                &self.buffer[start..self.cursor],
-            )?));
+            return Ok(PostScriptFunctionToken::Real(
+                std::str::from_utf8(&self.buffer[start..self.cursor])?.parse::<f32>()?,
+            ));
         }
 
         Ok(PostScriptFunctionToken::Integer(parse_integer(
