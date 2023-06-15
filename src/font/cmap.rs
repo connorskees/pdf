@@ -1,20 +1,10 @@
-use crate::{error::PdfResult, objects::Object, resolve::Resolve, stream::Stream, FromObj};
+use crate::stream::Stream;
 
-#[derive(Debug)]
-pub(crate) struct ToUnicodeCmapStream<'a> {
+// todo: rename file? to_unicode.rs
+
+#[derive(Debug, FromObj)]
+#[obj_type("CMap")]
+pub struct ToUnicodeCmapStream<'a> {
+    #[field]
     stream: Stream<'a>,
-}
-
-impl<'a> ToUnicodeCmapStream<'a> {
-    const TYPE: &'static str = "CMap";
-}
-
-impl<'a> FromObj<'a> for ToUnicodeCmapStream<'a> {
-    fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
-        let mut stream = resolver.assert_stream(obj)?;
-
-        stream.dict.other.expect_type(Self::TYPE, resolver, false)?;
-
-        Ok(Self { stream })
-    }
 }
