@@ -2,6 +2,7 @@ use crate::{
     color::ColorSpace,
     data_structures::Matrix,
     function::{Function, TransferFunction},
+    geometry::{Path, Point},
     halftones::Halftones,
     resources::graphics_state_parameters::{
         BlendMode, LineCapStyle, LineDashPattern, LineJoinStyle, RenderingIntent, SoftMask,
@@ -53,7 +54,7 @@ pub struct DeviceIndependentGraphicsState<'a> {
     ///
     /// Initial value: the boundary of the entire imageable portion of the
     /// output page.
-    clipping_path: ClippingPath,
+    pub clipping_path: Path,
 
     /// The current colour space in which colour values shall be interpreted.
     /// There are two separate colour space parameters: one for stroking and
@@ -158,7 +159,7 @@ impl Default for DeviceIndependentGraphicsState<'_> {
     fn default() -> Self {
         Self {
             current_transformation_matrix: Matrix::identity(),
-            clipping_path: ClippingPath,
+            clipping_path: Path::new(Point::origin()),
             color_space: GraphicsStateColorSpace::default(),
             line_width: 1.0,
             line_cap_style: LineCapStyle::Butt,
@@ -260,9 +261,6 @@ impl Default for DeviceDependentGraphicsState<'_> {
         }
     }
 }
-
-#[derive(Debug, Clone)]
-struct ClippingPath;
 
 #[derive(Debug, Clone, Copy)]
 pub enum ColorSpacePosition {
