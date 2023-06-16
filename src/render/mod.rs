@@ -1441,7 +1441,7 @@ impl<'a, 'b> RenderableFont<'a, 'b> for Type1PostscriptFont {
     where
         Self: Sized,
     {
-        let mut interpreter = PostscriptInterpreter::new(&stream);
+        let mut interpreter = PostscriptInterpreter::new(stream);
         interpreter.run()?;
 
         let font = interpreter.fonts.into_values().next().unwrap();
@@ -1450,7 +1450,7 @@ impl<'a, 'b> RenderableFont<'a, 'b> for Type1PostscriptFont {
     }
 
     fn evaluate(&mut self, codepoint: u32) -> PdfResult<Glyph> {
-        let mut painter = CharStringPainter::new(&self);
+        let mut painter = CharStringPainter::new(self);
         painter.evaluate(codepoint)
     }
 

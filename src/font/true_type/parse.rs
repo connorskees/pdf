@@ -460,7 +460,7 @@ impl<'a> TrueTypeParser<'a> {
     }
 
     pub fn read_cmap_table(&mut self, table_offset: usize) -> anyhow::Result<CmapTable> {
-        self.cursor = table_offset as usize;
+        self.cursor = table_offset;
 
         let version = self.read_u16()?;
         assert_eq!(version, 0);

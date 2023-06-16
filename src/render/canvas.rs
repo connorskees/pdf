@@ -98,7 +98,7 @@ impl Canvas {
         while h < bbox.height().ceil() + y as f32 {
             let mut w = bbox.min.x;
             while w < bbox.width().ceil() + x as f32 {
-                let point = Point::new(w as f32 + 0.5, h as f32 + 0.5);
+                let point = Point::new(w + 0.5, h + 0.5);
 
                 let subpixel_step = 0.25;
 

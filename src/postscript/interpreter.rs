@@ -45,7 +45,7 @@ pub(crate) struct PostscriptInterpreter<'a> {
 impl<'a> PostscriptInterpreter<'a> {
     pub fn new(mut buffer: &'a [u8]) -> Self {
         // skip .pfb section header
-        let in_pfb = if buffer.get(0) == Some(&0x80) {
+        let in_pfb = if buffer.first() == Some(&0x80) {
             assert_eq!(buffer[1], 0x01);
             buffer = &buffer[6..];
             true

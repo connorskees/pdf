@@ -36,6 +36,7 @@ mod object_stream;
 mod objects;
 mod optional_content;
 mod page;
+mod parse_binary;
 mod postscript;
 mod render;
 mod resolve;
@@ -45,7 +46,6 @@ mod stream;
 mod structure;
 mod trailer;
 mod viewer_preferences;
-mod parse_binary;
 mod xobject;
 mod xref;
 
@@ -58,7 +58,6 @@ pub(crate) use crate::{objects::FromObj, resolve::Resolve};
 use crate::{
     annotation::Annotation,
     catalog::{DocumentCatalog, InformationDictionary},
-    content::ContentLexer,
     error::ParseError,
     filter::decode_stream,
     lex::{LexBase, LexObject},
@@ -70,7 +69,7 @@ use crate::{
     xref::{ByteOffset, TrailerOrOffset, Xref, XrefParser},
 };
 
-pub use crate::{error::PdfResult, render::Renderer};
+pub use crate::{content::ContentLexer, error::PdfResult, render::Renderer};
 
 /// Assert that the dictionary has no keys
 ///
