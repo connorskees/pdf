@@ -25,6 +25,19 @@ impl Subpath {
             Self::Cubic(curve) => curve.bounding_box(),
         }
     }
+
+    /// Flatten a subpath into a series of Lines
+    pub fn flatten(self) -> Vec<Line> {
+        match self {
+            Subpath::Line(line) => vec![line],
+            Subpath::Quadratic(curve) => curve.subdivide(0.01),
+            Subpath::Cubic(curve) => curve.approximate_quadratic().subdivide(0.01),
+        }
+    }
+
+    pub fn is_line(self) -> bool {
+        matches!(self, Subpath::Line(..))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -50,6 +63,16 @@ impl Path {
             start: Point::new(0.0, 0.0),
         }
     }
+
+    // todo: implement clipping
+    // maybe see:
+    //   * https://davis.wpi.edu/~matt/courses/clipping/
+    //   * https://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm
+    //   * https://en.wikipedia.org/wiki/Weiler%E2%80%93Atherton_clipping_algorithm
+    //   * https://en.wikipedia.org/wiki/Vatti_clipping_algorithm
+    //   * Martinez-Rueda (https://github.com/w8r/martinez)
+    //   * https://en.wikipedia.org/wiki/Greiner%E2%80%93Hormann_clipping_algorithm
+    pub fn clip(&mut self, _clipping_path: &Path) {}
 
     pub fn close_path(&mut self) {
         self.line_to(self.start);
@@ -95,6 +118,15 @@ impl Path {
         let end = Point::new(self.current_point.x + dx, self.current_point.y + dy);
 
         self.line_to(end);
+    }
+
+    /// Flatten bezier curves in subpaths into a series of lines
+    pub fn flatten(&mut self) {
+        self.subpaths = std::mem::take(&mut self.subpaths)
+            .into_iter()
+            .flat_map(|subpath| subpath.flatten())
+            .map(Subpath::Line)
+            .collect();
     }
 
     pub fn intersects_line_even_odd(&self, line: Line) -> bool {

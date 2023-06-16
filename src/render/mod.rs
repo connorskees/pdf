@@ -65,6 +65,7 @@ pub struct Renderer<'a, 'b: 'a> {
     page: Rc<PageObject<'b>>,
     resources: Option<Rc<Resources<'b>>>,
     current_path: Option<Path>,
+    pending_clip: Option<FillRule>,
 }
 
 impl<'a, 'b: 'a> Renderer<'a, 'b> {
@@ -119,17 +120,21 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         let width = media_box.width().ceil() * SCALE;
         let height = media_box.height().ceil() * SCALE;
 
+        let mut graphics_state = GraphicsState::default();
+        graphics_state.device_independent.clipping_path = media_box.as_path();
+
         Self {
             content,
             resolver,
             canvas: Canvas::new(width as usize, height as usize),
             graphics_state_stack: Vec::new(),
             operand_stack: Vec::new(),
-            graphics_state: GraphicsState::default(),
+            graphics_state,
             text_state: TextState::default(),
             resources: page.resources(),
             page,
             current_path: None,
+            pending_clip: None,
         }
     }
 
@@ -283,20 +288,20 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         let stroke_color = self.stroking_color().as_u32();
         let fill_color = self.non_stroking_color().as_u32();
 
-        let path = self
+        let ctm = self.current_transformation_matrix();
+        let mut path = self
             .current_path
-            .get_or_insert_with(|| Path::new(Point::new(0.0, 0.0)));
+            .take()
+            .unwrap_or_else(|| Path::new(Point::origin()));
 
-        path.apply_transform(
-            self.graphics_state
-                .device_independent
-                .current_transformation_matrix,
-        );
+        path.apply_transform(ctm);
 
-        self.canvas.stroke_path(path, stroke_color);
-        self.canvas.fill_path(path, fill_color, fill_rule);
+        if let Some(clip) = self.pending_clip.take() {
+            println!("unimplemented clipping path operator {:?}", clip);
+        }
 
-        self.current_path = None;
+        self.canvas.stroke_path(&path, stroke_color);
+        self.canvas.fill_path(&path, fill_color, fill_rule);
 
         Ok(())
     }
@@ -733,19 +738,19 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     fn stroke_path(&mut self) -> PdfResult<()> {
         let color = self.stroking_color().as_u32();
 
-        let path = self
+        let ctm = self.current_transformation_matrix();
+        let mut path = self
             .current_path
-            .get_or_insert_with(|| Path::new(Point::new(0.0, 0.0)));
+            .take()
+            .unwrap_or_else(|| Path::new(Point::origin()));
 
-        path.apply_transform(
-            self.graphics_state
-                .device_independent
-                .current_transformation_matrix,
-        );
+        path.apply_transform(ctm);
 
-        self.canvas.stroke_path(path, color);
+        if let Some(clip) = self.pending_clip.take() {
+            println!("unimplemented clipping path operator {:?}", clip);
+        }
 
-        self.current_path = None;
+        self.canvas.stroke_path(&path, color);
 
         Ok(())
     }
@@ -755,21 +760,21 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     fn close_and_stroke_path(&mut self) -> PdfResult<()> {
         let color = self.stroking_color().as_u32();
 
-        let path = self
+        let ctm = self.current_transformation_matrix();
+        let mut path = self
             .current_path
-            .get_or_insert_with(|| Path::new(Point::new(0.0, 0.0)));
+            .take()
+            .unwrap_or_else(|| Path::new(Point::origin()));
 
         path.close_path();
 
-        path.apply_transform(
-            self.graphics_state
-                .device_independent
-                .current_transformation_matrix,
-        );
+        path.apply_transform(ctm);
 
-        self.canvas.stroke_path(path, color);
+        if let Some(clip) = self.pending_clip.take() {
+            println!("unimplemented clipping path operator {:?}", clip);
+        }
 
-        self.current_path = None;
+        self.canvas.stroke_path(&path, color);
 
         Ok(())
     }
@@ -802,7 +807,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
         let path = self
             .current_path
-            .get_or_insert_with(|| Path::new(Point::new(0.0, 0.0)));
+            .get_or_insert_with(|| Path::new(Point::origin()));
 
         path.line_to(Point::new(x, y));
 
@@ -819,7 +824,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
         let path = self
             .current_path
-            .get_or_insert_with(|| Path::new(Point::new(0.0, 0.0)));
+            .get_or_insert_with(|| Path::new(Point::origin()));
 
         path.move_to(Point::new(x, y));
         path.start = Point::new(x, y);
@@ -850,11 +855,26 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
             .nonstroking
             .as_u32();
 
-        path.apply_transform(
-            self.graphics_state
-                .device_independent
-                .current_transformation_matrix,
-        );
+        path.clip(&self.graphics_state.device_independent.clipping_path);
+        path.apply_transform(self.current_transformation_matrix());
+
+        if let Some(clip) = self.pending_clip.take() {
+            println!("unimplemented clipping path operator {:?}", clip);
+        }
+
+        // todo: don't fill shapes we know to be completely off screen
+        if false
+            && !path.bounding_box().overlaps(
+                self.graphics_state
+                    .device_independent
+                    .clipping_path
+                    .clone()
+                    .bounding_box(),
+            )
+        {
+            println!("skipping path outside bounds of clipping path");
+            return Ok(());
+        }
 
         match fill_rule {
             FillRule::EvenOdd => self.canvas.fill_path_even_odd(&path, color),
@@ -1306,7 +1326,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
         let path = self
             .current_path
-            .get_or_insert_with(|| Path::new(Point::new(0.0, 0.0)));
+            .get_or_insert_with(|| Path::new(Point::origin()));
 
         path.move_to(Point::new(x, y));
         path.line_to(Point::new(x + width, y));
@@ -1321,7 +1341,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     /// path, using the even-odd rule to determine which regions lie inside the
     /// clipping path.
     fn set_clipping_path_even_odd(&mut self) -> PdfResult<()> {
-        println!("unimplemented clipping path operator even-odd");
+        self.pending_clip = Some(FillRule::EvenOdd);
 
         Ok(())
     }
@@ -1330,7 +1350,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     /// using the nonzero winding number rule to determine which regions lie inside
     /// the clipping path.
     fn set_clipping_path_non_zero_winding_number(&mut self) -> PdfResult<()> {
-        println!("unimplemented clipping path operator non-zero winding number");
+        self.pending_clip = Some(FillRule::NonZeroWindingNumber);
 
         Ok(())
     }
@@ -1339,6 +1359,10 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     /// be a path-painting no-op, used primarily for the side effect of changing
     /// the current clipping path
     fn draw_path_nop(&mut self) -> PdfResult<()> {
+        if let Some(clip) = self.pending_clip.take() {
+            println!("unimplemented clipping path operator {:?}", clip);
+        }
+
         self.current_path = None;
 
         Ok(())

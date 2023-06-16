@@ -39,6 +39,13 @@ impl BoundingBox {
         self.max.y = self.max.y.max(other.max.y);
     }
 
+    pub fn overlaps(self, other: Self) -> bool {
+        ((self.min.x > other.min.x && self.min.x < other.max.x)
+            || (self.max.x > other.min.x && self.max.x < other.max.x))
+            && ((self.min.y > other.min.y && self.min.y < other.max.y)
+                || (self.max.y > other.min.y && self.max.y < other.max.y))
+    }
+
     pub fn width(&self) -> f32 {
         self.max.x - self.min.x
     }
