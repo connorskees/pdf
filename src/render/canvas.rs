@@ -46,15 +46,16 @@ fn parse_rgba(color: u32) -> [u8; 4] {
     [r as u8, g as u8, b as u8, 0xff]
 }
 
-fn apply_opacity(color: u32, opacity: f32) -> u32 {
+fn apply_opacity(color: u32, opacity: f32, background: u32) -> u32 {
     assert!(opacity >= 0.0 && opacity <= 1.0);
 
     let [red, green, blue, _] = parse_rgba(color);
+    let [bg_red, bg_green, bg_blue, _] = parse_rgba(background);
 
     ColorSpace::DeviceRGB {
-        red: ((red as f32 * opacity) + 255.0 * (1.0 - opacity)) / 255.0,
-        green: ((green as f32 * opacity) + 255.0 * (1.0 - opacity)) / 255.0,
-        blue: ((blue as f32 * opacity) + 255.0 * (1.0 - opacity)) / 255.0,
+        red: ((red as f32 * opacity) + bg_red as f32 * (1.0 - opacity)) / 255.0,
+        green: ((green as f32 * opacity) + bg_green as f32 * (1.0 - opacity)) / 255.0,
+        blue: ((blue as f32 * opacity) + bg_blue as f32 * (1.0 - opacity)) / 255.0,
     }
     .as_u32()
 }
@@ -99,7 +100,7 @@ impl Canvas {
             while w < bbox.width().ceil() + x as f32 {
                 let point = Point::new(w as f32 + 0.5, h as f32 + 0.5);
 
-                let subpixel_step = 0.125;
+                let subpixel_step = 0.25;
 
                 let left = Point::new(point.x - subpixel_step, point.y);
                 let right = Point::new(point.x + subpixel_step, point.y);
@@ -114,7 +115,7 @@ impl Canvas {
                 let end = Point::new(point.x + bbox.max.x + 1.0, point.y + bbox.max.y + 1.0);
 
                 if path.intersects_line_even_odd(Line::new(point, end)) {
-                    self.paint_point(point, color);
+                    self.paint_point(point, color, 1.0);
                 } else {
                     let count = [
                         left,
@@ -130,7 +131,7 @@ impl Canvas {
                     .filter(|point| path.intersects_line_even_odd(Line::new(*point, end)))
                     .count();
 
-                    self.paint_point(point, apply_opacity(color, count as f32 / 8.0));
+                    self.paint_point(point, color, count as f32 / 8.0);
                 }
 
                 w += 1.0;
@@ -226,22 +227,26 @@ impl Canvas {
         if steep {
             self.paint_point(
                 Point::new(ypxl1, xpxl1),
-                apply_opacity(color, r_fractional_part(yend) * xgap),
+                color,
+                r_fractional_part(yend) * xgap,
             );
 
             self.paint_point(
                 Point::new(ypxl1 + 1.0, xpxl1),
-                apply_opacity(color, fractional_part(yend) * xgap),
+                color,
+                fractional_part(yend) * xgap,
             );
         } else {
             self.paint_point(
                 Point::new(xpxl1, ypxl1),
-                apply_opacity(color, r_fractional_part(yend) * xgap),
+                color,
+                r_fractional_part(yend) * xgap,
             );
 
             self.paint_point(
                 Point::new(xpxl1, ypxl1 + 1.0),
-                apply_opacity(color, fractional_part(yend) * xgap),
+                color,
+                fractional_part(yend) * xgap,
             );
         }
 
@@ -258,21 +263,25 @@ impl Canvas {
         if steep {
             self.paint_point(
                 Point::new(ypxl2, xpxl2),
-                apply_opacity(color, r_fractional_part(yend) * xgap),
+                color,
+                r_fractional_part(yend) * xgap,
             );
             self.paint_point(
                 Point::new(ypxl2 + 1.0, xpxl2),
-                apply_opacity(color, fractional_part(yend) * xgap),
+                color,
+                fractional_part(yend) * xgap,
             );
         } else {
             self.paint_point(
                 Point::new(xpxl2, ypxl2),
-                apply_opacity(color, r_fractional_part(yend) * xgap),
+                color,
+                r_fractional_part(yend) * xgap,
             );
 
             self.paint_point(
                 Point::new(xpxl2, ypxl2 + 1.0),
-                apply_opacity(color, fractional_part(yend) * xgap),
+                color,
+                fractional_part(yend) * xgap,
             );
         }
 
@@ -280,11 +289,13 @@ impl Canvas {
             for x in (xpxl1 as i32 + 1)..(xpxl2 as i32 - 1) {
                 self.paint_point(
                     Point::new(intery.floor(), x as f32),
-                    apply_opacity(color, r_fractional_part(intery)),
+                    color,
+                    r_fractional_part(intery),
                 );
                 self.paint_point(
                     Point::new(intery.floor() + 1.0, x as f32),
-                    apply_opacity(color, fractional_part(intery)),
+                    color,
+                    fractional_part(intery),
                 );
 
                 intery += gradient
@@ -293,11 +304,13 @@ impl Canvas {
             for x in (xpxl1 as i32 + 1)..(xpxl2 as i32 - 1) {
                 self.paint_point(
                     Point::new(x as f32, intery.floor()),
-                    apply_opacity(color, r_fractional_part(intery)),
+                    color,
+                    r_fractional_part(intery),
                 );
                 self.paint_point(
                     Point::new(x as f32, intery.floor() + 1.0),
-                    apply_opacity(color, fractional_part(intery)),
+                    color,
+                    fractional_part(intery),
                 );
 
                 intery += gradient
@@ -325,7 +338,7 @@ impl Canvas {
         let mut err = dx + dy;
 
         loop {
-            self.paint_point(Point::new(start.0 as f32, start.1 as f32), color);
+            self.paint_point(Point::new(start.0 as f32, start.1 as f32), color, 1.0);
 
             if err * 2 >= dy {
                 if start.0 == end.0 {
@@ -347,7 +360,7 @@ impl Canvas {
         }
     }
 
-    fn paint_point(&mut self, point: Point, color: u32) {
+    fn paint_point(&mut self, point: Point, color: u32, opacity: f32) {
         if point.x >= self.width as f32 || point.y >= self.height as f32 {
             return;
         }
@@ -369,7 +382,15 @@ impl Canvas {
 
         let idx = point.x as usize + (end - self.width) - point.y as usize * self.width;
 
-        self.buffer[idx.min(self.width * self.height - 1)] = color;
+        self.buffer[idx.min(self.width * self.height - 1)] = if opacity != 1.0 {
+            apply_opacity(
+                color,
+                opacity,
+                self.buffer[idx.min(self.width * self.height - 1)],
+            )
+        } else {
+            color
+        };
     }
 
     pub fn stroke_quadratic_bezier_curve(&mut self, curve: QuadraticBezierCurve, color: u32) {
@@ -378,7 +399,7 @@ impl Canvas {
         while t < 1.0 {
             let p = curve.basis(t);
 
-            self.paint_point(p, color);
+            self.paint_point(p, color, 1.0);
 
             t += 0.001;
         }
@@ -390,7 +411,7 @@ impl Canvas {
         while t < 1.0 {
             let p = curve.basis(t);
 
-            self.paint_point(p, color);
+            self.paint_point(p, color, 1.0);
 
             t += 0.001;
         }
