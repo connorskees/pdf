@@ -258,7 +258,7 @@ impl<'a> TrueTypeParser<'a> {
     }
 
     fn parse_compound_glyph(&mut self) -> anyhow::Result<Vec<CompoundGlyphPartDescription>> {
-        todo!()
+        todo!("ttf compound glyph")
     }
 
     pub fn parse_glyph(&mut self) -> anyhow::Result<TrueTypeGlyph> {

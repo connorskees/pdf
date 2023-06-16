@@ -66,6 +66,7 @@ pub struct Renderer<'a, 'b: 'a> {
     resources: Option<Rc<Resources<'b>>>,
     current_path: Option<Path>,
     pending_clip: Option<FillRule>,
+    marked_content_stack: Vec<MarkedContentMarker<'b>>,
 }
 
 impl<'a, 'b: 'a> Renderer<'a, 'b> {
@@ -135,6 +136,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
             page,
             current_path: None,
             pending_clip: None,
+            marked_content_stack: Vec::new(),
         }
     }
 
@@ -1374,7 +1376,10 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     fn begin_marked_content_sequence(&mut self) -> PdfResult<()> {
         let tag = self.pop_name()?;
 
-        println!("unimplemented marked content operator: BDC {}", tag);
+        self.marked_content_stack.push(MarkedContentMarker {
+            tag,
+            properties: None,
+        });
 
         Ok(())
     }
@@ -1386,17 +1391,20 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     /// associated with it in the Properties subdictionary of the current
     /// resource dictionary
     fn begin_marked_content_sequence_with_property_list(&mut self) -> PdfResult<()> {
-        let _properties = self.pop::<Object<'b>>()?;
-        let _tag = self.pop_name()?;
+        let properties = self.pop::<Object<'b>>()?;
+        let tag = self.pop_name()?;
 
-        println!("todo: unimplemented marked content operator: BDC");
+        self.marked_content_stack.push(MarkedContentMarker {
+            tag,
+            properties: Some(properties),
+        });
 
         Ok(())
     }
 
     /// End a marked-content sequence begun by a BMC or BDC operator.
     fn end_marked_content_sequence(&mut self) -> PdfResult<()> {
-        println!("todo: unimplemented marked content operator: EMC");
+        self.marked_content_stack.pop();
 
         Ok(())
     }
@@ -1524,4 +1532,11 @@ impl FontMetrics for CidFontWidths {
             .unwrap_or(self.default as f32)
             / 1000.0
     }
+}
+
+#[derive(Debug, Clone)]
+struct MarkedContentMarker<'a> {
+    tag: String,
+    // todo: type
+    properties: Option<Object<'a>>,
 }
