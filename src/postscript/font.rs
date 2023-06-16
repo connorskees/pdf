@@ -4,8 +4,9 @@ use crate::{data_structures::Matrix, postscript::object::ArrayIndex};
 
 use super::{
     charstring::{CharString, CharStrings},
+    interpreter::PostscriptInterpreter,
     object::{PostScriptArray, PostScriptDictionary, PostScriptObject, PostScriptString},
-    PostScriptError, PostScriptResult, interpreter::PostscriptInterpreter,
+    PostScriptError, PostScriptResult,
 };
 
 #[derive(Debug, Clone, Copy)]

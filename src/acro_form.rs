@@ -1,6 +1,6 @@
 use crate::{
     error::PdfResult,
-    objects::{Dictionary, Reference, Object},
+    objects::{Dictionary, Object, Reference},
     FromObj, Resolve,
 };
 

@@ -1,9 +1,9 @@
 //! Builtin constants provided by the PostScript execution environment
 
 use super::{
+    interpreter::PostscriptInterpreter,
     object::{PostScriptArray, PostScriptDictionary, PostScriptObject, PostScriptString},
     operator::PostscriptOperator,
-    interpreter::PostscriptInterpreter,
 };
 
 pub(super) fn gen_system_dict() -> PostScriptDictionary {

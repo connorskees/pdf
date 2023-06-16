@@ -24,7 +24,7 @@ pub use interpreter::TrueTypeInterpreter;
 /// The PostScript name for the value of BaseFont may be determined in one of two ways:
 ///   * If the TrueType font program's “name” table contains a PostScript name,
 ///     it shall be used.
-/// 
+///
 ///   * In the absence of such an entry in the “name” table, a PostScript name
 ///     shall be derived from the name by which the font is known in the host
 ///     operating system. On a Windows system, the name shall be based on the
