@@ -332,11 +332,11 @@ pub struct PageObject<'a> {
 
     /// A positive number that shall give the size of default user space units,
     /// in multiples of 1/72 inch. The range of supported values shall be
-    /// mplementation-dependent.
+    /// implementation-dependent.
     ///
     /// Default value: 1.0 (user space unit is 1/72 inch).
-    // #[field("UserUnit")]
-    pub user_unit: Option<f32>,
+    // #[field("UserUnit", default = 1.0)]
+    pub user_unit: f32,
 
     /// An array of viewport dictionaries that shall specify rectangular
     /// regions of the page.

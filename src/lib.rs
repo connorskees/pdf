@@ -301,10 +301,10 @@ impl<'a> Lexer<'a> {
         let pz = dict.get("PZ", self)?;
         let separation_info = dict.get("SeparationInfo", self)?;
         let tabs = dict.get("Tabs", self)?;
-        let template_instantiated = None;
-        let pres_steps = None;
-        let user_unit = None;
-        let vp = None;
+        let template_instantiated = dict.get("TemplateInstantiated", self)?;
+        let pres_steps = dict.get("PresSteps", self)?;
+        let user_unit = dict.get("UserUnit", self)?.unwrap_or(1.0);
+        let vp = dict.get("VP", self)?;
 
         assert_empty(dict);
 
