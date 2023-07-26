@@ -13,7 +13,7 @@ mod operator;
 mod stream;
 
 pub struct ContentLexer<'a> {
-    buffer: Cow<'a, [u8]>,
+    pub(crate) buffer: Cow<'a, [u8]>,
     cursor: usize,
 
     /// If >0, unrecognized operators will be ignored
@@ -80,7 +80,13 @@ impl<'a> ContentLexer<'a> {
         let start = self.cursor;
 
         while let Some(b) = self.peek_byte() {
-            if !b.is_ascii_alphanumeric() && b != b'*' {
+            // terminal characters that end operators but are not alphanumeric
+            if b == b'*' || b == b'\'' || b == b'"' {
+                self.next_byte();
+                break;
+            }
+
+            if !b.is_ascii_alphanumeric() {
                 break;
             }
 
@@ -168,6 +174,52 @@ mod test {
                 ContentToken::Object(Object::Integer(1)),
                 ContentToken::Object(Object::Integer(1)),
                 ContentToken::Operator(PdfGraphicsOperator::RG)
+            ]
+        );
+    }
+
+    #[test]
+    fn empty_line() {
+        let buffer = b"\n\n  \n\n";
+
+        let tokens = ContentLexer::new(Cow::Borrowed(buffer))
+            .collect::<PdfResult<Vec<ContentToken>>>()
+            .unwrap();
+
+        assert_eq!(tokens, vec![]);
+    }
+
+    #[test]
+    fn quote_operators() {
+        let buffer = b"( )'\"";
+
+        let tokens = ContentLexer::new(Cow::Borrowed(buffer))
+            .collect::<PdfResult<Vec<ContentToken>>>()
+            .unwrap();
+
+        assert_eq!(
+            tokens,
+            vec![
+                ContentToken::Object(Object::String(" ".to_owned())),
+                ContentToken::Operator(PdfGraphicsOperator::single_quote),
+                ContentToken::Operator(PdfGraphicsOperator::double_quote),
+            ]
+        );
+    }
+
+    #[test]
+    fn no_space_after_star_operator() {
+        let buffer = b"b*RG";
+
+        let tokens = ContentLexer::new(Cow::Borrowed(buffer))
+            .collect::<PdfResult<Vec<ContentToken>>>()
+            .unwrap();
+
+        assert_eq!(
+            tokens,
+            vec![
+                ContentToken::Operator(PdfGraphicsOperator::b_star),
+                ContentToken::Operator(PdfGraphicsOperator::RG),
             ]
         );
     }
