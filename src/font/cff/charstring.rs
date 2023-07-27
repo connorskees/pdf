@@ -4,6 +4,9 @@ use crate::{font::Glyph, geometry::path_builder::PathBuilder, parse_binary::Bina
 
 const WARN_ON_UNIMPLEMENTED_HINT: bool = false;
 
+/// Evaluation engine for Type 2 charstrings
+///
+/// https://adobe-type-tools.github.io/font-tech-notes/pdfs/5177.Type2.pdf
 pub struct CffCharStringInterpreter<'a> {
     buffer: &'a [u8],
     cursor: usize,

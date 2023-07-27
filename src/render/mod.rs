@@ -1137,6 +1137,8 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
             None => todo!("no font selected in text state"),
         };
 
+        assert_eq!(self.text_state.rendering_mode, TextRenderingMode::Fill);
+
         for obj in arr {
             let obj = self.resolver.resolve(obj)?;
 

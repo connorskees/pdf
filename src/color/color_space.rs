@@ -231,7 +231,7 @@ impl<'a> FromObj<'a> for ColorSpace<'a> {
 
                         Ok(ColorSpace::Indexed { index: 0, space })
                     }
-                    ColorSpaceName::Pattern => todo!(),
+                    ColorSpaceName::Pattern => todo!("pattern color space"),
                     ColorSpaceName::Separation => {
                         assert_len(&arr, 4)?;
 

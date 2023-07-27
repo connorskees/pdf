@@ -104,6 +104,8 @@ pub(crate) enum XrefStreamField {
 }
 
 #[derive(Debug)]
+// todo: convert to XrefStreamFieldWidths([u32; 3]) once we support derive on
+// tuple structs
 pub(crate) struct XrefStreamFieldWidths {
     field0: u32,
     field1: u32,
