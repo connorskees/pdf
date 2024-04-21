@@ -1,7 +1,6 @@
 use std::{
     borrow::Borrow,
     collections::{BTreeMap, HashMap},
-    convert::TryInto,
 };
 
 use crate::{font::Glyph, geometry::path_builder::PathBuilder};

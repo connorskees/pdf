@@ -5,6 +5,7 @@ pub use outline::Outline;
 pub use path::{Path, Subpath};
 pub use point::Point;
 pub use quadratic_bezier::QuadraticBezierCurve;
+#[allow(unused)]
 pub use ray::Ray;
 
 mod bounding_box;

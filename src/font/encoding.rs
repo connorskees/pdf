@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::TryFrom, mem};
+use std::{collections::HashMap, mem};
 
 use crate::{
     error::{ParseError, PdfResult},

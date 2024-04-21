@@ -34,7 +34,7 @@ pub struct CffFile<'a> {
 }
 
 #[derive(Debug)]
-pub(self) struct CffHeader {
+pub struct CffHeader {
     pub major: u8,
     pub minor: u8,
     pub header_size: u8,

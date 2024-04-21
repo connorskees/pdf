@@ -525,7 +525,7 @@ impl Canvas {
 
         #[cfg(not(feature = "window"))]
         {
-            self.render_to_image("/root/pdf/foo.png");
+            self.render_to_image("foo.png");
         }
     }
 

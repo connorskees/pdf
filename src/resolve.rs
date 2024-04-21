@@ -1,5 +1,3 @@
-use std::convert::TryFrom;
-
 use crate::{
     error::PdfResult,
     objects::{Dictionary, Object, Reference},

@@ -344,7 +344,7 @@ impl Eq for PostScriptString {}
 
 impl PartialOrd for PostScriptString {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.inner.partial_cmp(&other.inner)
+        Some(self.cmp(other))
     }
 }
 

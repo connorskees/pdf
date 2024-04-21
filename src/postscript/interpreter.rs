@@ -1,7 +1,6 @@
 use std::{
     borrow::Cow,
     collections::HashMap,
-    convert::TryFrom,
     ops::{Add, Div, Mul, Sub},
 };
 
