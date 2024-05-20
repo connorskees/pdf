@@ -124,3 +124,14 @@ impl<'a> FromObj<'a> for Matrix {
         Ok(Self { a, b, c, d, e, f })
     }
 }
+
+impl Into<[[f32; 4]; 4]> for Matrix {
+    fn into(self) -> [[f32; 4]; 4] {
+        [
+            [self.a, self.b, 0.0, 0.0],
+            [self.c, self.d, 0.0, 0.0],
+            [self.e, self.f, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]
+    }
+}

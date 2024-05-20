@@ -2,6 +2,7 @@ pub(crate) mod canvas;
 pub(super) mod error;
 pub(crate) mod graphics_state;
 pub(crate) mod text_state;
+mod wgpu;
 
 use std::{
     borrow::Cow,
@@ -20,7 +21,7 @@ use crate::{
         CffCharStringInterpreter, CffFile, CffParser, CidFontSubtype, CidFontWidths, CidToGidMap,
         Font, Glyph, TrueTypeFont, Type0Font, Type1Font, Type3FontFile, Widths, BASE_14_FONTS,
     },
-    geometry::{Path, Point},
+    geometry::{Outline, Path, Point},
     objects::Object,
     page::PageObject,
     postscript::{charstring::CharStringPainter, font::Type1PostscriptFont, PostscriptInterpreter},
@@ -34,7 +35,10 @@ use crate::{
     FromObj, Resolve,
 };
 
+use anyhow::Context;
 use canvas::Canvas;
+#[cfg(feature = "window")]
+use minifb::Key;
 
 use self::{
     error::PdfRenderError,
@@ -48,10 +52,9 @@ pub enum FillRule {
     NonZeroWindingNumber,
 }
 
-const SCALE: f32 = 1.0;
-
 pub struct Renderer<'a, 'b: 'a> {
     content: &'a mut ContentLexer<'b>,
+    scene: Vec<Renderable>,
     resolver: &'a mut dyn Resolve<'b>,
     canvas: Canvas,
     graphics_state_stack: Vec<GraphicsState<'b>>,
@@ -67,6 +70,15 @@ pub struct Renderer<'a, 'b: 'a> {
     current_path: Option<Path>,
     pending_clip: Option<FillRule>,
     marked_content_stack: Vec<MarkedContentMarker<'b>>,
+    scale: f32,
+}
+
+#[derive(Debug)]
+struct Renderable {
+    outline: Outline,
+    stroke_color: Option<u32>,
+    fill_color: Option<u32>,
+    fill_rule: Option<FillRule>,
 }
 
 impl<'a, 'b: 'a> Renderer<'a, 'b> {
@@ -116,10 +128,12 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         resolver: &'a mut dyn Resolve<'b>,
         page: Rc<PageObject<'b>>,
     ) -> Self {
+        let scale = 1.0;
+
         let media_box = page.media_box().unwrap();
 
-        let width = media_box.width().ceil() * SCALE;
-        let height = media_box.height().ceil() * SCALE;
+        let width = media_box.width().ceil() * scale;
+        let height = media_box.height().ceil() * scale;
 
         let mut graphics_state = GraphicsState::default();
         graphics_state.device_independent.clipping_path = media_box.as_path();
@@ -137,6 +151,8 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
             current_path: None,
             pending_clip: None,
             marked_content_stack: Vec::new(),
+            scale,
+            scene: Vec::new(),
         }
     }
 
@@ -302,8 +318,76 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
             println!("unimplemented clipping path operator {:?}", clip);
         }
 
+        // todo: gpu stroke
         self.canvas.stroke_path(&path, stroke_color);
-        self.canvas.fill_path(&path, fill_color, fill_rule);
+        self.scene.push(Renderable {
+            outline: Outline::new(vec![path]),
+            stroke_color: None,
+            fill_color: Some(fill_color),
+            fill_rule: Some(fill_rule),
+        });
+
+        Ok(())
+    }
+
+    fn render_cpu(&mut self) -> PdfResult<()> {
+        #[cfg(feature = "window")]
+        {
+            let mut transform = Matrix::identity();
+            let mut changed = true;
+
+            while self.canvas.window.is_open() && !self.canvas.window.is_key_down(Key::Escape) {
+                let start = std::time::Instant::now();
+                if changed {
+                    self.canvas.clear();
+                    for renderable in &self.scene {
+                        if let Some(stroke_color) = renderable.stroke_color {
+                            let mut outline = renderable.outline.clone();
+                            outline.apply_transform(transform);
+                            // outline.apply_transform(Matrix::new_scale(self.scale, self.scale));
+
+                            self.canvas.fill_outline_even_odd(&outline, stroke_color);
+                            break;
+                        }
+                    }
+                    changed = false;
+                }
+                dbg!(start.elapsed());
+
+                if let Some((x, y)) = self.canvas.window.get_scroll_wheel() {
+                    let is_ctrl = self.canvas.window.is_key_down(Key::LeftSuper)
+                        || self.canvas.window.is_key_down(Key::RightSuper);
+                    if is_ctrl {
+                        let y_pct = y / (self.canvas.height as f32 / 2.0);
+                        self.scale = 1.0 + y_pct;
+                        self.scale = self.scale.min(1.05).max(0.95);
+                        transform *= Matrix::new_scale(self.scale, self.scale);
+                    } else {
+                        transform *= Matrix::new_translation(x * 1.5, -y * 1.5);
+                    }
+
+                    changed = true;
+                }
+
+                if self.canvas.window.is_key_down(Key::R) {
+                    transform = Matrix::identity();
+                }
+
+                self.canvas.refresh();
+            }
+
+            self.canvas.draw(&mut self.scale);
+        }
+
+        Ok(())
+    }
+
+    fn render_gpu(&mut self) -> PdfResult<()> {
+        pollster::block_on(wgpu::run(
+            &self.scene,
+            self.canvas.width as f32,
+            self.canvas.height as f32,
+        ));
 
         Ok(())
     }
@@ -311,7 +395,13 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
     pub fn render(mut self) -> PdfResult<()> {
         self.render_content_stream()?;
 
-        self.canvas.draw();
+        let gpu = true;
+
+        if gpu {
+            self.render_gpu()?;
+        } else {
+            self.render_cpu()?;
+        }
 
         Ok(())
     }
@@ -878,12 +968,12 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
             return Ok(());
         }
 
-        match fill_rule {
-            FillRule::EvenOdd => self.canvas.fill_path_even_odd(&path, color),
-            FillRule::NonZeroWindingNumber => {
-                self.canvas.fill_path_non_zero_winding_number(&path, color)
-            }
-        }
+        self.scene.push(Renderable {
+            outline: Outline::new(vec![path]),
+            stroke_color: None,
+            fill_color: Some(color),
+            fill_rule: Some(fill_rule),
+        });
 
         Ok(())
     }
@@ -1179,27 +1269,25 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
 
                 glyph.outline.apply_transform(trm);
 
-                glyph
-                    .outline
-                    .apply_transform(Matrix::new_scale(SCALE, SCALE));
-
-                self.canvas.fill_outline_even_odd(
-                    &glyph.outline,
-                    self.graphics_state
-                        .device_independent
-                        .color_space
-                        .stroking
-                        .as_u32(),
-                );
-
-                self.canvas.refresh();
+                self.scene.push(Renderable {
+                    outline: glyph.outline,
+                    stroke_color: Some(
+                        self.graphics_state
+                            .device_independent
+                            .color_space
+                            .stroking
+                            .as_u32(),
+                    ),
+                    fill_color: None,
+                    fill_rule: None,
+                });
 
                 let mut x_transform = widths.get(c as u32) * self.text_state.font_size
                     + self.text_state.character_spacing;
 
                 // todo: this should actually consult the cmap
                 if c == ' ' {
-                    x_transform += self.text_state.word_spacing * SCALE;
+                    x_transform += self.text_state.word_spacing * self.scale;
                 }
 
                 x_transform *= self.text_state.horizontal_scaling;
@@ -1492,7 +1580,7 @@ impl<'a, 'b: 'a> RenderableFont<'a, 'b> for CffFile<'a> {
     where
         Self: Sized,
     {
-        CffParser::new(stream).parse()
+        CffParser::new(stream).parse().context("cff parsing")
     }
 
     fn evaluate(&mut self, codepoint: u32) -> PdfResult<Glyph> {

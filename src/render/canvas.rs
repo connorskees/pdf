@@ -31,11 +31,11 @@ pub fn fuzzy_eq(a: f32, b: f32) -> bool {
 }
 
 pub(super) struct Canvas {
-    width: usize,
-    height: usize,
+    pub(super) width: usize,
+    pub(super) height: usize,
     buffer: Vec<u32>,
     #[cfg(feature = "window")]
-    window: Window,
+    pub(super) window: Window,
 }
 
 fn parse_rgba(color: u32) -> [u8; 4] {
@@ -47,7 +47,7 @@ fn parse_rgba(color: u32) -> [u8; 4] {
 }
 
 fn apply_opacity(color: u32, opacity: f32, background: u32) -> u32 {
-    assert!(opacity >= 0.0 && opacity <= 1.0);
+    assert!(opacity >= 0.0 && opacity <= 1.0, "got {opacity}");
 
     let [red, green, blue, _] = parse_rgba(color);
     let [bg_red, bg_green, bg_blue, _] = parse_rgba(background);
@@ -65,7 +65,7 @@ impl Canvas {
     pub fn new(width: usize, height: usize) -> Self {
         let mut window = Window::new("PDF", width, height, WindowOptions::default()).unwrap();
 
-        window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
+        window.limit_update_rate(Some(std::time::Duration::from_millis(33)));
 
         Self {
             width,
@@ -515,10 +515,18 @@ impl Canvas {
         writer.write_image_data(&data).unwrap();
     }
 
-    pub fn draw(&mut self) {
+    pub fn draw(&mut self, _scale: &mut f32) {
         #[cfg(feature = "window")]
         {
             while self.window.is_open() && !self.window.is_key_down(Key::Escape) {
+                if let Some((x, y)) = self.window.get_scroll_wheel() {
+                    if y > 0.0 {
+                        *scale *= y;
+                    } else if y < 0.0 {
+                        *scale /= y;
+                    }
+                }
+
                 self.refresh();
             }
         }
@@ -536,5 +544,9 @@ impl Canvas {
                 .update_with_buffer(&self.buffer, self.width, self.height)
                 .unwrap();
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.buffer = vec![u32::MAX; self.width * self.height];
     }
 }
