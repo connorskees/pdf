@@ -77,10 +77,10 @@ fn vertices_for_path(path: &Path, width: f32, height: f32, color: u32) -> Vec<Ve
     vertices
 }
 
-fn indices_for_outline(num_vertices: usize, offset: u16) -> Vec<u16> {
+fn indices_for_outline(num_vertices: usize, offset: u32) -> Vec<u32> {
     let mut indices = Vec::new();
 
-    for i in 0..(num_vertices as u16 - 1) {
+    for i in 0..(num_vertices as u32 - 1) {
         indices.push(0 + offset);
         indices.push(i + offset);
         indices.push(i + 1 + offset);
@@ -431,7 +431,7 @@ impl<'a> State<'a> {
         let mut indices = Vec::new();
         let mut vertices = Vec::new();
 
-        for r in to_render.iter().skip(0) {
+        for r in to_render {
             for p in &r.outline.paths {
                 let mut v = vertices_for_path(
                     p,
@@ -439,7 +439,7 @@ impl<'a> State<'a> {
                     height,
                     r.fill_color.unwrap_or_else(|| r.stroke_color.unwrap_or(0)),
                 );
-                indices.append(&mut indices_for_outline(v.len(), vertices.len() as u16));
+                indices.append(&mut indices_for_outline(v.len(), vertices.len() as u32));
                 vertices.append(&mut v);
             }
         }
@@ -480,7 +480,7 @@ impl<'a> State<'a> {
             mask_pass.set_pipeline(&self.mask_pipeline);
             mask_pass.set_bind_group(0, &camera_bind_group, &[]);
             mask_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-            mask_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            mask_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             mask_pass.draw_indexed(0..num_indices, 0, 0..1);
         }
 
@@ -520,7 +520,7 @@ impl<'a> State<'a> {
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &camera_bind_group, &[]);
             render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-            render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.set_stencil_reference(0xff);
             render_pass.draw_indexed(0..num_indices, 0, 0..1);
             // dbg!(unsafe { FRAME });
