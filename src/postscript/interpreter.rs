@@ -1389,4 +1389,17 @@ mod test {
 
         interpreter.run().unwrap();
     }
+
+    #[test]
+    #[should_panic]
+
+    fn unknown_operator() {
+        let mut interpreter = PostscriptInterpreter::new(
+            b"
+            aaaa
+        ",
+        );
+
+        interpreter.run().unwrap();
+    }
 }

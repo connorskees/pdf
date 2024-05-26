@@ -75,10 +75,7 @@ pub(super) fn ident_token_from_bytes(bytes: &[u8]) -> PdfResult<PostScriptObject
                 // special cased literals here are known to be used inside standard dictionaries
                 b"StandardEncoding" | b"|" | b"|-" | b"-|" | b"systemdict" | b"RD" | b"NP"
                 | b"ND" | b"userdict" | b"errordict" | b"FontDirectory" | b"findfont" => {}
-                found => println!(
-                    "found unknown literal: {:?}",
-                    String::from_utf8_lossy(found)
-                ),
+                _ => {}
             }
 
             return Ok(PostScriptObject::Literal(PostScriptString::from_bytes(
