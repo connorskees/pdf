@@ -38,6 +38,22 @@ impl Subpath {
     pub fn is_line(self) -> bool {
         matches!(self, Subpath::Line(..))
     }
+
+    pub fn start(&self) -> Point {
+        match self {
+            Subpath::Line(line) => line.start,
+            Subpath::Quadratic(curve) => curve.start,
+            Subpath::Cubic(curve) => curve.start,
+        }
+    }
+
+    pub fn end(&self) -> Point {
+        match self {
+            Subpath::Line(line) => line.end,
+            Subpath::Quadratic(curve) => curve.end,
+            Subpath::Cubic(curve) => curve.end,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -181,5 +197,42 @@ impl Path {
             second_control_point,
         )));
         self.current_point = end;
+    }
+
+    pub fn to_js_path(&self) -> String {
+        let mut out = String::new();
+
+        out += "ctx.beginPath();\n";
+        out += &format!(
+            "ctx.moveTo({}, {});\n",
+            self.subpaths[0].start().x,
+            self.subpaths[0].start().y
+        );
+        for subpath in &self.subpaths {
+            match subpath {
+                Subpath::Line(l) => out += &format!("ctx.lineTo({}, {});\n", l.end.x, l.end.y),
+                Subpath::Quadratic(quad) => {
+                    out += &format!(
+                        "ctx.quadraticCurveTo({}, {}, {}, {});\n",
+                        quad.control_point.x, quad.control_point.y, quad.end.x, quad.end.y
+                    )
+                }
+                Subpath::Cubic(cub) => {
+                    out += &format!(
+                        "ctx.bezierCurveTo({}, {}, {}, {}, {}, {});\n",
+                        cub.first_control_point.x,
+                        cub.first_control_point.y,
+                        cub.second_control_point.x,
+                        cub.second_control_point.y,
+                        cub.end.x,
+                        cub.end.y
+                    )
+                }
+            }
+        }
+        out += "ctx.closePath();\n";
+        out += "ctx.fill();\n";
+
+        out
     }
 }
