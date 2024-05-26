@@ -1,7 +1,3 @@
-#![allow(unused)]
-
-use std::collections::VecDeque;
-
 use anyhow::anyhow;
 
 use crate::{
@@ -171,94 +167,6 @@ pub struct TrueTypeInterpreter<'a> {
     twilight_zone: Vec<Point>,
 }
 
-struct PointIterator<'a> {
-    x_coords: &'a [i16],
-    y_coords: &'a [i16],
-    flags: &'a [u8],
-    cursor: usize,
-    queue: VecDeque<(Point, u8)>,
-    last_point: Point,
-    last_on_curve: bool,
-    first_point_on_curve: Option<Point>,
-}
-
-impl<'a> PointIterator<'a> {
-    pub fn new(x_coords: &'a [i16], y_coords: &'a [i16], flags: &'a [u8]) -> Self {
-        assert_eq!(x_coords.len(), y_coords.len());
-        assert_eq!(x_coords.len(), flags.len());
-
-        if flags.len() >= 2 {
-            // assert!(flags[0] & OutlineFlag::ON_CURVE != 0 || flags[1] & OutlineFlag::ON_CURVE != 0);
-        }
-
-        Self {
-            x_coords,
-            y_coords,
-            flags,
-            cursor: 0,
-            queue: VecDeque::new(),
-            last_point: Point::origin(),
-            last_on_curve: false,
-            first_point_on_curve: None,
-        }
-    }
-
-    fn next_point(&mut self) -> Option<Point> {
-        if let Some((point, flag)) = self.queue.pop_front() {
-            return Some(point);
-        }
-
-        let is_last = self.x_coords.get(self.cursor).is_none();
-
-        if is_last && !self.last_on_curve {
-            self.last_on_curve = true;
-            return self.first_point_on_curve;
-        }
-
-        let x = *self.x_coords.get(self.cursor)? as f32 / 2048.0;
-        let y = *self.y_coords.get(self.cursor)? as f32 / 2048.0;
-        let flag = *self.flags.get(self.cursor)?;
-
-        let mut point = Point { x, y };
-        let on_curve = flag & OutlineFlag::ON_CURVE != 0;
-
-        if self.cursor == 0 && !on_curve {
-            self.queue.push_back((point, flag));
-
-            self.last_on_curve = true;
-            self.cursor += 1;
-
-            self.first_point_on_curve = Some(point.midpoint(Point::origin()));
-
-            return Some(point.midpoint(Point::origin()));
-        } else {
-            self.first_point_on_curve.get_or_insert(point);
-        }
-
-        self.last_point = point;
-
-        if (on_curve && self.last_on_curve) || (!on_curve && !self.last_on_curve) {
-            self.queue.push_back((point, flag));
-
-            point = point.midpoint(self.last_point);
-        }
-
-        self.last_on_curve = on_curve;
-
-        self.cursor += 1;
-
-        Some(point)
-    }
-}
-
-impl<'a> Iterator for PointIterator<'a> {
-    type Item = Point;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next_point()
-    }
-}
-
 impl<'a> TrueTypeInterpreter<'a> {
     pub fn new(ttf_file: ParsedTrueTypeFontFile<'a>) -> Self {
         let storage_area_size = ttf_file.max_storage();
@@ -280,14 +188,13 @@ impl<'a> TrueTypeInterpreter<'a> {
 
         let ttf_glyph = self.ttf_file.glyph(char_code)?;
 
-        let mut relative = Point::origin();
-
         let simple = match ttf_glyph {
             TrueTypeGlyph::Simple(simple) => simple,
             TrueTypeGlyph::Compound(_) => todo!(),
         };
 
-        let mut points = PointIterator::new(&simple.x_coords, &simple.y_coords, &simple.flags);
+        assert_eq!(simple.x_coords.len(), simple.y_coords.len());
+        assert_eq!(simple.x_coords.len(), simple.flags.len());
 
         // todo: initialize glyph zone and initial positions
         self.instruction_stream = InstructionStream::new(simple.instructions);
@@ -295,27 +202,74 @@ impl<'a> TrueTypeInterpreter<'a> {
         let mut paths = Vec::new();
 
         let mut start = 0;
+
         for contour_end in simple.end_points_of_contours {
-            let mut path = None;
             let contour_end = contour_end as usize;
 
-            let x_coords = &simple.x_coords[start..contour_end];
-            let y_coords = &simple.y_coords[start..contour_end];
-            let flags = &simple.flags[start..contour_end];
+            let x_coords = &simple.x_coords[start..=contour_end];
+            let y_coords = &simple.y_coords[start..=contour_end];
+            let flags = &simple.flags[start..=contour_end];
 
-            let mut points = PointIterator::new(x_coords, y_coords, flags);
-            // assert_eq!(num_points.len() % 2, 1);
+            fn get_points(x_coords: &[i16], y_coords: &[i16], flags: &[u8]) -> Vec<(Point, bool)> {
+                let mut points = Vec::new();
+                let mut prev = Point::origin();
+                let mut prev_on_curve = false;
+
+                for i in 0..x_coords.len() {
+                    let x = x_coords[i];
+                    let y = y_coords[i];
+                    let flag = flags[i];
+                    let on_curve = flag & OutlineFlag::ON_CURVE != 0;
+
+                    let point = Point::new(x as f32 / 2048.0, y as f32 / 2048.0);
+
+                    if !on_curve && !prev_on_curve {
+                        points.push((point.midpoint(prev), true));
+                    } else if on_curve && prev_on_curve {
+                    }
+
+                    points.push((point, on_curve));
+
+                    prev = point;
+                    prev_on_curve = on_curve;
+                }
+
+                if !prev_on_curve {
+                    points.push((
+                        points.last().unwrap().0.midpoint(points.first().unwrap().0),
+                        true,
+                    ));
+                }
+
+                points
+            }
+
+            let mut points = get_points(x_coords, y_coords, flags).into_iter();
+
+            let mut path = None;
 
             let p1 = points.next();
+            let mut last_on_curve = false;
+            while let Some((c1, c1_on_curve)) = points.next() {
+                if c1_on_curve && (last_on_curve || path.is_none()) {
+                    let path = path.get_or_insert_with(|| Path::new(p1.unwrap().0));
+                    path.line_to(c1);
+                    last_on_curve = true;
+                    continue;
+                }
 
-            while let Some(c1) = points.next() {
-                let p2 = match points.next() {
+                let (p2, p2_on_curve) = match points.next() {
                     Some(v) => v,
-                    None => continue,
+                    None => todo!("unexpected ttf glyph end"),
                 };
-                let path = path.get_or_insert_with(|| Path::new(p1.unwrap()));
+                let path = path.get_or_insert_with(|| Path::new(p1.unwrap().0));
+
+                assert!(!c1_on_curve);
+                assert!(p2_on_curve);
 
                 path.quadratic_curve_to(c1, p2);
+
+                last_on_curve = p2_on_curve;
             }
 
             if let Some(mut path) = path.take() {
@@ -323,7 +277,7 @@ impl<'a> TrueTypeInterpreter<'a> {
                 paths.push(path);
             }
 
-            start = contour_end;
+            start = contour_end + 1;
         }
 
         // self.execute().unwrap();
@@ -661,6 +615,7 @@ impl<'a> TrueTypeInterpreter<'a> {
         Ok(())
     }
 
+    #[allow(unused)]
     fn alignrp(&mut self) -> anyhow::Result<()> {
         for _ in 0..self.graphics_state.loop_counter {
             let point_number = self.pop()?;
@@ -671,6 +626,7 @@ impl<'a> TrueTypeInterpreter<'a> {
         Ok(())
     }
 
+    #[allow(unused)]
     fn call(&mut self) -> anyhow::Result<()> {
         let function_identifier = self.pop()?;
 
@@ -730,6 +686,7 @@ impl<'a> TrueTypeInterpreter<'a> {
         Ok(())
     }
 
+    #[allow(unused)]
     fn ip(&mut self) -> anyhow::Result<()> {
         for _ in 0..self.graphics_state.loop_counter {
             let point_number = self.pop()?;
@@ -740,6 +697,7 @@ impl<'a> TrueTypeInterpreter<'a> {
         Ok(())
     }
 
+    #[allow(unused)]
     fn iup(&mut self, a: u8) -> anyhow::Result<()> {
         println!("IUP not yet implemented");
 
@@ -794,6 +752,7 @@ impl<'a> TrueTypeInterpreter<'a> {
         Ok(())
     }
 
+    #[allow(unused)]
     fn mdap(&mut self, a: u8) -> anyhow::Result<()> {
         let point_number = self.pop()?;
 
@@ -802,6 +761,7 @@ impl<'a> TrueTypeInterpreter<'a> {
         Ok(())
     }
 
+    #[allow(unused)]
     fn mdrp(&mut self, a: u8) -> anyhow::Result<()> {
         let point_number = self.pop()?;
 
@@ -810,6 +770,7 @@ impl<'a> TrueTypeInterpreter<'a> {
         Ok(())
     }
 
+    #[allow(unused)]
     fn mirp(&mut self, abcde: u8) -> anyhow::Result<()> {
         let cvt_entry_number = self.pop()?;
         let point_number = self.pop()?;
@@ -819,6 +780,7 @@ impl<'a> TrueTypeInterpreter<'a> {
         Ok(())
     }
 
+    #[allow(unused)]
     fn miap(&mut self, a: u8) -> anyhow::Result<()> {
         let cvt_entry_number = self.pop_f26dot6()?;
         let point_number = self.pop()?;
