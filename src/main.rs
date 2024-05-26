@@ -3,6 +3,8 @@ use std::rc::Rc;
 use pdf::{Parser, PdfResult, Renderer};
 
 fn main() -> PdfResult<()> {
+    env_logger::init();
+
     let mut args = std::env::args().skip(1);
     let path = args.next().unwrap_or_else(String::new);
     let page = args.next().map(|n| n.parse::<u32>().unwrap()).unwrap_or(1);

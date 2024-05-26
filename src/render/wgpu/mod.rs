@@ -15,8 +15,6 @@ use super::Renderable;
 mod state;
 
 pub async fn run(to_render: &[Renderable], width: f32, height: f32) {
-    env_logger::init();
-
     let event_loop = EventLoop::new().unwrap();
     let window = WindowBuilder::new()
         .with_inner_size(LogicalSize::new(width, height))
