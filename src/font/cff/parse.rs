@@ -37,7 +37,8 @@ impl<'a> CffParser<'a> {
             0 => CffEncoding::Standard,
             1 => CffEncoding::Expert,
             offset => {
-                self.cursor = offset as usize;
+                // todo: validate this - 1
+                self.cursor = offset as usize - 1;
                 self.parse_encoding()?
             }
         };

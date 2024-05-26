@@ -1127,27 +1127,31 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                         font = Arc::<RwLock<Type1PostscriptFont>>::clone(base_font);
                         widths = base.widths.as_ref().unwrap_or(&default_width);
                     } else {
-                        match base
-                            .font_descriptor
-                            .as_ref()
-                            .unwrap()
-                            .font_file_three
-                            .as_ref()
-                            .unwrap()
-                            .clone()
-                        {
-                            Type3FontFile::CompactType1(compact_type1) => {
-                                ffs = compact_type1.stream.stream;
-                                stream =
-                                    decode_stream(&ffs, &compact_type1.stream.dict, self.resolver)?;
+                        let descriptor = base.font_descriptor.as_ref().unwrap();
 
-                                let cff_file = CffFile::load(&stream)?;
+                        if descriptor.font_file_three.is_none() {
+                            let base_font = BASE_14_FONTS.get(&base_font.as_ref()).unwrap();
 
-                                font = Arc::new(RwLock::new(cff_file));
-                                widths = base.widths.as_ref().unwrap_or(&default_width);
+                            font = Arc::<RwLock<Type1PostscriptFont>>::clone(base_font);
+                            widths = base.widths.as_ref().unwrap_or(&default_width);
+                        } else {
+                            match descriptor.font_file_three.as_ref().unwrap().clone() {
+                                Type3FontFile::CompactType1(compact_type1) => {
+                                    ffs = compact_type1.stream.stream;
+                                    stream = decode_stream(
+                                        &ffs,
+                                        &compact_type1.stream.dict,
+                                        self.resolver,
+                                    )?;
+
+                                    let cff_file = CffFile::load(&stream)?;
+
+                                    font = Arc::new(RwLock::new(cff_file));
+                                    widths = base.widths.as_ref().unwrap_or(&default_width);
+                                }
+                                Type3FontFile::CompactType0Cid(_) => todo!(),
+                                Type3FontFile::OpenType(_) => todo!(),
                             }
-                            Type3FontFile::CompactType0Cid(_) => todo!(),
-                            Type3FontFile::OpenType(_) => todo!(),
                         }
                     }
                 } else {
@@ -1585,7 +1589,8 @@ impl<'a, 'b: 'a> RenderableFont<'a, 'b> for CffFile<'a> {
 
     fn evaluate(&mut self, codepoint: u32) -> PdfResult<Glyph> {
         let idx = self.encoding.lookup(codepoint).unwrap_or(0);
-        let cs = match self.charstring_index.get(idx as usize + 1) {
+        // todo: validate this doesn't need idx + 1
+        let cs = match self.charstring_index.get(idx as usize) {
             Some(cs) => cs,
             None => {
                 println!(
