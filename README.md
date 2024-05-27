@@ -2,7 +2,7 @@
 
 An attempt at writing a PDF renderer from as close to scratch as possible.
 
-This project includes from-scratch parsers/interpreters/renderers/implementations of PostScript, ICC profiles, PNG compression, Type 1 fonts (.pfb files), TrueType fonts (.ttf files), CFF fonts, 2d path manipulation and rasterization, among others. 
+This project includes from-scratch parsers/interpreters/renderers/implementations of PostScript, ICC profiles, PNG compression, Type 1 fonts (.pfb files), TrueType fonts (.ttf files), CFF (compact fonts), 2d path manipulation and rasterization, among others. 
 
 This library is intended to crash on malformed input and makes heavy use of assertions to ensure that parsing is never silently incorrect. 
 
@@ -34,10 +34,10 @@ https://www.itu.int/rec/T-REC-T.6-198811-I/en<br>
 
 ##### True Type Resources
 
-https://www.truetype-typography.com/tthints.htm
-https://learn.microsoft.com/en-us/typography/opentype/spec/ttch01
-https://developer.apple.com/fonts/TrueType-Reference-Manual
-https://xgridfit.sourceforge.net/round.html
+https://www.truetype-typography.com/tthints.htm<br>
+https://learn.microsoft.com/en-us/typography/opentype/spec/ttch01<br>
+https://developer.apple.com/fonts/TrueType-Reference-Manual<br>
+https://xgridfit.sourceforge.net/round.html<br>
 
 ### Algorithms and Relevant Literature
 
