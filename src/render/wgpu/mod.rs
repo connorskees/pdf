@@ -27,7 +27,7 @@ pub async fn run(to_render: &[Renderable], width: f32, height: f32) {
 
     let mut is_ctrl_pressed = false;
     // let mut transform = Matrix::new_translation(-1.75, -20.5) * Matrix::new_scale(22.0, 22.0);
-    let mut transform = Matrix::identity();
+    let mut transform = Matrix::new_translation(-1.0, -1.0) * Matrix::new_scale(2.0, 2.0);
 
     event_loop
         .run(move |event, control_flow| {

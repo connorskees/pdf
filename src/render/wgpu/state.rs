@@ -37,6 +37,69 @@ impl Vertex {
     }
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+struct ControlPointVertex {
+    position: [f32; 3],
+    uv: [f32; 3],
+}
+
+impl ControlPointVertex {
+    fn desc() -> wgpu::VertexBufferLayout<'static> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<ControlPointVertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+            ],
+        }
+    }
+}
+
+fn curve_vertices(path: &Path, width: f32, height: f32) -> Vec<ControlPointVertex> {
+    let mut vertices = Vec::new();
+
+    for subpath in &path.subpaths {
+        match subpath {
+            crate::geometry::Subpath::Line(..) => {
+                continue;
+            }
+            crate::geometry::Subpath::Quadratic(quad) => {
+                vertices.push(ControlPointVertex {
+                    position: [quad.start.x / width, quad.start.y / height, 0.0],
+                    uv: [0.0, 0.0, 0.0],
+                });
+                vertices.push(ControlPointVertex {
+                    position: [
+                        quad.control_point.x / width,
+                        quad.control_point.y / height,
+                        0.0,
+                    ],
+                    uv: [0.5, 0.0, 0.0],
+                });
+                vertices.push(ControlPointVertex {
+                    position: [quad.end.x / width, quad.end.y / height, 0.0],
+                    uv: [1.0, 1.0, 0.0],
+                });
+            }
+            crate::geometry::Subpath::Cubic(..) => {
+                // todo!()
+            }
+        }
+    }
+
+    vertices
+}
+
 fn vertices_for_path(path: &Path, width: f32, height: f32, color: u32) -> Vec<Vertex> {
     let point_to_vertex = |p: Point| -> Vertex {
         let b = ((color >> 16) & 0xff) as f32 / 255.0;
@@ -121,6 +184,7 @@ pub(super) struct State<'a> {
     render_pipeline: wgpu::RenderPipeline,
     camera_bind_group_layout: wgpu::BindGroupLayout,
     mask_pipeline: wgpu::RenderPipeline,
+    curve_mask_pipeline: wgpu::RenderPipeline,
     window: &'a Window,
 }
 
@@ -245,6 +309,21 @@ impl<'a> State<'a> {
             pass_op: wgpu::StencilOperation::Invert,
         };
 
+        let depth_stencil = wgpu::DepthStencilState {
+            format: wgpu::TextureFormat::Stencil8,
+            depth_write_enabled: false,
+            depth_compare: wgpu::CompareFunction::Always,
+            bias: wgpu::DepthBiasState::default(),
+            stencil: wgpu::StencilState {
+                front: mask_stencil_state,
+                back: mask_stencil_state,
+                // Applied to values being read from the buffer
+                read_mask: 0xff,
+                // Applied to values before being written to the buffer
+                write_mask: 0xff,
+            },
+        };
+
         let mask_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("mask Pipeline"),
             layout: Some(&render_pipeline_layout),
@@ -255,20 +334,33 @@ impl<'a> State<'a> {
             },
             fragment: None,
             primitive,
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: wgpu::TextureFormat::Stencil8,
-                depth_write_enabled: false,
-                depth_compare: wgpu::CompareFunction::Always,
-                bias: wgpu::DepthBiasState::default(),
-                stencil: wgpu::StencilState {
-                    front: mask_stencil_state,
-                    back: mask_stencil_state,
-                    // Applied to values being read from the buffer
-                    read_mask: 0xff,
-                    // Applied to values before being written to the buffer
-                    write_mask: 0xff,
-                },
+            depth_stencil: Some(depth_stencil.clone()),
+
+            multisample: wgpu::MultisampleState::default(),
+            // If the pipeline will be used with a multiview render pass, this
+            // indicates how many array layers the attachments will have.
+            multiview: None,
+        });
+
+        let curve_mask_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("curve mask Pipeline"),
+            layout: Some(&render_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: "vs_main",
+                buffers: &[Vertex::desc()],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: "curve_fs_main",
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: config.format,
+                    blend: None,
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
             }),
+            primitive,
+            depth_stencil: Some(depth_stencil),
 
             multisample: wgpu::MultisampleState::default(),
             // If the pipeline will be used with a multiview render pass, this
@@ -330,6 +422,7 @@ impl<'a> State<'a> {
             size,
             render_pipeline,
             mask_pipeline,
+            curve_mask_pipeline,
             window,
             camera_bind_group_layout,
         }
@@ -384,6 +477,11 @@ impl<'a> State<'a> {
         Texture { texture, view }
     }
 
+    fn encoder(&self, label: &'static str) -> wgpu::CommandEncoder {
+        self.device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some(label) })
+    }
+
     pub fn render(
         &mut self,
         to_render: &[Renderable],
@@ -416,17 +514,9 @@ impl<'a> State<'a> {
             label: Some("camera_bind_group"),
         });
 
-        let mut mask_encoder =
-            self.device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("mask Encoder"),
-                });
-
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
+        let mut mask_encoder = self.encoder("mask encoder");
+        let mut curve_mask_encoder = self.encoder("curve mask encoder");
+        let mut encoder = self.encoder("render encoder");
 
         let mut indices = Vec::new();
         let mut vertices = Vec::new();
@@ -486,6 +576,74 @@ impl<'a> State<'a> {
 
         self.queue.submit(iter::once(mask_encoder.finish()));
 
+        let mut vertices_on_curve = Vec::new();
+        for r in to_render {
+            for p in &r.outline.paths {
+                vertices_on_curve.append(&mut curve_vertices(p, width, height));
+            }
+        }
+
+        let curve_vertex_buffer =
+            self.device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("curve Vertex Buffer"),
+                    contents: bytemuck::cast_slice(&vertices_on_curve),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
+
+        {
+            let mut curve_mask_pass: wgpu::RenderPass =
+                curve_mask_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("curve mask Pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &stencil_texture.view,
+                        depth_ops: None,
+                        stencil_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        }),
+                    }),
+                    occlusion_query_set: None,
+                    timestamp_writes: None,
+                });
+
+            curve_mask_pass.set_pipeline(&self.curve_mask_pipeline);
+            curve_mask_pass.set_bind_group(0, &camera_bind_group, &[]);
+            curve_mask_pass.set_vertex_buffer(0, curve_vertex_buffer.slice(..));
+            curve_mask_pass.draw(0..vertices_on_curve.len() as u32, 0..1);
+        }
+
+        self.queue.submit(iter::once(curve_mask_encoder.finish()));
+
+        let mut vertices_render = Vec::new();
+
+        for idx in &indices {
+            vertices_render.push(vertices[*idx as usize]);
+        }
+
+        for vertex in vertices_on_curve {
+            vertices_render.push(Vertex {
+                position: vertex.position,
+                color: [0.0, 0.0, 0.0],
+            });
+        }
+
+        let vertex_buffer_render =
+            self.device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Vertex Buffer"),
+                    contents: bytemuck::cast_slice(&vertices_render),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
+
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -493,12 +651,7 @@ impl<'a> State<'a> {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 1.0,
-                            g: 1.0,
-                            b: 1.0,
-                            a: 1.0,
-                        }),
+                        load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
@@ -519,10 +672,11 @@ impl<'a> State<'a> {
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &camera_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-            render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.set_vertex_buffer(0, vertex_buffer_render.slice(..));
+            // render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.set_stencil_reference(0xff);
-            render_pass.draw_indexed(0..num_indices, 0, 0..1);
+            render_pass.draw(0..vertices_render.len() as u32, 0..1);
+            // render_pass.draw_indexed(0..vertices_render.len() as u32, 0, 0..1);
             // dbg!(unsafe { FRAME });
             unsafe { FRAME += 1 };
         }

@@ -37,3 +37,10 @@ fn vs_main(
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     return vec4<f32>(in.color, 1.0);
 }
+
+@fragment
+fn curve_fs_main(in: VertexOutput) {
+    if in.color.x * in.color.x - in.color.y > 0 {
+        discard;
+    }
+}
