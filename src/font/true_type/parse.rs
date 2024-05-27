@@ -371,7 +371,7 @@ impl<'a> TrueTypeParser<'a> {
         self.cursor = offset;
 
         let version = self.read_u32()?;
-        assert_eq!(version, 0x00010000);
+        assert_eq!(version, 0x00010000, "invalid maxp table version");
 
         let num_glyphs = self.read_u16()?;
         let max_points = self.read_u16()?;
@@ -503,14 +503,14 @@ impl<'a> TrueTypeParser<'a> {
 
         match format {
             0 => self.parse_cmap_subtable_0(),
-            2 => todo!(),
+            2 => todo!("cmap subtable 2"),
             4 => self.parse_cmap_subtable_4(),
             6 => self.parse_cmap_subtable_6(),
             8 => self.parse_cmap_subtable_8(),
-            10 => todo!(),
-            12 => todo!(),
-            13 => todo!(),
-            14 => todo!(),
+            10 => todo!("cmap subtable 10"),
+            12 => todo!("cmap subtable 12"),
+            13 => todo!("cmap subtable 13"),
+            14 => todo!("cmap subtable 14"),
             _ => anyhow::bail!("invalid cmap subtable format: {:?}", format),
         }
     }

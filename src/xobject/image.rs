@@ -305,7 +305,7 @@ pub enum ImageMask<'a> {
 impl<'a> FromObj<'a> for ImageMask<'a> {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
         Ok(match resolver.resolve(obj)? {
-            Object::Stream(..) => todo!("explicit"),
+            Object::Stream(..) => todo!("explicit image mask"),
             arr @ Object::Array(..) => {
                 let colors = <Vec<f32>>::from_obj(arr, resolver)?;
                 Self::ColorKey(colors)

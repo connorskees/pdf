@@ -449,14 +449,14 @@ impl Canvas {
                     .as_u32()
                 })
                 .collect::<Vec<u32>>(),
-            Some(ColorSpaceName::CalGray) => todo!(),
-            Some(ColorSpaceName::CalRGB) => todo!(),
-            Some(ColorSpaceName::Lab) => todo!(),
-            Some(ColorSpaceName::ICCBased) => todo!(),
-            Some(ColorSpaceName::Indexed) => todo!(),
-            Some(ColorSpaceName::Pattern) => todo!(),
-            Some(ColorSpaceName::Separation) => todo!(),
-            Some(ColorSpaceName::DeviceN) => todo!(),
+            Some(ColorSpaceName::CalGray) => todo!("calgray color space image"),
+            Some(ColorSpaceName::CalRGB) => todo!("calrgb color space image"),
+            Some(ColorSpaceName::Lab) => todo!("lab color space image"),
+            Some(ColorSpaceName::ICCBased) => todo!("icc based color space image"),
+            Some(ColorSpaceName::Indexed) => todo!("indexed color space image"),
+            Some(ColorSpaceName::Pattern) => todo!("pattern color space image"),
+            Some(ColorSpaceName::Separation) => todo!("separation color space image"),
+            Some(ColorSpaceName::DeviceN) => todo!("devicen color space image"),
             Some(ColorSpaceName::DeviceRGB) | None => pixel_data
                 .chunks_exact(3)
                 .map(|chunk| {
@@ -515,7 +515,8 @@ impl Canvas {
         writer.write_image_data(&data).unwrap();
     }
 
-    pub fn draw(&mut self, _scale: &mut f32) {
+    #[allow(unused_variables)]
+    pub fn draw(&mut self, scale: &mut f32) {
         #[cfg(feature = "window")]
         {
             while self.window.is_open() && !self.window.is_key_down(Key::Escape) {

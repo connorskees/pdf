@@ -40,19 +40,19 @@ pub(crate) fn decode_stream<'a, 'b>(
                 FilterKind::Ascii85 => {
                     stream = ascii::decode_ascii_85(&stream);
                 }
-                FilterKind::Lzw => todo!(),
+                FilterKind::Lzw => todo!("lwz compression"),
                 FilterKind::Flate => {
                     let decoder_params =
                         FlateDecoderParams::from_obj(Object::Dictionary(decode_params), resolver)?;
 
                     stream = FlateDecoder::new(Cow::Owned(stream), decoder_params)?.decode();
                 }
-                FilterKind::RunLength => todo!(),
-                FilterKind::CcittFax => todo!(),
-                FilterKind::Jbig2 => todo!(),
+                FilterKind::RunLength => todo!("runlength compression"),
+                FilterKind::CcittFax => todo!("ccittfax compression"),
+                FilterKind::Jbig2 => todo!("jbig2 compression"),
                 FilterKind::Dct => stream = DctDecoder::new(Cow::Owned(stream)).decode()?,
-                FilterKind::Jpx => todo!(),
-                FilterKind::Crypt => todo!(),
+                FilterKind::Jpx => todo!("jpx compression"),
+                FilterKind::Crypt => todo!("crypt compression"),
             }
         }
 

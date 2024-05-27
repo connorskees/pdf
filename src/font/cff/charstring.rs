@@ -1025,13 +1025,13 @@ impl<'a> CffCharStringInterpreter<'a> {
     /// that are repeated throughout the font program, for example, serif outline
     /// sequences
     fn callsubr(&mut self) -> anyhow::Result<()> {
-        todo!()
+        todo!("callsubr operator")
     }
 
     /// operates in the same manner as callsubr except that it calls a global
     /// subroutine
     fn callgsubr(&mut self) -> anyhow::Result<()> {
-        todo!()
+        todo!("callgsubr operator")
     }
 
     /// appends one or more Bézier curves, as described by the dxa...dxc set of

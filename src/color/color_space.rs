@@ -189,7 +189,7 @@ impl<'a> FromObj<'a> for ColorSpace<'a> {
                     ColorSpaceName::DeviceRGB => todo!(),
                     ColorSpaceName::DeviceCMYK => todo!(),
                     ColorSpaceName::CalGray => todo!(),
-                    ColorSpaceName::CalRGB => todo!(),
+                    ColorSpaceName::CalRGB => todo!("calrgb color space"),
                     ColorSpaceName::Lab => todo!(),
                     ColorSpaceName::ICCBased => {
                         assert_len(&arr, 2)?;

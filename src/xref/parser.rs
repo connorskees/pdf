@@ -78,7 +78,7 @@ impl<'a> XrefParser {
 
         let idx = loop {
             if pos == 0 {
-                todo!();
+                todo!("failed to find xref");
             }
 
             let next_pos = pos.saturating_sub(KILOBYTE - START_XREF_SIGNATURE.len());

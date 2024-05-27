@@ -20,7 +20,7 @@ fn get_names<'a>(
     dict: &mut Dictionary<'a>,
     resolver: &mut dyn Resolve<'a>,
 ) -> PdfResult<Option<BTreeMap<String, Object<'a>>>> {
-    dict.get_arr("Names", resolver)?
+    dict.get_arr("Kids", resolver)?
         .map(|names| {
             names
                 .chunks_exact(2)

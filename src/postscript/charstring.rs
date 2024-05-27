@@ -534,7 +534,7 @@ impl<'a> CharStringPainter<'a> {
 
     fn call_subroutine(&mut self, subr_number: usize) -> PostScriptResult<()> {
         match subr_number {
-            0..=3 => todo!(),
+            0..=3 => todo!("call special subroutine {subr_number}"),
             _ => {
                 let subr = &self.subroutines[subr_number];
 
