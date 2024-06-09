@@ -6,7 +6,7 @@ use crate::{
     FromObj, Resolve,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FontEncoding {
     Base(BaseFontEncoding),
     Dictionary(FontEncodingDict),
@@ -53,7 +53,7 @@ pub enum BaseFontEncoding {
     WinAnsiEncoding = "WinAnsiEncoding",
 }
 
-#[derive(Debug, FromObj)]
+#[derive(Debug, FromObj, Clone)]
 #[obj_type("Encoding")]
 pub struct FontEncodingDict {
     /// The base encoding—that is, the encoding from which the Differences entry (if
@@ -66,17 +66,17 @@ pub struct FontEncodingDict {
     /// shall be StandardEncoding, and for a symbolic font, it shall be the
     /// font’s built-in encoding
     #[field("BaseEncoding")]
-    base_encoding: Option<BaseFontEncoding>,
+    pub base_encoding: Option<BaseFontEncoding>,
 
     /// An array describing the differences from the encoding specified by
     /// BaseEncoding or, if BaseEncoding is absent, from an implicit base
     /// encoding
     #[field("Differences")]
-    differences: Option<FontDifferences>,
+    pub differences: Option<FontDifferences>,
 }
 
-#[derive(Debug)]
-struct FontDifferences(HashMap<u32, Vec<String>>);
+#[derive(Debug, Clone)]
+pub struct FontDifferences(pub HashMap<u32, String>);
 
 impl<'a> FromObj<'a> for FontDifferences {
     fn from_obj(obj: Object<'a>, resolver: &mut dyn Resolve<'a>) -> PdfResult<Self> {
@@ -89,13 +89,20 @@ impl<'a> FromObj<'a> for FontDifferences {
         let mut map = HashMap::new();
 
         let mut code_point = resolver.assert_unsigned_integer(arr.remove(0))?;
-        let mut names = Vec::new();
+        let mut names: Vec<String> = Vec::new();
 
-        for obj in arr.into_iter().skip(1) {
+        let mut insert_into_diffs = |code_point: u32, names: &mut Vec<String>| {
+            let mut start = code_point;
+            for elem in mem::take(names) {
+                map.insert(start, elem);
+                start += 1;
+            }
+        };
+
+        for obj in arr.into_iter() {
             match resolver.resolve(obj)? {
                 Object::Integer(i) => {
-                    map.insert(code_point, mem::take(&mut names));
-                    names.clear();
+                    insert_into_diffs(code_point, &mut names);
                     code_point = u32::try_from(i)?;
                 }
                 Object::Name(name) => names.push(name),
@@ -106,6 +113,8 @@ impl<'a> FromObj<'a> for FontDifferences {
                 }
             }
         }
+
+        insert_into_diffs(code_point, &mut names);
 
         Ok(Self(map))
     }
