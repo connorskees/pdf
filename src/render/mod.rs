@@ -19,7 +19,8 @@ use crate::{
     font::{
         true_type::{ParsedTrueTypeFontFile, TrueTypeInterpreter},
         CffCharStringInterpreter, CffFile, CffParser, CidFontSubtype, CidFontWidths, CidToGidMap,
-        Font, Glyph, TrueTypeFont, Type0Font, Type1Font, Type3FontFile, Widths, BASE_14_FONTS,
+        Font, FontEncoding, FontEncodingDict, Glyph, TrueTypeFont, Type0Font, Type1Font, Type3Font,
+        Type3FontFile, Widths, BASE_14_FONTS,
     },
     geometry::{Outline, Path, Point},
     objects::Object,
@@ -46,7 +47,7 @@ use self::{
     text_state::{TextRenderingMode, TextState},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FillRule {
     EvenOdd,
     NonZeroWindingNumber,
@@ -1226,7 +1227,10 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                     widths = &descendant_font.widths;
                 }
             }
-            Some(font @ Font::Type3(..)) => todo!("unimplemented type 3 font: {:#?}", font),
+            Some(Font::Type3(type3_font)) => {
+                widths = type3_font.base.widths.as_ref().unwrap();
+                font = Arc::new(RwLock::new(type3_font.clone()));
+            }
             Some(font @ Font::MmType1(_)) => todo!("unimplemented mm font: {:#?}", font),
             None => todo!("no font selected in text state"),
         };
@@ -1269,7 +1273,7 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
                         .device_independent
                         .current_transformation_matrix;
 
-                let mut glyph = font.write().unwrap().evaluate(c as u32)?;
+                let mut glyph = font.write().unwrap().evaluate(c as u32, self.resolver)?;
 
                 glyph.outline.apply_transform(trm);
 
@@ -1529,12 +1533,44 @@ enum OverprintMode {
     NonZero = 1,
 }
 
+impl<'a, 'b> RenderableFont<'a, 'b> for Type3Font<'b> {
+    fn load(_stream: &'a [u8]) -> PdfResult<Self>
+    where
+        Self: Sized,
+    {
+        unimplemented!("type 3 fonts are loaded by the pdf parser itself")
+    }
+
+    fn evaluate(&mut self, codepoint: u32, resolver: &mut dyn Resolve<'b>) -> PdfResult<Glyph> {
+        let name = match &self.encoding {
+            FontEncoding::Base(_) => todo!(),
+            FontEncoding::Dictionary(FontEncodingDict { differences, .. }) => {
+                differences.as_ref().unwrap().0.get(&codepoint).unwrap()
+            }
+        };
+
+        let proc = self.char_procs.get(name).unwrap();
+
+        let decoded = decode_stream(&proc.stream, &proc.dict, resolver)?;
+        let decoded = String::from_utf8_lossy(&decoded);
+
+        // todo: we actually probably want to take in a reference to the renderer itself!
+        println!("Skipping type 3 font stream: {decoded}");
+
+        Ok(Glyph::empty())
+    }
+
+    fn font_matrix(&self) -> Matrix {
+        self.font_matrix
+    }
+}
+
 pub trait RenderableFont<'a, 'b> {
     fn load(stream: &'a [u8]) -> PdfResult<Self>
     where
         Self: Sized;
     // todo: optimize this to cache construction of evaluation engine
-    fn evaluate(&mut self, codepoint: u32) -> PdfResult<Glyph>;
+    fn evaluate(&mut self, codepoint: u32, resolver: &mut dyn Resolve<'b>) -> PdfResult<Glyph>;
     fn font_matrix(&self) -> Matrix;
 }
 
@@ -1551,7 +1587,7 @@ impl<'a, 'b> RenderableFont<'a, 'b> for Type1PostscriptFont {
         Ok(font)
     }
 
-    fn evaluate(&mut self, codepoint: u32) -> PdfResult<Glyph> {
+    fn evaluate(&mut self, codepoint: u32, _resolver: &mut dyn Resolve<'b>) -> PdfResult<Glyph> {
         let mut painter = CharStringPainter::new(self);
         painter.evaluate(codepoint)
     }
@@ -1570,7 +1606,7 @@ impl<'a, 'b: 'a> RenderableFont<'a, 'b> for TrueTypeInterpreter<'a> {
         Ok(TrueTypeInterpreter::new(file))
     }
 
-    fn evaluate(&mut self, codepoint: u32) -> PdfResult<Glyph> {
+    fn evaluate(&mut self, codepoint: u32, _resolver: &mut dyn Resolve<'b>) -> PdfResult<Glyph> {
         self.render_glyph(codepoint)
     }
 
@@ -1587,7 +1623,7 @@ impl<'a, 'b: 'a> RenderableFont<'a, 'b> for CffFile<'a> {
         CffParser::new(stream).parse().context("cff parsing")
     }
 
-    fn evaluate(&mut self, codepoint: u32) -> PdfResult<Glyph> {
+    fn evaluate(&mut self, codepoint: u32, _resolver: &mut dyn Resolve<'b>) -> PdfResult<Glyph> {
         let idx = self.encoding.lookup(codepoint).unwrap_or(0);
         // todo: validate this doesn't need idx + 1
         let cs = match self.charstring_index.get(idx as usize) {
