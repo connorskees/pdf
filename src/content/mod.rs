@@ -63,6 +63,10 @@ impl<'a> ContentLexer<'a> {
         }
     }
 
+    pub fn debug_contents(&self) -> Cow<'_, str> {
+        String::from_utf8_lossy(&self.buffer)
+    }
+
     fn enter_compatibility_mode(&mut self) {
         self.in_compatibility_mode <<= 1;
         self.in_compatibility_mode |= 1;
