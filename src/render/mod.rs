@@ -74,6 +74,16 @@ pub struct Renderer<'a, 'b: 'a> {
     scale: f32,
 }
 
+pub(crate) fn scale_to_fit(width: f32, height: f32) -> f32 {
+    let max_val = 8192.0;
+
+    if max_val >= width && max_val >= height {
+        return 1.0;
+    }
+
+    return (max_val / width).min(max_val / height);
+}
+
 #[derive(Debug)]
 struct Renderable {
     outline: Outline,
@@ -129,12 +139,14 @@ impl<'a, 'b: 'a> Renderer<'a, 'b> {
         resolver: &'a mut dyn Resolve<'b>,
         page: Rc<PageObject<'b>>,
     ) -> Self {
-        let scale = 1.0;
-
         let media_box = page.media_box().unwrap();
 
-        let width = media_box.width().ceil() * scale;
-        let height = media_box.height().ceil() * scale;
+        let mut width = media_box.width().ceil();
+        let mut height = media_box.height().ceil();
+
+        let scale = scale_to_fit(width, height);
+        width *= scale;
+        height *= scale;
 
         let mut graphics_state = GraphicsState::default();
         graphics_state.device_independent.clipping_path = media_box.as_path();
@@ -1555,7 +1567,7 @@ impl<'a, 'b> RenderableFont<'a, 'b> for Type3Font<'b> {
         let decoded = String::from_utf8_lossy(&decoded);
 
         // todo: we actually probably want to take in a reference to the renderer itself!
-        println!("Skipping type 3 font stream: {decoded}");
+        println!("Skipping type 3 font stream: {}", decoded.trim());
 
         Ok(Glyph::empty())
     }

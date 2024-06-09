@@ -6,7 +6,7 @@ use winit::{event::WindowEvent, window::Window};
 use crate::{
     data_structures::Matrix,
     geometry::{Path, Point},
-    render::Renderable,
+    render::{scale_to_fit, Renderable},
 };
 
 #[repr(C)]
@@ -100,7 +100,10 @@ fn curve_vertices(path: &Path, width: f32, height: f32) -> Vec<ControlPointVerte
     vertices
 }
 
-fn vertices_for_path(path: &Path, width: f32, height: f32, color: u32) -> Vec<Vertex> {
+#[allow(unused)]
+fn compile_cubic(start: Point, c0: Point, c1: Point, end: Point) -> () {}
+
+fn vertices_for_path(path: &Path, width: f32, height: f32, color: u32) -> Vec<Vec<Vertex>> {
     let point_to_vertex = |p: Point| -> Vertex {
         let b = ((color >> 16) & 0xff) as f32 / 255.0;
         let g = ((color >> 8) & 0xff) as f32 / 255.0;
@@ -112,9 +115,17 @@ fn vertices_for_path(path: &Path, width: f32, height: f32, color: u32) -> Vec<Ve
         }
     };
 
+    let mut out = Vec::new();
+
     let mut vertices = Vec::new();
 
+    let mut last_point = path.subpaths[0].start();
     for subpath in &path.subpaths {
+        if subpath.start() != last_point {
+            out.push(vertices);
+            vertices = Vec::new();
+        }
+
         match subpath {
             crate::geometry::Subpath::Line(line) => {
                 if vertices.is_empty() {
@@ -135,9 +146,12 @@ fn vertices_for_path(path: &Path, width: f32, height: f32, color: u32) -> Vec<Ve
                 vertices.push(point_to_vertex(cub.end));
             }
         }
+        last_point = subpath.end();
     }
 
-    vertices
+    out.push(vertices);
+
+    out
 }
 
 fn indices_for_outline(num_vertices: usize, offset: u32) -> Vec<u32> {
@@ -170,6 +184,15 @@ impl CameraUniform {
     }
 }
 
+struct CachedBuffers {
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    num_indices: u32,
+    curve_vertex_buffer: wgpu::Buffer,
+    vertex_buffer_render: wgpu::Buffer,
+    vertex_buffer_render_len: u32,
+}
+
 pub struct Texture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
@@ -186,9 +209,95 @@ pub(super) struct State<'a> {
     mask_pipeline: wgpu::RenderPipeline,
     curve_mask_pipeline: wgpu::RenderPipeline,
     window: &'a Window,
+    cached_buffers: Option<CachedBuffers>,
 }
 
 impl<'a> State<'a> {
+    fn init_buffers(&mut self, to_render: &[Renderable], width: f32, height: f32) {
+        if self.cached_buffers.is_some() {
+            return;
+        }
+
+        let mut indices = Vec::new();
+        let mut vertices = Vec::new();
+
+        for r in to_render {
+            for p in &r.outline.paths {
+                let paths = vertices_for_path(
+                    p,
+                    width,
+                    height,
+                    r.fill_color.unwrap_or_else(|| r.stroke_color.unwrap_or(0)),
+                );
+                for mut path in paths {
+                    indices.append(&mut indices_for_outline(path.len(), vertices.len() as u32));
+                    vertices.append(&mut path);
+                }
+            }
+        }
+        let vertex_buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Vertex Buffer"),
+                contents: bytemuck::cast_slice(&vertices),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+        let index_buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Index Buffer"),
+                contents: bytemuck::cast_slice(&indices),
+                usage: wgpu::BufferUsages::INDEX,
+            });
+
+        let num_indices = indices.len() as u32;
+
+        let mut vertices_on_curve = Vec::new();
+        for r in to_render {
+            for p in &r.outline.paths {
+                vertices_on_curve.append(&mut curve_vertices(p, width, height));
+            }
+        }
+
+        let curve_vertex_buffer =
+            self.device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("curve Vertex Buffer"),
+                    contents: bytemuck::cast_slice(&vertices_on_curve),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
+
+        let mut vertices_render = Vec::new();
+
+        for idx in &indices {
+            vertices_render.push(vertices[*idx as usize]);
+        }
+
+        for vertex in vertices_on_curve {
+            vertices_render.push(Vertex {
+                position: vertex.position,
+                color: [0.0, 0.0, 0.0],
+            });
+        }
+
+        let vertex_buffer_render =
+            self.device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Vertex Buffer"),
+                    contents: bytemuck::cast_slice(&vertices_render),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
+
+        self.cached_buffers = Some(CachedBuffers {
+            vertex_buffer,
+            index_buffer,
+            curve_vertex_buffer,
+            vertex_buffer_render,
+            num_indices,
+            vertex_buffer_render_len: vertices_render.len() as u32,
+        });
+    }
+
     pub async fn new(window: &'a Window) -> State<'a> {
         let size = window.inner_size();
 
@@ -425,6 +534,7 @@ impl<'a> State<'a> {
             curve_mask_pipeline,
             window,
             camera_bind_group_layout,
+            cached_buffers: None,
         }
     }
 
@@ -432,8 +542,13 @@ impl<'a> State<'a> {
         &self.window
     }
 
-    pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+    pub fn resize(&mut self, mut new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
+            let scale = scale_to_fit(new_size.width as f32, new_size.height as f32);
+            new_size = winit::dpi::PhysicalSize::new(
+                (new_size.width as f32 * scale) as u32,
+                (new_size.height as f32 * scale) as u32,
+            );
             self.size = new_size;
             self.config.width = new_size.width;
             self.config.height = new_size.height;
@@ -518,37 +633,15 @@ impl<'a> State<'a> {
         let mut curve_mask_encoder = self.encoder("curve mask encoder");
         let mut encoder = self.encoder("render encoder");
 
-        let mut indices = Vec::new();
-        let mut vertices = Vec::new();
-
-        for r in to_render {
-            for p in &r.outline.paths {
-                let mut v = vertices_for_path(
-                    p,
-                    width,
-                    height,
-                    r.fill_color.unwrap_or_else(|| r.stroke_color.unwrap_or(0)),
-                );
-                indices.append(&mut indices_for_outline(v.len(), vertices.len() as u32));
-                vertices.append(&mut v);
-            }
-        }
-        let vertex_buffer = self
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(&vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
-        let index_buffer = self
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(&indices),
-                usage: wgpu::BufferUsages::INDEX,
-            });
-
-        let num_indices = indices.len() as u32;
+        self.init_buffers(to_render, width, height);
+        let CachedBuffers {
+            vertex_buffer,
+            index_buffer,
+            num_indices,
+            curve_vertex_buffer,
+            vertex_buffer_render,
+            vertex_buffer_render_len,
+        } = self.cached_buffers.as_ref().unwrap();
 
         {
             let mut mask_pass: wgpu::RenderPass =
@@ -571,7 +664,7 @@ impl<'a> State<'a> {
             mask_pass.set_bind_group(0, &camera_bind_group, &[]);
             mask_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
             mask_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-            mask_pass.draw_indexed(0..num_indices, 0, 0..1);
+            mask_pass.draw_indexed(0..*num_indices, 0, 0..1);
         }
 
         self.queue.submit(iter::once(mask_encoder.finish()));
@@ -582,14 +675,6 @@ impl<'a> State<'a> {
                 vertices_on_curve.append(&mut curve_vertices(p, width, height));
             }
         }
-
-        let curve_vertex_buffer =
-            self.device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("curve Vertex Buffer"),
-                    contents: bytemuck::cast_slice(&vertices_on_curve),
-                    usage: wgpu::BufferUsages::VERTEX,
-                });
 
         {
             let mut curve_mask_pass: wgpu::RenderPass =
@@ -623,27 +708,6 @@ impl<'a> State<'a> {
 
         self.queue.submit(iter::once(curve_mask_encoder.finish()));
 
-        let mut vertices_render = Vec::new();
-
-        for idx in &indices {
-            vertices_render.push(vertices[*idx as usize]);
-        }
-
-        for vertex in vertices_on_curve {
-            vertices_render.push(Vertex {
-                position: vertex.position,
-                color: [0.0, 0.0, 0.0],
-            });
-        }
-
-        let vertex_buffer_render =
-            self.device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Vertex Buffer"),
-                    contents: bytemuck::cast_slice(&vertices_render),
-                    usage: wgpu::BufferUsages::VERTEX,
-                });
-
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -675,7 +739,7 @@ impl<'a> State<'a> {
             render_pass.set_vertex_buffer(0, vertex_buffer_render.slice(..));
             // render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.set_stencil_reference(0xff);
-            render_pass.draw(0..vertices_render.len() as u32, 0..1);
+            render_pass.draw(0..*vertex_buffer_render_len, 0..1);
             // render_pass.draw_indexed(0..vertices_render.len() as u32, 0, 0..1);
             // dbg!(unsafe { FRAME });
             unsafe { FRAME += 1 };
