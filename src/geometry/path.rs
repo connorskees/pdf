@@ -91,7 +91,9 @@ impl Path {
     pub fn clip(&mut self, _clipping_path: &Path) {}
 
     pub fn close_path(&mut self) {
-        self.line_to(self.start);
+        if self.start != self.current_point {
+            self.line_to(self.start);
+        }
     }
 
     pub fn bounding_box(&self) -> BoundingBox {
@@ -102,6 +104,18 @@ impl Path {
         }
 
         bbox
+    }
+
+    pub fn stroke_for_line(line: Line, width: f32) -> Path {
+        let n = (line.end - line.start)
+            .rotate_90()
+            .with_distance_from_origin(width / 2.0);
+        let mut p = Path::new(line.start + n);
+        p.line_to(line.end + n);
+        p.line_to(line.end - n);
+        p.line_to(line.start - n);
+        p.close_path();
+        p
     }
 
     pub fn apply_transform(&mut self, transformation: Matrix) {
@@ -208,14 +222,22 @@ impl Path {
             self.subpaths[0].start().x,
             self.subpaths[0].start().y
         );
+        let mut last_point = self.subpaths[0].start();
         for subpath in &self.subpaths {
+            if subpath.start() != last_point {
+                out += &format!(
+                    "ctx.moveTo({}, {});\n",
+                    subpath.start().x,
+                    subpath.start().y
+                );
+            }
             match subpath {
                 Subpath::Line(l) => out += &format!("ctx.lineTo({}, {});\n", l.end.x, l.end.y),
                 Subpath::Quadratic(quad) => {
                     out += &format!(
                         "ctx.quadraticCurveTo({}, {}, {}, {});\n",
                         quad.control_point.x, quad.control_point.y, quad.end.x, quad.end.y
-                    )
+                    );
                 }
                 Subpath::Cubic(cub) => {
                     out += &format!(
@@ -226,9 +248,11 @@ impl Path {
                         cub.second_control_point.y,
                         cub.end.x,
                         cub.end.y
-                    )
+                    );
                 }
             }
+
+            last_point = subpath.end();
         }
         out += "ctx.closePath();\n";
         out += "ctx.fill();\n";

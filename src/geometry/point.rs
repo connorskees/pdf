@@ -15,8 +15,29 @@ impl Point {
         Self::new(0.0, 0.0)
     }
 
+    pub const fn nan() -> Self {
+        Self::new(f32::NAN, f32::NAN)
+    }
+
     pub fn midpoint(self, other: Self) -> Self {
         (self + other) / 2.0
+    }
+
+    pub fn rotate_90(&self) -> Self {
+        Self::new(-self.y, self.x)
+    }
+
+    pub fn euclidean_distance(&self, other: Self) -> f32 {
+        ((self.x - other.x) * (self.x - other.x) + (self.y - other.y) * (self.y - other.y)).sqrt()
+    }
+
+    pub fn distance_from_origin(&self) -> f32 {
+        (self.x * self.x + self.y * self.y).sqrt()
+    }
+
+    pub fn with_distance_from_origin(&self, new_len: f32) -> Self {
+        let len = self.distance_from_origin();
+        *self * (new_len / len)
     }
 }
 

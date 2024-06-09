@@ -1,3 +1,5 @@
+use std::ops::Mul;
+
 use crate::{data_structures::Matrix, render::canvas::fuzzy_eq};
 
 use super::{point::Point, BoundingBox};
@@ -15,6 +17,19 @@ impl Line {
 
     pub fn slope(&self) -> f32 {
         (self.end.y - self.start.y) / (self.end.x - self.start.x)
+    }
+
+    pub fn rotate_90(&self) -> Self {
+        Self::new(self.start.rotate_90(), self.end.rotate_90())
+    }
+
+    pub fn length(&self) -> f32 {
+        self.start.euclidean_distance(self.end)
+    }
+
+    pub fn with_length(&self, new_len: f32) -> Line {
+        let len = self.length();
+        *self * (new_len / len)
     }
 
     pub fn y_intercept(&self) -> f32 {
@@ -65,5 +80,27 @@ impl Line {
             Point::new(f32::NEG_INFINITY, 0.0),
             Point::new(f32::INFINITY, 0.0),
         )
+    }
+}
+
+impl Mul<f32> for Line {
+    type Output = Line;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        Line {
+            start: self.start * rhs,
+            end: self.end * rhs,
+        }
+    }
+}
+
+impl Mul<Line> for f32 {
+    type Output = Line;
+
+    fn mul(self, rhs: Line) -> Self::Output {
+        Line {
+            start: self * rhs.start,
+            end: self * rhs.end,
+        }
     }
 }
