@@ -1,6 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, fmt, rc::Rc};
 
 use crate::{
+    annotation::Annotation,
     catalog::{
         AdditionalActions, BoxColorInfo, GroupAttributes, MetadataStream, NavigationNode,
         PagePiece, SeparationInfo, Transitions, Viewport,
@@ -279,7 +280,7 @@ pub struct PageObject<'a> {
     /// An array of annotation dictionaries that shall contain indirect
     /// references to all annotations associated with the page
     // #[field("Annots")]
-    pub annots: Option<Vec<Reference>>,
+    pub annots: Option<Vec<TypedReference<'a, Annotation<'a>>>>,
 
     /// An additional-actions dictionary that shall define actions to
     /// be performed when the page is opened or closed

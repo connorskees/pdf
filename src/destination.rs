@@ -10,7 +10,7 @@ use crate::{
 ///   * The page of the document that shall be displayed
 ///   * The location of the document window on that page
 ///   * The magnification (zoom) factor
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Destination {
     Explicit(ExplicitDestination),
 
@@ -37,7 +37,7 @@ impl<'a> FromObj<'a> for Destination {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExplicitDestination {
     kind: DestinationKind,
     page_ref: Reference,
@@ -119,7 +119,7 @@ impl ExplicitDestination {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum DestinationKind {
     /// Display the page designated by page, with the coordinates (left, top) positioned
     /// at the upper-left corner of the window and the contents of the page magnified by

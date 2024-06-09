@@ -1,5 +1,6 @@
 /// A URI action causes a URI to be resolved
-#[derive(Debug, FromObj)]
+#[derive(Debug, FromObj, Clone)]
+#[obj_type("Action")]
 pub struct UriAction {
     /// The uniform resource identifier to resolve, encoded in 7-bit ASCII
     #[field("URI")]

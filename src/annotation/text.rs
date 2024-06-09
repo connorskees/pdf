@@ -8,7 +8,7 @@ use super::state::StateModel;
 /// window containing the text of the note in a font and size chosen by the conforming reader.
 /// Text annotations shall not scale and rotate with the page; they shall behave as if the
 /// NoZoom and NoRotate annotation flags were always set
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct TextAnnotation {
     /// A flag specifying whether the annotation shall initially be displayed open.
     ///
@@ -36,7 +36,7 @@ pub(crate) struct TextAnnotation {
     state: Option<StateModel>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum TextAnnotationName {
     Comment,
     Key,

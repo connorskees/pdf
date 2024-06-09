@@ -503,14 +503,20 @@ impl<'a> Parser<'a> {
         leaves
     }
 
-    pub fn page_annotations(&mut self, page: &PageObject) -> PdfResult<Option<Vec<Annotation>>> {
+    pub fn page_annotations(
+        &mut self,
+        page: &PageObject<'a>,
+    ) -> PdfResult<Option<Vec<Annotation<'a>>>> {
         if let Some(annots) = &page.annots {
             let annotations = annots
                 .iter()
-                .map(|&annot| {
-                    let obj = self.lexer.lex_object_from_reference(annot)?;
+                .map(|annot| match annot {
+                    &objects::TypedReference::Indirect { reference, .. } => {
+                        let obj = self.lexer.lex_object_from_reference(reference)?;
 
-                    Annotation::from_obj(obj, &mut self.lexer)
+                        Annotation::from_obj(obj, &mut self.lexer)
+                    }
+                    objects::TypedReference::Direct(annot) => Ok(annot.clone()),
                 })
                 .collect::<PdfResult<Vec<Annotation>>>()?;
 

@@ -15,7 +15,7 @@ mod state;
 mod subtype;
 mod text;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Annotation<'a> {
     base: BaseAnnotation,
     sub_type: AnnotationSubType<'a>,
@@ -32,7 +32,7 @@ impl<'a> FromObj<'a> for Annotation<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct BaseAnnotation {
     subtype: AnnotationSubTypeKind,
 
@@ -129,7 +129,7 @@ pub(crate) struct BaseAnnotation {
     markup_dict: Option<MarkupAnnotation>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct MarkupAnnotation {
     /// The text label that shall be displayed in the title bar of the annotation's pop-up window
     /// when open and active. This entry shall identify the user who added the annotation.
@@ -200,7 +200,7 @@ struct MarkupAnnotation {
 }
 
 // todo: this seems to only be used for 3d stuff
-#[derive(Debug, FromObj)]
+#[derive(Debug, FromObj, Clone)]
 #[obj_type("ExData")]
 struct ExternalDataDictionary {}
 
@@ -419,9 +419,9 @@ impl AnnotationFlags {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Appearance;
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct RichTextString;
 
 /// An annotation may optionally be surrounded by a border when displayed or
@@ -436,7 +436,7 @@ struct RichTextString;
 /// pattern for the lines drawn by line, square, circle, and ink annotations. If
 /// neither the Border nor the BS entry is present, the border shall be drawn as
 /// a solid line with a width of 1 point
-#[derive(Debug, FromObj)]
+#[derive(Debug, FromObj, Clone)]
 #[obj_type("Border")]
 pub struct BorderStyle {
     /// The border width in points. If this value is 0, no border shall drawn.
@@ -460,7 +460,7 @@ pub struct BorderStyle {
     d: Option<LineDashPattern>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum BorderStyleKind {
     /// A solid rectangle surrounding the annotation
     Solid,
@@ -503,7 +503,7 @@ impl BorderStyleKind {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Border {
     horizontal_corner_radius: u32,
     vertical_corner_radius: u32,

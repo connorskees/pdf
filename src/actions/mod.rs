@@ -10,7 +10,7 @@ pub use self::{goto::GoToAction, uri::UriAction};
 mod goto;
 mod uri;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Actions<'a> {
     action: Action<'a>,
 
@@ -23,7 +23,7 @@ pub struct Actions<'a> {
     next: Option<Vec<Self>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Action<'a> {
     GoTo(GoToAction),
     GoToRemote(GoToRemoteAction<'a>),

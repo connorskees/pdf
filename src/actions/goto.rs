@@ -1,7 +1,7 @@
 use crate::{destination::Destination, file_specification::FileSpecification};
 
 /// A go-to action changes the view to a specified destination (page, location, and magnification factor)
-#[derive(Debug, FromObj)]
+#[derive(Debug, FromObj, Clone)]
 #[obj_type("Action")]
 pub struct GoToAction {
     /// The destination to jump to
@@ -11,7 +11,7 @@ pub struct GoToAction {
 
 /// A remote go-to action is similar to an ordinary go-to action but jumps to a destination in
 /// another PDF file instead of the current file
-#[derive(Debug, FromObj)]
+#[derive(Debug, FromObj, Clone)]
 pub struct GoToRemoteAction<'a> {
     /// The file in which the destination shall be located
     #[field("F")]

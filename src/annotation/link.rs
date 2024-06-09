@@ -7,7 +7,7 @@ use super::BorderStyle;
 
 /// A link annotation represents either a hypertext link to a destination elsewhere
 /// in the document or an action to be performed
-#[derive(Debug, FromObj)]
+#[derive(Debug, FromObj, Clone)]
 #[obj_type("Link")]
 pub(crate) struct LinkAnnotation<'a> {
     /// An action that shall be performed when the link annotation is activated
@@ -21,7 +21,7 @@ pub(crate) struct LinkAnnotation<'a> {
 
     /// The annotation's highlighting mode, the visual effect that shall be used
     /// when the mouse button is pressed or held down inside its active area
-    #[field("H")]
+    #[field("H", default = HighlightingMode::default())]
     h: HighlightingMode,
 
     /// A URI action formerly associated with this annotation. When Web Capture

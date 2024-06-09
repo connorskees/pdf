@@ -1,6 +1,6 @@
 use crate::{error::PdfResult, ParseError};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum StateModel {
     Marked(MarkedState),
     Review(ReviewState),

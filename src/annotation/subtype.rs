@@ -6,7 +6,7 @@ use crate::{
 
 use super::{link::LinkAnnotation, text::TextAnnotation, BaseAnnotation};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum AnnotationSubType<'a> {
     Text(TextAnnotation),
     Link(LinkAnnotation<'a>),
