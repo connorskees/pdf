@@ -18,9 +18,9 @@ use super::{encoding::FontEncoding, BaseFontDict};
 /// Type 3 fonts, glyphs shall be defined by streams of PDF graphics operators. These
 /// streams shall be associated with glyph names. A separate encoding entry shall map
 /// character codes to the appropriate glyph names for the glyphs
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Type3Font<'a> {
-    base: BaseFontDict<'a>,
+    pub base: BaseFontDict<'a>,
 
     /// A rectangle expressed in the glyph coordinate system, specifying the font
     /// bounding box. This is the smallest rectangle enclosing the shape that would
@@ -37,17 +37,18 @@ pub struct Type3Font<'a> {
     ///
     /// NOTE: A common practice is to define glyphs in terms of a 1000-unit glyph coordinate
     ///       system, in which case the font matrix is [0.001 0 0 0.001 0 0]
-    font_matrix: Matrix,
+    pub font_matrix: Matrix,
 
     /// A dictionary in which each key shall be a glyph name and the value associated
     /// with that key shall be a content stream that constructs and paints the glyph for
     /// that character. The stream shall include as its first operator either d0 or d1,
     /// followed by operators describing one or more graphics objects, which may include
-    /// path, text, or image objects. See below for more details about Type 3 glyph descriptions
-    char_procs: HashMap<String, Stream<'a>>,
+    /// path, text, or image objects
+    pub char_procs: HashMap<String, Stream<'a>>,
 
-    /// An encoding dictionary whose Differences array shall specify the complete character encoding for this font
-    encoding: FontEncoding,
+    /// An encoding dictionary whose Differences array shall specify the complete
+    /// character encoding for this font
+    pub encoding: FontEncoding,
 
     /// A list of the named resources, such as fonts and images, required by the glyph
     /// descriptions in this font. If any glyph descriptions refer to named resources but this

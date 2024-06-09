@@ -10,7 +10,7 @@ use crate::{
 
 use super::embedded::{TrueTypeFontFile, Type1FontFile, Type3FontFile};
 
-#[derive(Debug, FromObj)]
+#[derive(Debug, FromObj, Clone)]
 #[obj_type("FontDescriptor")]
 pub struct FontDescriptor<'a> {
     /// The PostScript name of the font. This name shall be the same as the value of

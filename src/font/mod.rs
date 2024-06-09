@@ -18,6 +18,7 @@ pub use self::{
     cid::{CidFontSubtype, CidFontWidths, CidToGidMap},
     descriptor::FontDescriptor,
     embedded::Type3FontFile,
+    encoding::{FontEncoding, FontEncodingDict},
     glyph::Glyph,
     true_type::TrueTypeFont,
     type0::Type0Font,
@@ -120,7 +121,7 @@ impl<'a> FromObj<'a> for Font<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BaseFontDict<'a> {
     /// The name by which this font is referenced in the Font subdictionary
     /// of the current resource dictionary.
