@@ -5,6 +5,7 @@ use std::collections::VecDeque;
 use anyhow::anyhow;
 
 use crate::{
+    data_structures::Matrix,
     font::{true_type::table::TrueTypeGlyph, Glyph},
     geometry::{Outline, Path, Point},
 };
@@ -215,8 +216,8 @@ impl<'a> PointIterator<'a> {
             return self.first_point_on_curve;
         }
 
-        let x = *self.x_coords.get(self.cursor)? as f32 / 2048.0;
-        let y = *self.y_coords.get(self.cursor)? as f32 / 2048.0;
+        let x = *self.x_coords.get(self.cursor)? as f32;
+        let y = *self.y_coords.get(self.cursor)? as f32;
         let flag = *self.flags.get(self.cursor)?;
 
         let mut point = Point { x, y };
@@ -319,18 +320,20 @@ impl<'a> TrueTypeInterpreter<'a> {
             }
 
             if let Some(mut path) = path.take() {
-                path.close_path();
+                // path.close_path();
                 paths.push(path);
             }
 
             start = contour_end;
         }
 
+        // path.close_path();
         // self.execute().unwrap();
 
         // assert!(self.interpreter_stack.is_empty());
 
-        let outline = Outline { paths };
+        let mut outline = Outline { paths };
+        outline.apply_transform(Matrix::new_scale(1.0 / 2048.0, 1.0 / 2048.0));
 
         Ok(Glyph {
             width_vector: outline.bounding_box().max - outline.bounding_box().min,

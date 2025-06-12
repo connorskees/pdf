@@ -1,8 +1,8 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, cmp::Ordering};
 
 use crate::{
     error::PdfResult,
-    filter::dct::DctDecoder,
+    filter::{ccitt::CcitDecoderParams, dct::DctDecoder},
     objects::{Dictionary, Object},
     stream::StreamDict,
     FromObj, Resolve,
@@ -10,7 +10,10 @@ use crate::{
 
 use flate::{FlateDecoder, FlateDecoderParams};
 
+use self::ccitt::decode_ccitt_group_4;
+
 pub mod ascii;
+pub mod ccitt;
 pub mod dct;
 pub mod flate;
 
@@ -40,7 +43,7 @@ pub(crate) fn decode_stream<'a, 'b>(
                 FilterKind::Ascii85 => {
                     stream = ascii::decode_ascii_85(&stream);
                 }
-                FilterKind::Lzw => todo!(),
+                FilterKind::Lzw => todo!("lzw stream filter"),
                 FilterKind::Flate => {
                     let decoder_params =
                         FlateDecoderParams::from_obj(Object::Dictionary(decode_params), resolver)?;
@@ -48,11 +51,22 @@ pub(crate) fn decode_stream<'a, 'b>(
                     stream = FlateDecoder::new(Cow::Owned(stream), decoder_params)?.decode();
                 }
                 FilterKind::RunLength => todo!(),
-                FilterKind::CcittFax => todo!(),
-                FilterKind::Jbig2 => todo!(),
+                FilterKind::CcittFax => {
+                    let params =
+                        CcitDecoderParams::from_obj(Object::Dictionary(decode_params), resolver)?;
+
+                    assert_eq!(params.columns % 8, 0);
+
+                    match params.k.cmp(&0) {
+                        Ordering::Less => stream = decode_ccitt_group_4(&stream, params)?,
+                        Ordering::Equal => todo!("group 3 1-d ccitt compression"),
+                        Ordering::Greater => todo!("group 3 2-d ccitt compression"),
+                    }
+                }
+                FilterKind::Jbig2 => todo!("jbig2 stream filter"),
                 FilterKind::Dct => stream = DctDecoder::new(Cow::Owned(stream)).decode()?,
-                FilterKind::Jpx => todo!(),
-                FilterKind::Crypt => todo!(),
+                FilterKind::Jpx => todo!("jpx stream filter"),
+                FilterKind::Crypt => todo!("crypt stream filter"),
             }
         }
 

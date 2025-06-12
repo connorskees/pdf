@@ -133,7 +133,7 @@ impl FlateDecoder {
 
                 out.to_vec()
             }
-            _ => todo!(),
+            pred => todo!("unimplemented png filter: {:?}", pred),
         }
     }
 

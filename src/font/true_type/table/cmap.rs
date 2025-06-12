@@ -107,6 +107,7 @@ impl CmapSubtable {
                 if id_range_offset[idx] == 0 {
                     (id_delta[idx] as i32 + char_code as i32) as u32 % 65536
                 } else {
+                    // https://stackoverflow.com/questions/57461636/how-to-correctly-understand-truetype-cmaps-subtable-format-4
                     let addr = glyph_index_array[(idx as u16
                         + id_range_offset[idx] / 2
                         + (char_code as u16 - start_code)

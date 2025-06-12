@@ -236,6 +236,49 @@ const PADDING: [u8; 32] = [
     0x2E, 0x2E, 0x00, 0xB6, 0xD0, 0x68, 0x3E, 0x80, 0x2F, 0x0C, 0xA9, 0xFE, 0x64, 0x53, 0x69, 0x7A,
 ];
 
+/// RC4 encyption algorithm
+///
+/// https://en.wikipedia.org/wiki/RC4
+struct Rc4<'a> {
+    buffer: [u8; 256],
+    key: &'a [u8],
+}
+
+impl<'a> Rc4<'a> {
+    pub fn init(key: &'a [u8]) -> Self {
+        let mut buffer = [0; 256];
+        for i in 0..=255 {
+            buffer[i] = i as u8;
+        }
+        let mut j = 0_u8;
+        for i in 0..=255 {
+            j = j.wrapping_add(buffer[i]).wrapping_add(key[i % key.len()]);
+            buffer.swap(i, j as usize);
+        }
+
+        Self { buffer, key }
+    }
+
+    pub fn decode(&self, ciphertext: &[u8]) -> Vec<u8> {
+        let mut buffer = self.buffer;
+        let mut i = 0_u8;
+        let mut j = 0_u8;
+
+        let mut out = Vec::new();
+
+        for &b in ciphertext {
+            i = i.wrapping_add(1);
+            j = j.wrapping_add(buffer[i as usize]);
+            buffer.swap(i as usize, j as usize);
+            let t = buffer[i as usize].wrapping_add(buffer[j as usize]);
+            let k = buffer[t as usize];
+            out.push(k ^ b);
+        }
+
+        out
+    }
+}
+
 /// Manages encryption for entire document
 pub struct SecurityHandler<'a> {
     encryption: Encryption<'a>,
@@ -244,7 +287,9 @@ pub struct SecurityHandler<'a> {
 
 impl<'a> SecurityHandler<'a> {
     pub fn new(encryption: Encryption<'a>, file_identifier: FileIdentifier) -> Self {
+        assert_eq!(encryption.filter, Name("Standard".to_owned()));
         assert_eq!(encryption.length % 8, 0);
+        assert_eq!(encryption.revision_number, 4);
 
         Self {
             encryption,
@@ -253,13 +298,7 @@ impl<'a> SecurityHandler<'a> {
     }
 
     fn compute_encryption_key(&self, password: &[u8]) -> Vec<u8> {
-        let padded_password = if password.len() >= 32 {
-            password[..32].to_owned()
-        } else {
-            let mut b = password.to_owned();
-            b.extend_from_slice(&PADDING[..32 - password.len()]);
-            b
-        };
+        let padded_password = Self::pad(password);
 
         assert_eq!(padded_password.len(), 32);
 
@@ -271,29 +310,74 @@ impl<'a> SecurityHandler<'a> {
         hash.consume(&self.file_identifier.0[0].as_bytes());
 
         if self.encryption.revision_number >= 4 && !self.encryption.encrypt_metadata {
-            hash.consume(&[0xFF, 0xFF, 0xFF, 0xFF]);
+            hash.consume([0xFF, 0xFF, 0xFF, 0xFF]);
         }
 
         let mut hash = hash.compute();
 
         if self.encryption.revision_number >= 3 {
-            let n = self.encryption.length / 8;
+            let n = (self.encryption.length / 8).min(16) as usize;
             for _ in 0..50 {
-                hash = md5::compute(&hash[..n as usize]);
+                hash = md5::compute(&hash[..n]);
             }
         }
 
-        let n = if self.encryption.revision_number == 2 {
-            5
-        } else {
-            self.encryption.length / 8
-        };
+        // let n = if self.encryption.revision_number == 2 {
+        //     5
+        // } else {
+        //     self.encryption.length / 8
+        // };
 
-        hash[..n as usize].to_vec()
+        // hash[..n as usize].to_vec()
+        let mut key = [0u8; 32];
+        key[..16].copy_from_slice(&*hash);
+        key.to_vec()
     }
 
     pub fn decrypt_string(&mut self, s: Vec<u8>) -> PdfResult<String> {
         todo!()
+    }
+
+    fn pad(buffer: &[u8]) -> Vec<u8> {
+        if buffer.len() >= 32 {
+            buffer[..32].to_owned()
+        } else {
+            let mut b = buffer.to_owned();
+            b.extend_from_slice(&PADDING[..32 - buffer.len()]);
+            b
+        }
+    }
+
+    fn compute_user_password_revision_2(&self, password: &[u8]) -> Vec<u8> {
+        let key = self.compute_encryption_key(password);
+        let padded_password = Self::pad(password);
+        let rc4 = Rc4::init(&key);
+        // todo: decode what?
+        rc4.decode(&PADDING)
+    }
+
+    fn compute_user_password_revision_3_or_greater(&self, password: &[u8]) -> Vec<u8> {
+        let key = self.compute_encryption_key(password);
+
+        let mut hash = md5::Context::new();
+        hash.consume(&PADDING);
+        hash.consume(&self.file_identifier.0[0].as_bytes());
+        let hash = hash.compute();
+
+        let rc4 = Rc4::init(&key);
+        let encrypted = rc4.decode(&hash[..16]);
+
+        let mut key = key;
+        let mut encrypted = encrypted;
+        for i in 1..=19 {
+            for b in &mut key {
+                *b ^= i;
+            }
+            let rc4 = Rc4::init(&key);
+            encrypted = rc4.decode(&encrypted);
+        }
+
+        encrypted
     }
 
     pub fn decrypt_stream(&self, mut stream: Vec<u8>, reference: Reference) -> PdfResult<Vec<u8>> {
@@ -307,31 +391,67 @@ impl<'a> SecurityHandler<'a> {
             .unwrap();
 
         assert_eq!(filter.crypt_filter_method, CryptFilterMethod::AesV2);
+        assert_ne!(filter.auth_event, Some(AuthEvent::EFOpen));
 
-        dbg!(&self.encryption);
+        let user_pw = self.compute_user_password_revision_3_or_greater(b"");
 
-        let mut key = self.compute_encryption_key(&[]);
-        let key_len = key.len();
+        dbg!(
+            self.encryption.user.as_bytes().starts_with(&user_pw),
+            self.encryption.user.as_bytes(),
+            &user_pw
+        );
 
-        key.extend_from_slice(&reference.object_number.to_le_bytes()[..3]);
-        key.extend_from_slice(&reference.generation.to_le_bytes()[..2]);
-        key.extend_from_slice(b"sAlT");
+        assert!(self.encryption.user.as_bytes().starts_with(&user_pw));
+        // dbg!(&self.encryption);
 
-        let key = &md5::compute(&key)[..key_len];
+        // let mut key = self.compute_encryption_key(&[]);
+        // let key_len = key.len();
 
-        let mut dec = aes::Aes128Dec::new_from_slice(&key).unwrap();
+        // key.extend_from_slice(&reference.object_number.to_le_bytes()[..3]);
+        // key.extend_from_slice(&reference.generation.to_le_bytes()[..2]);
+        // key.extend_from_slice(b"sAlT");
 
-        let key = &[0; 32];
+        // let key = &md5::compute(&key)[..key_len];
 
-        assert_eq!(stream.len() % 16, 0);
+        // let mut dec = aes::Aes128Dec::new_from_slice(&key).unwrap();
 
-        type Aes128CbcDec = cbc::Decryptor<aes::Aes128>;
+        // // let key = &[0; 32];
 
-        let (iv, ciphertext) = stream.split_at_mut(16);
-        let cipher = Aes128CbcDec::new_from_slices(key, iv).unwrap();
+        // assert_eq!(stream.len() % 16, 0);
 
-        cipher.decrypt_padded_mut::<Pkcs7>(ciphertext).unwrap();
+        // type Aes128CbcDec = cbc::Decryptor<aes::Aes128>;
 
-        Ok(stream)
+        // let (iv, ciphertext) = stream.split_at_mut(16);
+        // let cipher = Aes128CbcDec::new_from_slices(key, iv).unwrap();
+
+        // cipher.decrypt_padded_mut::<Pkcs7>(ciphertext).unwrap();
+
+        // Ok(stream)
+        todo!()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Rc4;
+
+    #[test]
+    fn rc4_decode_works() {
+        let rc4 = Rc4::init(b"Key");
+        assert_eq!(
+            rc4.decode(&[0xBB, 0xF3, 0x16, 0xE8, 0xD9, 0x40, 0xAF, 0x0A, 0xD3]),
+            b"Plaintext"
+        );
+
+        let rc4 = Rc4::init(b"Wiki");
+        assert_eq!(rc4.decode(&[0x10, 0x21, 0xBF, 0x04, 0x20]), b"pedia");
+
+        let rc4 = Rc4::init(b"Secret");
+        assert_eq!(
+            rc4.decode(&[
+                0x45, 0xA0, 0x1F, 0x64, 0x5F, 0xC3, 0x5B, 0x38, 0x35, 0x52, 0x54, 0x4B, 0x9B, 0xF5
+            ]),
+            b"Attack at dawn"
+        );
     }
 }

@@ -526,9 +526,21 @@ impl<'a> Parser<'a> {
             _ => todo!(),
         };
 
+        let stream = stream.get_ref(&mut self.lexer)?.combined_buffer.clone();
+        let reference = Reference {
+            object_number: 3,
+            generation: 0,
+        };
+
+        let stream = match &self.lexer.security_handler {
+            Some(security_handler) => {
+                let stream = security_handler.decrypt_stream(stream, reference)?;
+                stream
+            }
+            None => stream,
+        };
+
         // todo: no copy
-        Ok(ContentLexer::new(Cow::Owned(
-            stream.get_ref(&mut self.lexer)?.combined_buffer.clone(),
-        )))
+        Ok(ContentLexer::new(Cow::Owned(stream)))
     }
 }
